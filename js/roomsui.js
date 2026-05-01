@@ -355,6 +355,40 @@ console.log("[Firestore] Placeholder invoice created ✅");
                 });
             } catch (e) { console.warn("[Sheets] Non-fatal:", e); }
 
+
+                        // ─────────── AUTOMATIC WHATSAPP NOTIFICATION (via Vercel API) ───────────
+            try {
+                let rawPhone = phone.replace(/\D/g, '');          // remove non‑digits
+                if (rawPhone.startsWith('0')) rawPhone = rawPhone.slice(1);
+                if (!rawPhone.startsWith('233')) rawPhone = '233' + rawPhone;
+                const whatsappNumber = rawPhone;
+
+                const bookingDetails =
+                    `Room: ${roomNumber}\n` +
+                    `Check-In: ${fmt(checkinDate)}\n` +
+                    `Check-Out: ${fmt(expectedCheckout)}\n` +
+                    `Nights: ${nights}\n` +
+                    `Guest: ${name}`;
+
+                await fetch('https://gtec-whatsapp-api.vercel.app/api/send-whatsapp', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-api-key': 'gtec-2026-wa-secret'      // must match Vercel's API_SECRET
+                    },
+                    body: JSON.stringify({
+                        customerPhone: whatsappNumber,
+                        bookingId: idNumber,
+                        bookingDetails: bookingDetails
+                    })
+                });
+                console.log('[WhatsApp] ✅ Auto‑message sent to', whatsappNumber);
+            } catch (err) {
+                console.warn('[WhatsApp] ⚠️ Failed to send (non‑critical):', err.message);
+            }
+            // ─────────────────────────────────────────────────────────────────────────
+
+
             bookingForm.reset();
 
             // ✅ Pass all booking data so the WA modal is fully pre-populated
