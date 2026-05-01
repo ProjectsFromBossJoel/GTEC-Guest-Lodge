@@ -1,0 +1,158 @@
+<!-- checkout.html -->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guest House Admin - Check-Out</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="icon" type="image/jpg" href="img/logo1.jpg">
+    <style>
+    /* Hide sidebar menu instantly until role is confirmed — prevents FOUC */
+    .sidebar-menu { visibility: hidden; }
+</style>
+
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">
+                    <img src="img/logo1.jpg" alt="Logo" class="logo" style="width: 40px; height: 40px;"> Guest Lodge
+                </div>
+            </div>
+
+            <div class="sidebar-menu">
+                <div class="menu-label">Main Menu</div>
+                <a href="dashboard.html" class="menu-item"><i class="fas fa-chart-pie"></i> Dashboard</a>
+                <a href="rooms.html" class="menu-item"><i class="fas fa-bed"></i> Rooms</a>
+
+                <div class="menu-label" style="margin-top: 20px;">Guest Activity</div>
+                <a href="checkin.html" class="menu-item"><i class="fas fa-sign-in-alt"></i> Check-In</a>
+                <a href="checkout.html" class="menu-item active"><i class="fas fa-sign-out-alt"></i> Check-Out</a>
+                <a href="guests.html" class="menu-item"><i class="fas fa-users"></i> Guests</a>
+                <a href="chatroom.html" class="menu-item"><i class="fas fa-comments"></i> Chat Room</a>
+                <a href="logs.html" class="menu-item"><i class="fas fa-clipboard-list"></i> Logs</a>
+                <a href="chat.html" class="menu-item"><i class="fas fa-comment"></i> Client Messages</a>
+                <a href="verification.html" class="menu-item"><i class="fas fa-user-check"></i> Verification</a>
+                <a href="invoice.html"      class="menu-item"><i class="fas fa-file-invoice"></i> Invoice</a>
+                <a href="payments.html"     class="menu-item active"><i class="fas fa-credit-card"></i> Payments</a>
+                <a href="calendar.html" class="menu-item"><i class="fas fa-calendar-alt"></i> Calendar</a>
+                <a href="filelibrary.html" class="menu-item"><i class="fas fa-folder-open"></i> File Library</a>
+
+                <div class="menu-label" style="margin-top: 20px;">Analysis</div>
+                <a href="reports.html" class="menu-item"><i class="fas fa-chart-bar"></i> Reports</a>
+                <div class="menu-label" style="margin-top:20px;">Administration</div>
+            <a href="profile.html" class="menu-item"><i class="fas fa-circle-user"></i> My Profile</a>
+                <a href="roles.html" class="menu-item"><i class="fas fa-user-shield"></i> Roles</a>
+            </div>
+
+            <div class="sidebar-footer">
+                <a href="#" id="logout-btn" class="menu-item" style="color:var(--status-occupied);padding-left:0;">
+                    <i class="fas fa-power-off"></i> Logout
+                </a>
+            </div>
+        </aside>
+
+        <!-- Main Content Wrapper -->
+        <main class="main-content">
+            <!-- Top Header -->
+            <header class="header">
+                <div class="toggle-sidebar" id="toggle-sidebar">
+                    <i class="fas fa-bars"></i>
+                </div>
+                <div class="header-right" style="margin-left: auto;">
+                    <a href="index.html">🏠 Home</a>
+                    <div class="user-profile" style="cursor:pointer;" onclick="window.location.href='profile.html'" title="View Profile">
+    <div class="user-avatar"><i class="fas fa-user"></i></div>
+    <span id="user-email-display" style="font-weight:500;">Admin</span>
+</div>
+                </div>
+            </header>
+
+            <!-- Check-Out Content -->
+            <div class="content-area">
+                <div class="page-header" style="flex-direction: row; justify-content: space-between;">
+                    <h1 class="page-title">Guest Check-Out</h1>
+                </div>
+
+                <div class="card">
+                    <div class="card-header" style="padding-bottom: 12px; border-bottom: none;">
+                        <h2 class="card-title">Currently Staying Guests</h2>
+                        <div class="search-box">
+                            <i class="fas fa-search"></i>
+                            <input type="text" id="search-guests" class="form-control"
+                                placeholder="Search by Guest or Room...">
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Guest Name</th>
+                                    <th>Phone</th>
+                                    <th>Room</th>
+                                    <th>Check-in Date</th>
+                                    <th>Expected Checkout</th>
+                                    <!-- ✅ New verification status column -->
+                                    <th>Verification</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="checkout-table-body">
+                                <tr>
+                                    <td colspan="7" style="text-align:center; color: var(--text-light);">
+                                        Loading active guests...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Checkout Confirmation Modal -->
+    <div class="modal-overlay" id="checkout-modal">
+        <div class="modal" style="max-width: 450px;">
+            <div class="modal-header">
+                <h2 class="modal-title">Confirm Checkout</h2>
+                <button class="close-modal"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to checkout guest <strong id="checkout-guest-name"></strong> from room
+                    <strong id="checkout-room-number"></strong>?</p>
+                <p style="font-size: 13px; color: var(--text-light); margin-top: 10px;">
+                    This will move the guest to history and mark the room as available.
+                </p>
+                <input type="hidden" id="checkout-guest-id">
+                <input type="hidden" id="checkout-room-id">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" id="cancel-checkout-btn">Cancel</button>
+                <button type="button" class="btn btn-primary" id="confirm-checkout-btn">Confirm Checkout</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+
+    <!-- App Scripts -->
+    <script src="js/firebase.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/checkout.js"></script>
+    <script src="js/logs.js"></script>
+    <script src="js/sidebar.js"></script>
+    <script src="js/chatnotify.js"></script>
+</body>
+
+</html>

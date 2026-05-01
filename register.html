@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guest House - Create Account</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="icon" type="image/jpg" href="img/logo1.jpg">
+
+    <style>
+        input[type="password"]::-ms-reveal,
+        input[type="password"]::-ms-clear,
+        input[type="password"]::-webkit-credentials-auto-fill-button,
+        input::-webkit-password-auto-fill-button { display: none !important; visibility: hidden; }
+
+        .auth-card { max-width: 460px; }
+
+        .divider {
+            display: flex; align-items: center; gap: 12px;
+            margin: 20px 0; color: #94a3b8; font-size: 13px; font-weight: 500;
+        }
+        .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: #e2e8f0; }
+
+        .btn-google {
+            display: flex; align-items: center; justify-content: center;
+            gap: 10px; width: 100%; padding: 11px 24px;
+            border: 1.5px solid #e2e8f0; border-radius: 8px;
+            background: #ffffff; color: #3c4043;
+            font-size: 14px; font-weight: 600; cursor: pointer;
+            transition: all 0.2s ease; font-family: 'Inter', sans-serif;
+        }
+        .btn-google:hover { background: #f8fafc; border-color: #c7d2fe; box-shadow: 0 2px 8px rgba(66,133,244,0.15); }
+        .btn-google:active { transform: translateY(1px); }
+        .btn-google svg { width: 18px; height: 18px; flex-shrink: 0; }
+        .btn-google:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        .password-strength { margin-top: 8px; }
+        .strength-bar { height: 4px; border-radius: 4px; background: #e2e8f0; overflow: hidden; margin-bottom: 4px; }
+        .strength-fill { height: 100%; border-radius: 4px; width: 0%; transition: width 0.3s ease, background 0.3s ease; }
+        .strength-text { font-size: 11px; font-weight: 600; color: #94a3b8; }
+
+        .login-link { margin-top: 20px; font-size: 13px; color: #64748b; text-align: center; }
+        .login-link a { color: #4361ee; font-weight: 600; text-decoration: none; transition: color 0.2s; }
+        .login-link a:hover { color: #3a56d4; text-decoration: underline; }
+
+        .notice-box {
+            background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px;
+            padding: 10px 14px; font-size: 12px; color: #0369a1;
+            line-height: 1.5; margin-bottom: 20px; text-align: left;
+        }
+        .notice-box i { margin-right: 6px; }
+
+        #success-screen { display: none; text-align: center; padding: 10px 0; }
+        .success-icon {
+            width: 72px; height: 72px; border-radius: 50%; background: #dcfce7;
+            display: flex; align-items: center; justify-content: center; margin: 0 auto 20px;
+        }
+        .success-icon i { color: #15803d; font-size: 28px; }
+    </style>
+</head>
+
+<body>
+    <div class="auth-container">
+        <div class="auth-card">
+            <img src="img/logo1.jpg" alt="Logo" class="logo" style="width:80px;height:80px;" align="center">
+            <h1 class="auth-title">Create Account</h1>
+            <p class="auth-subtitle">Register to access the Guest Lodge system.</p>
+
+            <!-- ── Success screen ──────────────────────────────────────── -->
+            <div id="success-screen">
+                <div class="success-icon"><i class="fas fa-check"></i></div>
+                <h2 style="font-size:20px;font-weight:700;color:#1e293b;margin-bottom:10px;">Account Submitted!</h2>
+                <p style="font-size:14px;color:#64748b;line-height:1.6;margin-bottom:20px;">
+                    Your account is <strong>pending approval</strong>. The System Administrator will review
+                    your request and assign your role. You can log in once approved.
+                </p>
+                <a href="admin.html" class="btn btn-primary" style="text-decoration:none;">
+                    <i class="fas fa-sign-in-alt"></i> Back to Login
+                </a>
+            </div>
+
+            <!-- ── Registration form ───────────────────────────────────── -->
+            <div id="register-section">
+
+                <div class="notice-box">
+                    <i class="fas fa-info-circle"></i>
+                    Your account will be reviewed by the <strong>System Administrator</strong> who will assign
+                    your role before you can access the system.
+                </div>
+
+                <button id="google-signup-btn" class="btn-google">
+                    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+                        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                    </svg>
+                    Sign up with Google
+                </button>
+
+                <div class="divider">or register with email</div>
+
+                <form id="register-form" autocomplete="off">
+                    <div class="form-group">
+                        <label for="reg-name">Full Name</label>
+                        <input type="text" id="reg-name" class="form-control" placeholder="e.g. Kwame Mensah" autocomplete="off" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="reg-email">Email Address</label>
+                        <input type="email" id="reg-email" class="form-control" placeholder="you@example.com" autocomplete="off" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="reg-password">Password</label>
+                        <div style="position:relative;">
+                            <input type="password" id="reg-password" class="form-control"
+                                placeholder="Minimum 6 characters" autocomplete="new-password" style="padding-right:44px;" required>
+                            <button type="button" id="toggle-reg-password"
+                                style="position:absolute;right:12px;top:50%;transform:translateY(-50%);
+                                       background:none;border:none;cursor:pointer;color:#94a3b8;font-size:15px;padding:0;line-height:1;">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                        <div class="password-strength" id="strength-container" style="display:none;">
+                            <div class="strength-bar"><div class="strength-fill" id="strength-fill"></div></div>
+                            <span class="strength-text" id="strength-text"></span>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="reg-confirm-password">Confirm Password</label>
+                        <div style="position:relative;">
+                            <input type="password" id="reg-confirm-password" class="form-control"
+                                placeholder="Re-enter your password" autocomplete="new-password" style="padding-right:44px;" required>
+                            <button type="button" id="toggle-confirm-password"
+                                style="position:absolute;right:12px;top:50%;transform:translateY(-50%);
+                                       background:none;border:none;cursor:pointer;color:#94a3b8;font-size:15px;padding:0;line-height:1;">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                        <div id="password-match-msg" style="font-size:12px;margin-top:5px;display:none;"></div>
+                    </div>
+
+                    <button type="submit" id="register-btn" class="btn btn-primary" style="margin-top:4px;">
+                        <i class="fas fa-user-plus"></i> Create Account
+                    </button>
+                </form>
+
+                <div id="register-alert" style="display:none;margin-top:16px;padding:12px 16px;
+                    border-radius:10px;font-size:13px;font-weight:600;text-align:center;line-height:1.5;">
+                </div>
+
+                <p class="login-link">Already have an account? <a href="admin.html">Sign in</a></p>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+    <script src="js/firebase.js"></script>
+    <script src="js/auth.js"></script>
+
+    <script>
+        // ── Helpers ───────────────────────────────────────────────────────
+        function showAlert(message, type = 'error') {
+            const el = document.getElementById('register-alert');
+            el.style.display = 'block';
+            const s = { error: ['#fef2f2','#fecaca','#dc2626'], success: ['#f0fdf4','#bbf7d0','#15803d'], warning: ['#fef9ec','#fde68a','#854d0e'] }[type] || ['#fef2f2','#fecaca','#dc2626'];
+            el.style.background = s[0]; el.style.border = `1px solid ${s[1]}`; el.style.color = s[2];
+            el.innerHTML = message;
+        }
+        function hideAlert() { document.getElementById('register-alert').style.display = 'none'; }
+        function showSuccessScreen() {
+            document.getElementById('register-section').style.display = 'none';
+            document.getElementById('success-screen').style.display = 'block';
+        }
+
+        // ── Save user as PENDING in Firestore ─────────────────────────────
+        // status: 'pending' = waiting for Super Admin approval
+        // status: 'active'  = approved, can log in
+        async function savePendingUser(uid, email, name, method) {
+            await db.collection('users').doc(uid).set({
+                uid,
+                email,
+                name,
+                role: 'observer',
+                status: 'pending',
+                registrationMethod: method,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            });
+        }
+
+        const GOOGLE_BTN_INNER = `
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width:18px;height:18px;flex-shrink:0;">
+                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+            </svg> Sign up with Google`;
+
+        // ══════════════════════════════════════════════════════════════════
+        // Google Sign-Up
+        // ══════════════════════════════════════════════════════════════════
+        document.getElementById('google-signup-btn').addEventListener('click', async () => {
+            const btn = document.getElementById('google-signup-btn');
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fas fa-spinner fa-spin" style="color:#4285F4;"></i> Signing up…`;
+            hideAlert();
+
+            try {
+                const provider = new firebase.auth.GoogleAuthProvider();
+                provider.setCustomParameters({ prompt: 'select_account' });
+                const result = await auth.signInWithPopup(provider);
+                const user = result.user;
+
+                const existingDoc = await db.collection('users').doc(user.uid).get();
+                if (existingDoc.exists) {
+                    await firebase.auth().signOut();
+                    showAlert(`<i class="fas fa-info-circle" style="margin-right:6px;"></i>
+                        An account already exists for <strong>${user.email}</strong>.
+                        <a href="admin.html" style="color:#4361ee;font-weight:700;">Sign in instead</a>.`, 'warning');
+                    btn.disabled = false;
+                    btn.innerHTML = GOOGLE_BTN_INNER;
+                    return;
+                }
+
+                await savePendingUser(user.uid, user.email, user.displayName || user.email.split('@')[0], 'google');
+                await firebase.auth().signOut(); // ← CRITICAL: sign out immediately
+                showSuccessScreen();
+
+            } catch (error) {
+                btn.disabled = false;
+                btn.innerHTML = GOOGLE_BTN_INNER;
+                if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') return;
+                showAlert(`<i class="fas fa-exclamation-circle" style="margin-right:6px;"></i>Google sign-up failed. Please try again.`, 'error');
+                console.error('[Register] Google error:', error);
+            }
+        });
+
+        // ══════════════════════════════════════════════════════════════════
+        // Password strength indicator
+        // ══════════════════════════════════════════════════════════════════
+        document.getElementById('reg-password').addEventListener('input', function () {
+            const val = this.value;
+            const container = document.getElementById('strength-container');
+            const fill = document.getElementById('strength-fill');
+            const text = document.getElementById('strength-text');
+            if (!val) { container.style.display = 'none'; return; }
+            container.style.display = 'block';
+            let score = 0;
+            if (val.length >= 6) score++;
+            if (val.length >= 10) score++;
+            if (/[A-Z]/.test(val)) score++;
+            if (/[0-9]/.test(val)) score++;
+            if (/[^A-Za-z0-9]/.test(val)) score++;
+            const levels = [
+                { label: 'Very Weak', color: '#ef4444', width: '20%' },
+                { label: 'Weak', color: '#f97316', width: '40%' },
+                { label: 'Fair', color: '#eab308', width: '60%' },
+                { label: 'Strong', color: '#22c55e', width: '80%' },
+                { label: 'Very Strong', color: '#15803d', width: '100%' },
+            ];
+            const level = levels[Math.min(score - 1, 4)] || levels[0];
+            fill.style.width = level.width; fill.style.background = level.color;
+            text.style.color = level.color; text.textContent = level.label;
+        });
+
+        // ── Password match ────────────────────────────────────────────────
+        function checkPasswordMatch() {
+            const p1 = document.getElementById('reg-password').value;
+            const p2 = document.getElementById('reg-confirm-password').value;
+            const msg = document.getElementById('password-match-msg');
+            if (!p2) { msg.style.display = 'none'; return; }
+            msg.style.display = 'block';
+            if (p1 === p2) {
+                msg.style.color = '#15803d';
+                msg.innerHTML = '<i class="fas fa-check-circle" style="margin-right:4px;"></i>Passwords match';
+            } else {
+                msg.style.color = '#dc2626';
+                msg.innerHTML = '<i class="fas fa-times-circle" style="margin-right:4px;"></i>Passwords do not match';
+            }
+        }
+        document.getElementById('reg-confirm-password').addEventListener('input', checkPasswordMatch);
+        document.getElementById('reg-password').addEventListener('input', checkPasswordMatch);
+
+        // ── Password toggles ──────────────────────────────────────────────
+        function setupToggle(btnId, inputId) {
+            document.getElementById(btnId).addEventListener('click', function () {
+                const input = document.getElementById(inputId);
+                const icon = this.querySelector('i');
+                input.type = input.type === 'password' ? 'text' : 'password';
+                icon.className = input.type === 'password' ? 'fas fa-eye' : 'fas fa-eye-slash';
+            });
+        }
+        setupToggle('toggle-reg-password', 'reg-password');
+        setupToggle('toggle-confirm-password', 'reg-confirm-password');
+
+        // ══════════════════════════════════════════════════════════════════
+        // Email/Password Registration
+        // ══════════════════════════════════════════════════════════════════
+        document.getElementById('register-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            hideAlert();
+
+            const name     = document.getElementById('reg-name').value.trim();
+            const email    = document.getElementById('reg-email').value.trim().toLowerCase();
+            const password = document.getElementById('reg-password').value;
+            const confirm  = document.getElementById('reg-confirm-password').value;
+            const btn      = document.getElementById('register-btn');
+
+            if (!name) { showAlert('<i class="fas fa-exclamation-circle" style="margin-right:6px;"></i>Please enter your full name.', 'error'); return; }
+            if (password.length < 6) { showAlert('<i class="fas fa-exclamation-circle" style="margin-right:6px;"></i>Password must be at least 6 characters.', 'error'); return; }
+            if (password !== confirm) { showAlert('<i class="fas fa-exclamation-circle" style="margin-right:6px;"></i>Passwords do not match.', 'error'); return; }
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating Account…';
+
+            try {
+                const credential = await auth.createUserWithEmailAndPassword(email, password);
+                const user = credential.user;
+                await user.updateProfile({ displayName: name });
+
+                await savePendingUser(user.uid, email, name, 'email');
+                await firebase.auth().signOut(); // ← CRITICAL: sign out immediately
+
+                showSuccessScreen();
+
+            } catch (error) {
+                console.error('[Register] Error:', error);
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-user-plus"></i> Create Account';
+                let msg = 'Registration failed. Please try again.';
+                if (error.code === 'auth/email-already-in-use')
+                    msg = `An account with <strong>${email}</strong> already exists. <a href="admin.html" style="color:#4361ee;font-weight:700;">Sign in instead</a>.`;
+                else if (error.code === 'auth/invalid-email') msg = 'Please enter a valid email address.';
+                else if (error.code === 'auth/weak-password') msg = 'Password must be at least 6 characters.';
+                showAlert(`<i class="fas fa-exclamation-circle" style="margin-right:6px;"></i>${msg}`, 'error');
+            }
+        });
+
+        ['reg-name','reg-email','reg-password','reg-confirm-password'].forEach(id => {
+            document.getElementById(id).addEventListener('input', hideAlert);
+        });
+    </script>
+</body>
+</html>

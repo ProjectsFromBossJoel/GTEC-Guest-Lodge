@@ -1,0 +1,1081 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guest House Admin - Reports</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/jpg" href="img/logo1.jpg">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    
+    <style>
+    /* Hide sidebar menu instantly until role is confirmed — prevents FOUC */
+    .sidebar-menu { visibility: hidden; }
+</style>
+
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        .content-area {
+            font-family: 'Nunito', sans-serif;
+            background: #f0f4f8;
+            padding: 24px;
+            min-height: 100vh;
+            max-width: 100%;
+            overflow-x: hidden;
+        }
+
+        /* ── Page Header ── */
+        .rpt-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:28px; flex-wrap:wrap; gap:12px; }
+        .rpt-title  { font-family:'Syne',sans-serif; font-size:26px; font-weight:800; color:#1a2942; letter-spacing:-0.5px; }
+        .rpt-subtitle { font-size:13px; color:#64748b; margin-top:2px; }
+        .rpt-actions  { display:flex; gap:10px; align-items:center; }
+
+        .rpt-badge {
+            display:flex; align-items:center; gap:6px;
+            font-size:12px; font-weight:700; color:#16a34a;
+            background:#dcfce7; padding:5px 12px; border-radius:20px;
+        }
+        .rpt-badge .dot {
+            width:7px; height:7px; background:#16a34a; border-radius:50%;
+            animation: livePulse 1.5s ease-in-out infinite;
+        }
+        @keyframes livePulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(1.3)} }
+
+        .btn-refresh {
+            display:flex; align-items:center; gap:7px;
+            font-family:'Nunito',sans-serif; font-size:13px; font-weight:700;
+            color:#1a2942; background:white; border:1px solid #e2e8f0;
+            padding:8px 16px; border-radius:8px; cursor:pointer;
+            transition:all .2s; box-shadow:0 1px 3px rgba(0,0,0,.06);
+        }
+        .btn-refresh:hover { background:#1a2942; color:white; border-color:#1a2942; }
+        .btn-refresh.spinning i { animation:spin .8s linear infinite; }
+        @keyframes spin { to { transform:rotate(360deg); } }
+
+        .btn-download {
+            display:flex; align-items:center; gap:7px;
+            font-family:'Nunito',sans-serif; font-size:13px; font-weight:700;
+            color:white; background:#1a2942; border:1px solid #1a2942;
+            padding:8px 16px; border-radius:8px; cursor:pointer;
+            transition:all .2s; box-shadow:0 1px 3px rgba(0,0,0,.12);
+        }
+        .btn-download:hover { background:#0f2235; border-color:#0f2235; }
+        .btn-download.loading { opacity:0.7; cursor:not-allowed; }
+
+        .btn-export {
+            display:flex; align-items:center; gap:7px;
+            font-family:'Nunito',sans-serif; font-size:13px; font-weight:700;
+            color:#1a2942; background:#e8f5e9; border:1px solid #a5d6a7;
+            padding:8px 16px; border-radius:8px; cursor:pointer;
+            transition:all .2s; box-shadow:0 1px 3px rgba(0,0,0,.06);
+        }
+        .btn-export:hover { background:#22c55e; color:white; border-color:#22c55e; }
+        .btn-export.loading { opacity:0.7; cursor:not-allowed; }
+
+        /* ── KPI Cards — new style matching screenshot ── */
+        .kpi-grid {
+            display:grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap:14px;
+            margin-bottom:24px;
+        }
+        @media(max-width:700px){ .kpi-grid{ grid-template-columns: repeat(2,1fr); } }
+
+        .kpi-card {
+            background:white;
+            border-radius:16px;
+            padding:18px 16px 14px;
+            box-shadow:0 2px 8px rgba(0,0,0,0.07);
+            border:1px solid #f1f5f9;
+            position:relative;
+            overflow:hidden;
+            transition:transform .2s, box-shadow .2s;
+            animation:fadeUp .5s ease both;
+            display:flex;
+            flex-direction:column;
+            gap:10px;
+            min-width:0;
+        }
+        .kpi-card:hover { transform:translateY(-3px); box-shadow:0 10px 28px rgba(0,0,0,0.11); }
+
+        /* Coloured top border */
+        .kpi-card::before {
+            content:''; position:absolute; top:0; left:0; right:0; height:4px; border-radius:16px 16px 0 0;
+        }
+        .kpi-card.blue::before   { background:#3b82f6; }
+        .kpi-card.green::before  { background:#22c55e; }
+        .kpi-card.red::before    { background:#ef4444; }
+        .kpi-card.amber::before  { background:#f59e0b; }
+        .kpi-card.indigo::before { background:#6366f1; }
+        .kpi-card.teal::before   { background:#14b8a6; }
+
+        /* Icon bubble */
+        .kpi-icon {
+            width:44px; height:44px; border-radius:12px;
+            display:flex; align-items:center; justify-content:center; font-size:19px;
+        }
+        .kpi-card.blue   .kpi-icon { background:#eff6ff; color:#3b82f6; }
+        .kpi-card.green  .kpi-icon { background:#f0fdf4; color:#22c55e; }
+        .kpi-card.red    .kpi-icon { background:#fef2f2; color:#ef4444; }
+        .kpi-card.amber  .kpi-icon { background:#fffbeb; color:#f59e0b; }
+        .kpi-card.indigo .kpi-icon { background:#eef2ff; color:#6366f1; }
+        .kpi-card.teal   .kpi-icon { background:#f0fdfa; color:#14b8a6; }
+
+        /* ✅ Big number — Nunito Black, large, matching screenshot style */
+        .kpi-value {
+            font-family:'Nunito', sans-serif;
+            font-size:36px;
+            font-weight:900;
+            color:#1a2942;
+            line-height:1;
+            letter-spacing:-1px;
+        }
+
+        /* ✅ Label — smaller, grey, Nunito bold */
+        .kpi-label {
+            font-family:'Nunito', sans-serif;
+            font-size:12px;
+            font-weight:700;
+            color:#94a3b8;
+            text-transform:uppercase;
+            letter-spacing:1px;
+        }
+
+        /* ── Chart layout ── */
+        .chart-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px; min-width:0; overflow:hidden; }
+        @media(max-width:900px){ .chart-grid{grid-template-columns:1fr} .chart-wide{grid-column:span 1!important} }
+        .chart-wide { grid-column:span 2; }
+
+        .chart-card {
+            background:white; border-radius:14px; padding:20px 22px;
+            box-shadow:0 1px 4px rgba(0,0,0,.06); border:1px solid #f1f5f9;
+            animation:fadeUp .5s ease both;
+            min-width:0; overflow:hidden;
+        }
+        /* ✅ Smaller chart cards for donut charts */
+        .chart-card.compact { padding:16px 18px; }
+        .chart-card.compact canvas { max-height:160px; }
+
+        .chart-card-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+        .chart-card-title  { font-family:'Syne',sans-serif; font-size:14px; font-weight:700; color:#1a2942; }
+        .chart-card-sub    { font-size:11px; color:#94a3b8; margin-top:2px; }
+        .chart-tag         { font-size:11px; font-weight:600; padding:3px 10px; border-radius:20px; background:#f1f5f9; color:#64748b; }
+
+        /* ── Occupancy bar ── */
+        .occ-wrap { margin-top:6px; }
+        .occ-bar-track { height:12px; background:#f1f5f9; border-radius:10px; overflow:hidden; margin:8px 0 5px; }
+        .occ-bar-fill  { height:100%; border-radius:10px; transition:width 1.2s cubic-bezier(.4,0,.2,1); background:linear-gradient(90deg,#3b82f6,#6366f1); }
+        .occ-labels    { display:flex; justify-content:space-between; font-size:11px; color:#64748b; font-weight:600; }
+
+        /* ── Status legend ── */
+        .status-legend { display:flex; flex-wrap:wrap; gap:10px; margin-top:12px; }
+        .legend-item   { display:flex; align-items:center; gap:6px; font-size:12px; color:#475569; font-weight:600; }
+        .legend-dot    { width:9px; height:9px; border-radius:3px; flex-shrink:0; }
+
+        /* ── Recent guests table ── */
+        .recent-table { width:100%; border-collapse:collapse; font-size:13px; }
+        .recent-table th { text-align:left; padding:9px 12px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.8px; color:#94a3b8; border-bottom:1px solid #f1f5f9; }
+        .recent-table td { padding:11px 12px; color:#334155; border-bottom:1px solid #f8fafc; vertical-align:middle; }
+        .recent-table tr:last-child td { border-bottom:none; }
+        .recent-table tr:hover td { background:#f8fafc; }
+
+        .guest-avatar {
+            width:30px; height:30px; border-radius:50%;
+            background:linear-gradient(135deg,#1a2942,#3b82f6);
+            display:inline-flex; align-items:center; justify-content:center;
+            color:white; font-size:11px; font-weight:800; margin-right:9px; flex-shrink:0;
+        }
+        .guest-name-cell { display:flex; align-items:center; }
+
+        .status-pill { display:inline-block; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:700; }
+        .pill-green  { background:#dcfce7; color:#16a34a; }
+        .pill-blue   { background:#dbeafe; color:#1d4ed8; }
+        .pill-amber  { background:#fef3c7; color:#d97706; }
+        .pill-red    { background:#fee2e2; color:#dc2626; }
+
+        /* ── Empty state ── */
+        .empty-state { text-align:center; padding:28px; color:#94a3b8; font-size:13px; }
+        .empty-state i { font-size:26px; margin-bottom:8px; display:block; }
+
+        /* ── Animations ── */
+        @keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+        .kpi-card:nth-child(1){animation-delay:.05s} .kpi-card:nth-child(2){animation-delay:.10s}
+        .kpi-card:nth-child(3){animation-delay:.15s} .kpi-card:nth-child(4){animation-delay:.20s}
+        .kpi-card:nth-child(5){animation-delay:.25s} .kpi-card:nth-child(6){animation-delay:.30s}
+
+        #last-updated { font-size:12px; color:#94a3b8; margin-top:16px; text-align:right; }
+    </style>
+</head>
+
+<body>
+<div class="app-container">
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-logo">
+                <img src="img/logo1.jpg" alt="Logo" style="width:40px;height:40px;"> Guest Lodge
+            </div>
+        </div>
+        <div class="sidebar-menu">
+            <div class="menu-label">Main Menu</div>
+            <a href="dashboard.html" class="menu-item"><i class="fas fa-chart-pie"></i> Dashboard</a>
+            <a href="rooms.html"     class="menu-item"><i class="fas fa-bed"></i> Rooms</a>
+            <div class="menu-label" style="margin-top:20px;">Guest Activity</div>
+            <a href="checkin.html"      class="menu-item"><i class="fas fa-sign-in-alt"></i> Check-In</a>
+            <a href="checkout.html"     class="menu-item"><i class="fas fa-sign-out-alt"></i> Check-Out</a>
+            <a href="guests.html"       class="menu-item"><i class="fas fa-users"></i> Guests</a>
+            <a href="chatroom.html" class="menu-item"><i class="fas fa-comments"></i> Chat Room</a>
+            <a href="logs.html"         class="menu-item"><i class="fas fa-clipboard-list"></i> Logs</a>
+            <a href="chat.html"         class="menu-item"><i class="fas fa-comment"></i> Client Messages</a>
+            <a href="verification.html" class="menu-item"><i class="fas fa-user-check"></i> Verification</a>
+            <a href="invoice.html" class="menu-item"><i class="fas fa-file-invoice"></i> Invoice</a>
+            <a href="payments.html"     class="menu-item active"><i class="fas fa-credit-card"></i> Payments</a>
+            <a href="calendar.html" class="menu-item"><i class="fas fa-calendar-alt"></i> Calendar</a>
+            <a href="filelibrary.html" class="menu-item"><i class="fas fa-folder-open"></i> File Library</a>
+
+            <div class="menu-label" style="margin-top:20px;">Analysis</div>
+            <a href="reports.html" class="menu-item active"><i class="fas fa-chart-bar"></i> Reports</a>
+
+            <div class="menu-label" style="margin-top:20px;">Administration</div>
+            <a href="profile.html" class="menu-item"><i class="fas fa-circle-user"></i> My Profile</a>
+            <a href="roles.html" class="menu-item"><i class="fas fa-user-shield"></i> Roles</a>
+        </div>
+        <div class="sidebar-footer">
+            <a href="#" id="logout-btn" class="menu-item" style="color:var(--status-occupied);padding-left:0;">
+                    <i class="fas fa-power-off"></i> Logout
+                </a>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <header class="header">
+            <div class="toggle-sidebar" id="toggle-sidebar"><i class="fas fa-bars"></i></div>
+            <div class="header-right" style="margin-left:auto;">
+                <a href="index.html">&#127968; Home</a>
+                <div class="user-profile" style="cursor:pointer;" onclick="window.location.href='profile.html'" title="View Profile">
+    <div class="user-avatar"><i class="fas fa-user"></i></div>
+    <span id="user-email-display" style="font-weight:500;">Admin</span>
+</div>
+            </div>
+        </header>
+
+        <div class="content-area">
+
+            <!-- Header -->
+            <div class="rpt-header">
+                <div>
+                    <div class="rpt-title">Analytics &amp; Reports</div>
+                    <div class="rpt-subtitle">Live overview of GTEC Guest Lodge operations</div>
+                </div>
+                <div class="rpt-actions">
+                    <div class="rpt-badge"><span class="dot"></span> Live</div>
+                    <button class="btn-export" id="export-btn" onclick="exportExcel()">
+                        <i class="fas fa-file-excel"></i> Export Data
+                    </button>
+                    <button class="btn-download" id="download-btn" onclick="downloadPDF()">
+                        <i class="fas fa-file-pdf"></i> Download Report
+                    </button>
+                    <button class="btn-refresh" id="refresh-btn" onclick="refreshAll()">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                </div>
+            </div>
+
+            <!-- ✅ KPI Cards — Nunito font, large numbers, icon bubbles -->
+            <div class="kpi-grid">
+                <div class="kpi-card blue">
+                    <div class="kpi-icon"><i class="fas fa-bed"></i></div>
+                    <div class="kpi-value" id="kpi-total">—</div>
+                    <div class="kpi-label">Total Rooms</div>
+                </div>
+                <div class="kpi-card green">
+                    <div class="kpi-icon"><i class="fas fa-door-open"></i></div>
+                    <div class="kpi-value" id="kpi-available">—</div>
+                    <div class="kpi-label">Available</div>
+                </div>
+                <div class="kpi-card red">
+                    <div class="kpi-icon"><i class="fas fa-door-closed"></i></div>
+                    <div class="kpi-value" id="kpi-occupied">—</div>
+                    <div class="kpi-label">Occupied</div>
+                </div>
+                <div class="kpi-card amber">
+                    <div class="kpi-icon"><i class="fas fa-users"></i></div>
+                    <div class="kpi-value" id="kpi-guests">—</div>
+                    <div class="kpi-label">Active Guests</div>
+                </div>
+                <div class="kpi-card indigo">
+                    <div class="kpi-icon"><i class="fas fa-plane-arrival"></i></div>
+                    <div class="kpi-value" id="kpi-checkins">—</div>
+                    <div class="kpi-label">Today's Check-ins</div>
+                </div>
+                <div class="kpi-card teal">
+                    <div class="kpi-icon"><i class="fas fa-plane-departure"></i></div>
+                    <div class="kpi-value" id="kpi-checkouts">—</div>
+                    <div class="kpi-label">Today's Check-outs</div>
+                </div>
+            </div>
+
+            <!-- ✅ Row 1: 3 compact donut charts side by side -->
+            <div class="chart-grid" style="grid-template-columns:repeat(3,1fr);min-width:0;overflow:hidden;">
+
+                <div class="chart-card compact">
+                    <div class="chart-card-header">
+                        <div>
+                            <div class="chart-card-title">Occupancy Rate</div>
+                            <div class="chart-card-sub">Occupied vs available</div>
+                        </div>
+                        <span class="chart-tag" id="occ-pct-tag">0%</span>
+                    </div>
+                    <div class="occ-wrap">
+                        <div style="display:flex;justify-content:space-between;font-size:12px;color:#334155;font-weight:700;">
+                            <span id="occ-occupied-label">0 Occupied</span>
+                            <span id="occ-total-label">0 Total</span>
+                        </div>
+                        <div class="occ-bar-track"><div class="occ-bar-fill" id="occ-bar" style="width:0%;"></div></div>
+                        <div class="occ-labels"><span>0%</span><span>50%</span><span>100%</span></div>
+                    </div>
+                    <canvas id="chartOccupancy" height="140" style="margin-top:14px;"></canvas>
+                </div>
+
+                <div class="chart-card compact">
+                    <div class="chart-card-header">
+                        <div>
+                            <div class="chart-card-title">Room Status</div>
+                            <div class="chart-card-sub">All statuses breakdown</div>
+                        </div>
+                    </div>
+                    <canvas id="chartRoomStatus" height="160"></canvas>
+                    <div class="status-legend" id="status-legend"></div>
+                </div>
+
+                <div class="chart-card compact">
+                    <div class="chart-card-header">
+                        <div>
+                            <div class="chart-card-title">Verification</div>
+                            <div class="chart-card-sub">Verified vs unverified</div>
+                        </div>
+                    </div>
+                    <canvas id="chartVerification" height="160"></canvas>
+                </div>
+
+            </div>
+
+            <!-- ✅ Row 2: Recent Guests (full width, same size as weekly chart) -->
+            <div class="chart-grid">
+                <div class="chart-card chart-wide">
+                    <div class="chart-card-header">
+                        <div>
+                            <div class="chart-card-title">Recent Guest Activity</div>
+                            <div class="chart-card-sub">Latest 5 check-ins</div>
+                        </div>
+                    </div>
+                    <table class="recent-table">
+                        <thead>
+                            <tr>
+                                <th>Guest</th>
+                                <th>Room</th>
+                                <th>Check-in</th>
+                                <th>Expected Checkout</th>
+                                <th>Verification</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recent-guests-body">
+                            <tr><td colspan="5" class="empty-state"><i class="fas fa-spinner fa-spin"></i>Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- ✅ Row 3: Weekly check-in chart (full width, at the bottom) -->
+            <div class="chart-grid">
+                <div class="chart-card chart-wide">
+                    <div class="chart-card-header">
+                        <div>
+                            <div class="chart-card-title">Check-in Activity — Last 7 Days</div>
+                            <div class="chart-card-sub">Daily guest arrivals this week</div>
+                        </div>
+                        <span class="chart-tag">Weekly</span>
+                    </div>
+                    <canvas id="chartWeekly" height="90"></canvas>
+                </div>
+            </div>
+
+            <div id="last-updated"></div>
+        </div>
+    </main>
+</div>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+<script src="js/firebase.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/logs.js"></script>
+<script src="js/sidebar.js"></script>
+<script src="js/chatnotify.js"></script>
+
+
+<script>
+let chartOccupancy=null, chartRoomStatus=null, chartWeekly=null, chartVerification=null;
+
+function setText(id,val){ const el=document.getElementById(id); if(el) el.textContent=val; }
+
+function getSafeDateStr(field,str){
+    if(field&&typeof field.toDate==='function'){ try{return field.toDate().toISOString();}catch(e){} }
+    return str||'';
+}
+
+function getTodayStr(){
+    const d=new Date(); d.setMinutes(d.getMinutes()-d.getTimezoneOffset());
+    return d.toISOString().split('T')[0];
+}
+
+function getLast7Days(){
+    const days=[];
+    for(let i=6;i>=0;i--){ const d=new Date(); d.setDate(d.getDate()-i); days.push(d.toISOString().split('T')[0]); }
+    return days;
+}
+
+function getShortDay(iso){
+    return new Date(iso+'T00:00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric'});
+}
+
+function destroyAndCreate(existing,createFn){ if(existing) existing.destroy(); return createFn(); }
+
+const STATUS_COLORS={available:'#22c55e',occupied:'#ef4444',reserved:'#3b82f6',maintenance:'#a855f7',cleaning:'#f59e0b'};
+
+// ✅ Global store for PDF — updated every time loadReports() runs
+window._rptData = {};
+
+async function loadReports(){
+    try {
+        const today=getTodayStr(), last7=getLast7Days();
+
+        // Rooms
+        const roomsSnap=await db.collection('rooms').get();
+        const statusMap={};
+        let totalRooms=0,occupied=0,available=0;
+        roomsSnap.forEach(doc=>{
+            const st=(doc.data().status||'unknown').toLowerCase();
+            statusMap[st]=(statusMap[st]||0)+1;
+            totalRooms++;
+            if(st==='occupied') occupied++;
+            if(st==='available') available++;
+        });
+        const occPct=totalRooms?Math.round((occupied/totalRooms)*100):0;
+
+        // Guests
+        const guestsSnap=await db.collection('guests').get();
+        const historySnap=await db.collection('history').get();
+        let activeGuests=0,todayCheckins=0,todayCheckouts=0,verified=0,unverified=0;
+        const weeklyMap={}; last7.forEach(d=>weeklyMap[d]=0);
+        const recentGuests=[];
+
+        guestsSnap.forEach(doc=>{
+            const g=doc.data(); activeGuests++;
+            const ciStr=getSafeDateStr(g.checkinDate,g.checkinDateStr);
+            if(ciStr.startsWith(today)) todayCheckins++;
+            const ciDate=ciStr.split('T')[0];
+            if(weeklyMap.hasOwnProperty(ciDate)) weeklyMap[ciDate]++;
+            if(g.verified===true) verified++; else unverified++;
+            recentGuests.push({...g, _ts:ciStr});
+        });
+
+        historySnap.forEach(doc=>{
+            const h=doc.data();
+            const coStr=getSafeDateStr(h.checkoutDate,h.checkoutDateStr);
+            if(coStr.startsWith(today)) todayCheckouts++;
+        });
+
+        recentGuests.sort((a,b)=>b._ts.localeCompare(a._ts));
+        const top5=recentGuests.slice(0,5);
+
+        // KPIs
+        setText('kpi-total',totalRooms); setText('kpi-available',available);
+        setText('kpi-occupied',occupied); setText('kpi-guests',activeGuests);
+        setText('kpi-checkins',todayCheckins); setText('kpi-checkouts',todayCheckouts);
+
+        // ✅ Store all data globally for PDF export
+        window._rptData = {
+            totalRooms, available, occupied, activeGuests,
+            todayCheckins, todayCheckouts, occPct,
+            statusMap, verified, unverified,
+            weeklyLabels: last7.map(getShortDay),
+            weeklyData:   last7.map(d=>weeklyMap[d]),
+            today,
+            top5   // ← used by PDF guest table
+        };
+
+        // Occupancy bar
+        setText('occ-pct-tag',`${occPct}%`);
+        setText('occ-occupied-label',`${occupied} Occupied`);
+        setText('occ-total-label',`${totalRooms} Total`);
+        const bar=document.getElementById('occ-bar');
+        if(bar){
+            bar.style.width=`${occPct}%`;
+            bar.style.background=occPct<50?'linear-gradient(90deg,#22c55e,#16a34a)':occPct<80?'linear-gradient(90deg,#f59e0b,#d97706)':'linear-gradient(90deg,#ef4444,#dc2626)';
+        }
+
+        // Chart 1: Occupancy donut
+        const c1=document.getElementById('chartOccupancy').getContext('2d');
+        chartOccupancy=destroyAndCreate(chartOccupancy,()=>new Chart(c1,{
+            type:'doughnut',
+            data:{ labels:['Occupied','Available'], datasets:[{data:[occupied,available],backgroundColor:['#ef4444','#22c55e'],borderWidth:0,hoverOffset:5}] },
+            options:{ cutout:'72%', plugins:{ legend:{position:'bottom',labels:{font:{family:'Nunito',size:12,weight:'700'},padding:12}}, tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${ctx.raw}`}} } }
+        }));
+
+        // Chart 2: Room status donut
+        const statusLabels=Object.keys(statusMap).map(s=>s.charAt(0).toUpperCase()+s.slice(1));
+        const statusValues=Object.values(statusMap);
+        const statusBg=Object.keys(statusMap).map(s=>STATUS_COLORS[s]||'#94a3b8');
+        const c2=document.getElementById('chartRoomStatus').getContext('2d');
+        chartRoomStatus=destroyAndCreate(chartRoomStatus,()=>new Chart(c2,{
+            type:'doughnut',
+            data:{ labels:statusLabels, datasets:[{data:statusValues,backgroundColor:statusBg,borderWidth:0,hoverOffset:5}] },
+            options:{ cutout:'60%', plugins:{ legend:{display:false}, tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${ctx.raw}`}} } }
+        }));
+        const legend=document.getElementById('status-legend');
+        if(legend) legend.innerHTML=Object.keys(statusMap).map(s=>`<div class="legend-item"><div class="legend-dot" style="background:${STATUS_COLORS[s]||'#94a3b8'}"></div>${s.charAt(0).toUpperCase()+s.slice(1)}: <strong>${statusMap[s]}</strong></div>`).join('');
+
+        // Chart 3: Verification donut
+        const c4=document.getElementById('chartVerification').getContext('2d');
+        chartVerification=destroyAndCreate(chartVerification,()=>new Chart(c4,{
+            type:'doughnut',
+            data:{ labels:['Verified','Not Verified'], datasets:[{data:[verified,unverified],backgroundColor:['#22c55e','#ef4444'],borderWidth:0,hoverOffset:5}] },
+            options:{ cutout:'65%', plugins:{ legend:{position:'bottom',labels:{font:{family:'Nunito',size:12,weight:'700'},padding:12}}, tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${ctx.raw}`}} } }
+        }));
+
+        // Chart 4: Weekly bar (at bottom)
+        const c3=document.getElementById('chartWeekly').getContext('2d');
+        chartWeekly=destroyAndCreate(chartWeekly,()=>new Chart(c3,{
+            type:'bar',
+            data:{
+                labels:last7.map(getShortDay),
+                datasets:[{
+                    label:'Check-ins',
+                    data:last7.map(d=>weeklyMap[d]),
+                    backgroundColor:last7.map(d=>d===today?'#1a2942':'#bfdbfe'),
+                    borderRadius:8,
+                    borderSkipped:false
+                }]
+            },
+            options:{
+                responsive:true,
+                plugins:{
+                    legend:{display:false},
+                    tooltip:{callbacks:{label:ctx=>` ${ctx.raw} check-in${ctx.raw!==1?'s':''}`}}
+                },
+                scales:{
+                    x:{grid:{display:false},ticks:{font:{family:'Nunito',size:12,weight:'700'}}},
+                    y:{beginAtZero:true,ticks:{stepSize:1,font:{family:'Nunito',size:12}},grid:{color:'#f1f5f9'}}
+                }
+            }
+        }));
+
+        // Recent guests table — 5 columns now
+        const tbody=document.getElementById('recent-guests-body');
+        if(tbody){
+            if(top5.length===0){
+                tbody.innerHTML=`<tr><td colspan="5" class="empty-state"><i class="fas fa-users"></i>No guests yet</td></tr>`;
+            } else {
+                const fmt = str => {
+                    if(!str) return '—';
+                    const d = new Date(str);
+                    return d.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+                };
+                tbody.innerHTML=top5.map(g=>{
+                    const initials=(g.name||'?').split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase();
+                    const ciStr = getSafeDateStr(g.checkinDate, g.checkinDateStr);
+                    const coStr = getSafeDateStr(g.checkoutDate, g.checkoutDateStr);
+                    return `
+                        <tr>
+                            <td>
+                                <div class="guest-name-cell">
+                                    <div class="guest-avatar">${initials}</div>
+                                    <div>
+                                        <div style="font-weight:700;color:#1e293b;">${g.name||'—'}</div>
+                                        <div style="font-size:11px;color:#94a3b8;">ID: ${g.idNumber||'N/A'}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td><span class="status-pill pill-blue">Room ${g.roomNumber||'—'}</span></td>
+                            <td style="font-size:13px;color:#64748b;">${fmt(ciStr)}</td>
+                            <td style="font-size:13px;color:#64748b;">${fmt(coStr)}</td>
+                            <td><span class="status-pill ${g.verified?'pill-green':'pill-red'}">${g.verified?'Verified':'Not Verified'}</span></td>
+                        </tr>`;
+                }).join('');
+            }
+        }
+
+        const now=new Date();
+        setText('last-updated',`Last updated: ${now.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}`);
+
+    } catch(err){
+        console.error("Reports error:",err);
+    }
+}
+
+function refreshAll(){
+    const btn=document.getElementById('refresh-btn');
+    if(btn) btn.classList.add('spinning');
+    loadReports().finally(()=>{ if(btn) btn.classList.remove('spinning'); });
+}
+
+document.addEventListener('DOMContentLoaded',()=>{
+    loadReports();
+    db.collection('rooms').onSnapshot(()=>loadReports());
+    db.collection('guests').onSnapshot(()=>loadReports());
+    db.collection('history').onSnapshot(()=>loadReports());
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PDF DOWNLOAD — builds a clean, crisp print layout using jsPDF directly
+// No html2canvas — all text/tables drawn natively for sharp output
+// ─────────────────────────────────────────────────────────────────────────────
+async function downloadPDF() {
+    const btn = document.getElementById('download-btn');
+    btn.classList.add('loading');
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
+
+    try {
+        const { jsPDF } = window.jspdf;
+        const pdf  = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+        const W    = pdf.internal.pageSize.getWidth();   // 210
+        const H    = pdf.internal.pageSize.getHeight();  // 297
+        const date = new Date().toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' });
+        const time = new Date().toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' });
+        const dateStr = new Date().toISOString().split('T')[0];
+
+        // ── Helpers ───────────────────────────────────────────────────────
+        let y = 0;
+        function checkPage(need = 20) {
+            if (y + need > H - 15) { pdf.addPage(); y = 20; }
+        }
+
+        function drawRect(x, ry, w, h, r, fill) {
+            pdf.setFillColor(...fill);
+            pdf.roundedRect(x, ry, w, h, r, r, 'F');
+        }
+
+        function label(text, x, ly, size, color, style='normal') {
+            pdf.setFontSize(size);
+            pdf.setFont('helvetica', style);
+            pdf.setTextColor(...color);
+            pdf.text(text, x, ly);
+        }
+
+        // ── Page 1: Cover + KPIs ─────────────────────────────────────────
+
+        // ✅ Navy header bar with logo
+        drawRect(0, 0, W, 32, 0, [26, 41, 66]);
+
+        // Embed logo
+        try {
+            const logoImg = await new Promise((resolve) => {
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+                img.onload = () => {
+                    const c = document.createElement('canvas');
+                    c.width = img.width; c.height = img.height;
+                    c.getContext('2d').drawImage(img, 0, 0);
+                    resolve(c.toDataURL('image/png'));
+                };
+                img.onerror = () => resolve(null);
+                img.src = 'img/logo1.jpg';
+            });
+            if (logoImg) pdf.addImage(logoImg, 'PNG', 6, 3, 26, 26);
+        } catch(e) { console.warn('Logo failed:', e); }
+
+        label('GTEC Guest Lodge', 36, 13, 15, [255,255,255], 'bold');
+        label('Analytics & Reports', 36, 21, 9, [147,197,253]);
+        pdf.setFontSize(9); pdf.setFont('helvetica','normal');
+        pdf.setTextColor(200,220,240);
+        pdf.text(`${date}  •  ${time}`, W - 10, 19, { align:'right' });
+
+        y = 42;
+
+
+        // ── KPI cards (2 rows × 3) ────────────────────────────────────────
+        const kpis = [
+            { label:'Total Rooms',       id:'kpi-total',     color:[59,130,246]  },
+            { label:'Available',         id:'kpi-available', color:[34,197,94]   },
+            { label:'Occupied',          id:'kpi-occupied',  color:[239,68,68]   },
+            { label:'Active Guests',     id:'kpi-guests',    color:[245,158,11]  },
+            { label:"Today's Check-ins", id:'kpi-checkins',  color:[99,102,241]  },
+            { label:"Today's Check-outs",id:'kpi-checkouts', color:[20,184,166]  },
+        ];
+
+        const cardW = (W - 28) / 3;
+        const cardH = 22;
+        const cardGap = 4;
+
+        kpis.forEach((k, i) => {
+            const col = i % 3;
+            const row = Math.floor(i / 3);
+            const cx  = 10 + col * (cardW + cardGap);
+            const cy  = y + row * (cardH + cardGap);
+            const val = document.getElementById(k.id)?.textContent || '—';
+
+            // Card background
+            drawRect(cx, cy, cardW, cardH, 3, [248,250,252]);
+            // Coloured left accent bar
+            drawRect(cx, cy, 3, cardH, 1.5, k.color);
+            // Value
+            pdf.setFontSize(18); pdf.setFont('helvetica','bold');
+            pdf.setTextColor(26,41,66);
+            pdf.text(val, cx + 7, cy + 13);
+            // Label
+            pdf.setFontSize(7); pdf.setFont('helvetica','normal');
+            pdf.setTextColor(148,163,184);
+            pdf.text(k.label.toUpperCase(), cx + 7, cy + 19);
+        });
+
+        y += 2 * (cardH + cardGap) + 8;
+
+        // ── Charts Row: Occupancy + Room Status + Verification ────────────
+        checkPage(80);
+        label('CHARTS', 10, y, 8, [26,41,66], 'bold');
+        y += 6;
+
+        const chartRowH = 65;
+        const chartColW = (W - 24) / 3;
+
+        // Helper: embed canvas as image
+        function embedChart(canvasId, cx, cy, cw, ch) {
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) return;
+            try {
+                const img = canvas.toDataURL('image/png', 1.0);
+                pdf.addImage(img, 'PNG', cx, cy, cw, ch);
+            } catch(e) { console.warn('Chart embed failed:', canvasId, e); }
+        }
+
+        // Card backgrounds
+        drawRect(10,           y, chartColW, chartRowH, 3, [248,250,252]);
+        drawRect(14+chartColW, y, chartColW, chartRowH, 3, [248,250,252]);
+        drawRect(18+chartColW*2, y, chartColW, chartRowH, 3, [248,250,252]);
+
+        // Titles
+        label('Occupancy Rate',    13,              y+7, 7, [26,41,66], 'bold');
+        label('Room Status',       17+chartColW,    y+7, 7, [26,41,66], 'bold');
+        label('Verification',      21+chartColW*2,  y+7, 7, [26,41,66], 'bold');
+
+        // Occupancy % badge
+        const rd = window._rptData || {};
+        const occPct = document.getElementById('occ-pct-tag')?.textContent || '0%';
+        label(occPct, 10+chartColW-4, y+7, 8, [100,116,139], 'bold');
+
+        // Embed chart images
+        const padding = 6;
+        embedChart('chartOccupancy',   10+padding,              y+10, chartColW-padding*2, chartRowH-14);
+        embedChart('chartRoomStatus',  14+chartColW+padding,    y+10, chartColW-padding*2, chartRowH-14);
+        embedChart('chartVerification',18+chartColW*2+padding,  y+10, chartColW-padding*2, chartRowH-14);
+
+        y += chartRowH + 8;
+
+        // ── Occupancy bar ────────────────────────────────────────────────
+        checkPage(20);
+        const occOcc = document.getElementById('occ-occupied-label')?.textContent || '';
+        const occTot = document.getElementById('occ-total-label')?.textContent || '';
+        const barX = 10, barY2 = y, barW2 = W - 20, barH2 = 5;
+        pdf.setFontSize(8); pdf.setFont('helvetica','normal'); pdf.setTextColor(51,65,85);
+        pdf.text(occOcc, barX, barY2); pdf.text(occTot, W-10, barY2, {align:'right'});
+        drawRect(barX, barY2+3, barW2, barH2, 2, [226,232,240]);
+        const pct = parseInt(occPct) / 100;
+        const fillColor = pct < 0.5 ? [34,197,94] : pct < 0.8 ? [245,158,11] : [239,68,68];
+        drawRect(barX, barY2+3, Math.max(barW2 * pct, 3), barH2, 2, fillColor);
+        y += 14;
+
+        // ── Room Status Breakdown legend ──────────────────────────────────
+        checkPage(40);
+        label('ROOM STATUS BREAKDOWN', 10, y, 8, [26,41,66], 'bold');
+        y += 6;
+
+        const statusColors2 = { available:[34,197,94], occupied:[239,68,68], reserved:[59,130,246], maintenance:[168,85,247], cleaning:[245,158,11] };
+        const rd2 = window._rptData || {};
+        const statusMap2 = rd2.statusMap || {};
+        const statusEntries = Object.keys(statusMap2);
+
+        if (statusEntries.length) {
+            const colW3 = (W - 20) / 3;
+            statusEntries.forEach((s, i) => {
+                const col = i % 3;
+                const row = Math.floor(i / 3);
+                const ix  = 10 + col * colW3;
+                const iy  = y + row * 9;
+                const clr = statusColors2[s] || [148,163,184];
+                // Coloured square dot
+                drawRect(ix, iy - 3.5, 5, 5, 1, clr);
+                pdf.setFontSize(9); pdf.setFont('helvetica','normal'); pdf.setTextColor(71,85,105);
+                const label2 = s.charAt(0).toUpperCase() + s.slice(1) + ': ' + statusMap2[s];
+                pdf.text(label2, ix + 7, iy);
+            });
+            y += Math.ceil(statusEntries.length / 3) * 9 + 8;
+        }
+
+        // ── Verified / Not Verified summary cards ─────────────────────────
+        checkPage(22);
+        const verCount    = String(rd2.verified   || 0);
+        const unverCount  = String(rd2.unverified || 0);
+        const halfW = (W - 24) / 2;
+
+        drawRect(10,          y, halfW, 18, 3, [240,253,244]);
+        drawRect(10,          y, 3,     18, 1.5, [34,197,94]);
+        pdf.setFontSize(8); pdf.setFont('helvetica','bold'); pdf.setTextColor(22,163,74);
+        pdf.text('Verified Guests', 16, y + 7);
+        pdf.setFontSize(11); pdf.setFont('helvetica','bold'); pdf.setTextColor(26,41,66);
+        pdf.text(verCount, 16, y + 15);
+
+        drawRect(14 + halfW,  y, halfW, 18, 3, [254,242,242]);
+        drawRect(14 + halfW,  y, 3,     18, 1.5, [239,68,68]);
+        pdf.setFontSize(8); pdf.setFont('helvetica','bold'); pdf.setTextColor(220,38,38);
+        pdf.text('Not Verified', 20 + halfW, y + 7);
+        pdf.setFontSize(11); pdf.setFont('helvetica','bold'); pdf.setTextColor(26,41,66);
+        pdf.text(unverCount, 20 + halfW, y + 15);
+
+        y += 24;
+
+        // ── Page 2: Recent Guests table ───────────────────────────────────
+        pdf.addPage(); y = 20;
+
+        // Section header
+        drawRect(0, 0, W, 14, 0, [26,41,66]);
+        label('RECENT GUEST ACTIVITY', 10, 9, 9, [255,255,255], 'bold');
+        pdf.setFontSize(8); pdf.setFont('helvetica','normal');
+        pdf.setTextColor(147,197,253);
+        pdf.text(`GTEC Guest Lodge  •  ${date}`, W - 10, 9, { align:'right' });
+
+        y = 20;
+
+        // ✅ Section title
+        label('Recent Guest Activity', 10, y + 6, 12, [26,41,66], 'bold');
+        label('Latest 5 check-ins', 10, y + 13, 8, [148,163,184]);
+        y += 20;
+
+        // Table header
+        const cols = [
+            { label:'GUEST NAME',         x:10,  w:42 },
+            { label:'ID',                 x:52,  w:22 },
+            { label:'ROOM',               x:74,  w:16 },
+            { label:'CHECK-IN',           x:90,  w:28 },
+            { label:'CHECKOUT',           x:118, w:28 },
+            { label:'VERIFICATION',       x:146, w:30 },
+        ];
+
+        // Header row
+        drawRect(10, y, W - 20, 8, 1, [241,245,249]);
+        cols.forEach(c => {
+            pdf.setFontSize(6.5); pdf.setFont('helvetica','bold'); pdf.setTextColor(148,163,184);
+            pdf.text(c.label, c.x + 1, y + 5.5);
+        });
+        y += 9;
+
+        // ✅ Data rows — read directly from _rptData for reliability
+        const pdfGuests = (window._rptData && window._rptData.top5) || [];
+        let rowCount = 0;
+        pdfGuests.forEach(g => {
+            checkPage(12);
+
+            const isEven = rowCount % 2 === 0;
+            if (isEven) drawRect(10, y - 1, W - 20, 10, 0, [250,252,255]);
+
+            const name  = (g.name  || '—').slice(0, 24);
+            const id    = (g.idNumber || '—');
+            const room  = String(g.roomNumber || '—');
+            const fmtD  = str => { if(!str) return '—'; try { return new Date(str).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}); } catch(e){ return '—'; } };
+            const ci    = fmtD(g._ts);
+            const co    = fmtD(g.checkoutDateStr || (g.checkoutDate && typeof g.checkoutDate.toDate==='function' ? g.checkoutDate.toDate().toISOString() : null));
+            const ver   = g.verified === true ? 'Verified' : 'Not Verified';
+            const isVer = g.verified === true;
+
+            // Full name bold
+            pdf.setFontSize(8.5); pdf.setFont('helvetica','bold'); pdf.setTextColor(30,41,59);
+            pdf.text(name, 11, y + 4);
+            // ID below name in grey
+            pdf.setFontSize(6.5); pdf.setFont('helvetica','normal'); pdf.setTextColor(148,163,184);
+            pdf.text(id.slice(0,14), 11, y + 8.5);
+            // ID column — just the GH number
+            pdf.setFontSize(7.5); pdf.setFont('helvetica','normal'); pdf.setTextColor(148,163,184);
+            pdf.text(id.slice(0,12), 53, y + 5);
+            pdf.setFontSize(8); pdf.setFont('helvetica','normal'); pdf.setTextColor(30,41,59);
+            pdf.text(room, 75, y + 5);
+            pdf.text(ci,   91, y + 5);
+            pdf.text(co,  119, y + 5);
+
+            // Verification pill
+            const pillClr = isVer ? [220,252,231] : [254,226,226];
+            const txtClr  = isVer ? [22,163,74]   : [220,38,38];
+            drawRect(147, y + 0.5, 26, 6, 2, pillClr);
+            pdf.setFontSize(7); pdf.setFont('helvetica','bold'); pdf.setTextColor(...txtClr);
+            pdf.text(ver, 160, y + 5, { align:'center' });
+
+            y += 11;
+            rowCount++;
+
+            // Row separator
+            pdf.setDrawColor(241,245,249); pdf.setLineWidth(0.2);
+            pdf.line(10, y - 0.5, W - 10, y - 0.5);
+        });
+
+        y += 6;
+
+        // ── Weekly check-in chart ─────────────────────────────────────────
+        checkPage(70);
+        label('CHECK-IN ACTIVITY — LAST 7 DAYS', 10, y, 8, [26,41,66], 'bold');
+        y += 4;
+        drawRect(10, y, W-20, 60, 3, [248,250,252]);
+        const weeklyCanvas = document.getElementById('chartWeekly');
+        if (weeklyCanvas) {
+            try {
+                const wImg = weeklyCanvas.toDataURL('image/png', 1.0);
+                pdf.addImage(wImg, 'PNG', 12, y+2, W-24, 56);
+            } catch(e) { console.warn('Weekly chart embed failed', e); }
+        }
+        y += 64;
+
+        // ── Footer on every page ──────────────────────────────────────────
+        const pageCount = pdf.internal.getNumberOfPages();
+        for (let p = 1; p <= pageCount; p++) {
+            pdf.setPage(p);
+            pdf.setDrawColor(226,232,240); pdf.setLineWidth(0.3);
+            pdf.line(10, H - 12, W - 10, H - 12);
+            pdf.setFontSize(7); pdf.setFont('helvetica','normal'); pdf.setTextColor(148,163,184);
+            pdf.text('GTEC Guest Lodge — Confidential', 10, H - 7);
+            pdf.text(`Page ${p} of ${pageCount}`, W - 10, H - 7, { align:'right' });
+        }
+
+        pdf.save(`GTEC_Report_${dateStr}.pdf`);
+
+    } catch (err) {
+        console.error('PDF error:', err);
+        alert('PDF generation failed: ' + err.message);
+    } finally {
+        btn.classList.remove('loading');
+        btn.innerHTML = '<i class="fas fa-file-pdf"></i> Download Report';
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EXCEL EXPORT — exports raw guest + room data to .xlsx
+// ─────────────────────────────────────────────────────────────────────────────
+async function exportExcel() {
+    const btn = document.getElementById('export-btn');
+    btn.classList.add('loading');
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Exporting...';
+
+    try {
+        // Fetch all data
+        const [guestsSnap, historySnap, roomsSnap] = await Promise.all([
+            db.collection('guests').get(),
+            db.collection('history').get(),
+            db.collection('rooms').get()
+        ]);
+
+        const wb = XLSX.utils.book_new();
+
+        // ── Sheet 1: Active Guests ───────────────────────────────────────
+        const guestsRows = [['Guest Name', 'Guest ID', 'Phone', 'Email', 'Room', 'Check-in', 'Expected Checkout', 'Status', 'Verified', 'Notes']];
+        guestsSnap.forEach(doc => {
+            const g = doc.data();
+            const fmt = field => {
+                if (!field) return '—';
+                if (typeof field.toDate === 'function') return field.toDate().toLocaleDateString('en-GB');
+                return new Date(field).toLocaleDateString('en-GB');
+            };
+            guestsRows.push([
+                g.name        || '—',
+                g.idNumber    || '—',
+                g.phone       || '—',
+                g.email       || '—',
+                `Room ${g.roomNumber || '—'}`,
+                fmt(g.checkinDate   || g.checkinDateStr),
+                fmt(g.checkoutDate  || g.checkoutDateStr),
+                g.status      || '—',
+                g.verified ? 'Yes' : 'No',
+                g.notes       || '—'
+            ]);
+        });
+        const ws1 = XLSX.utils.aoa_to_sheet(guestsRows);
+        ws1['!cols'] = [20,12,14,24,10,14,18,14,10,24].map(w=>({wch:w}));
+        XLSX.utils.book_append_sheet(wb, ws1, 'Active Guests');
+
+        // ── Sheet 2: Guest History ───────────────────────────────────────
+        const historyRows = [['Guest Name', 'Guest ID', 'Phone', 'Room', 'Check-in', 'Expected Checkout', 'Actual Checkout', 'Notes']];
+        historySnap.forEach(doc => {
+            const h = doc.data();
+            const fmt = field => {
+                if (!field) return '—';
+                if (typeof field.toDate === 'function') return field.toDate().toLocaleDateString('en-GB');
+                return new Date(field).toLocaleDateString('en-GB');
+            };
+            historyRows.push([
+                h.name              || '—',
+                h.idNumber          || '—',
+                h.phone             || '—',
+                `Room ${h.room || h.roomNumber || '—'}`,
+                fmt(h.checkinDate   || h.checkinDateStr),
+                fmt(h.expectedCheckout || h.expectedCheckoutStr),
+                fmt(h.checkoutDate  || h.checkoutDateStr),
+                h.notes             || '—'
+            ]);
+        });
+        const ws2 = XLSX.utils.aoa_to_sheet(historyRows);
+        ws2['!cols'] = [20,12,14,10,14,18,16,24].map(w=>({wch:w}));
+        XLSX.utils.book_append_sheet(wb, ws2, 'Guest History');
+
+        // ── Sheet 3: Room Status ─────────────────────────────────────────
+        const roomRows = [['Room Number', 'Type', 'Capacity', 'Status']];
+        const sortedRooms = [];
+        roomsSnap.forEach(doc => sortedRooms.push(doc.data()));
+        sortedRooms.sort((a,b) => parseInt(a.number) - parseInt(b.number));
+        sortedRooms.forEach(r => {
+            roomRows.push([
+                `Room ${r.number || '—'}`,
+                r.type     || 'Standard',
+                r.capacity || 2,
+                r.status   || '—'
+            ]);
+        });
+        const ws3 = XLSX.utils.aoa_to_sheet(roomRows);
+        ws3['!cols'] = [14,14,10,14].map(w=>({wch:w}));
+        XLSX.utils.book_append_sheet(wb, ws3, 'Room Status');
+
+        // ── Sheet 4: Summary ─────────────────────────────────────────────
+        const today = new Date().toLocaleDateString('en-GB');
+        const summaryRows = [
+            ['GTEC Guest Lodge — Report Summary'],
+            [`Generated: ${today}`],
+            [],
+            ['Metric', 'Value'],
+            ['Total Rooms',        document.getElementById('kpi-total')?.textContent     || '—'],
+            ['Available Rooms',    document.getElementById('kpi-available')?.textContent || '—'],
+            ['Occupied Rooms',     document.getElementById('kpi-occupied')?.textContent  || '—'],
+            ['Active Guests',      document.getElementById('kpi-guests')?.textContent    || '—'],
+            ["Today's Check-ins",  document.getElementById('kpi-checkins')?.textContent  || '—'],
+            ["Today's Check-outs", document.getElementById('kpi-checkouts')?.textContent || '—'],
+        ];
+        const ws4 = XLSX.utils.aoa_to_sheet(summaryRows);
+        ws4['!cols'] = [24, 12].map(w=>({wch:w}));
+        XLSX.utils.book_append_sheet(wb, ws4, 'Summary');
+
+        // Save
+        const dateStr = new Date().toISOString().split('T')[0];
+        XLSX.writeFile(wb, `GTEC_GuestData_${dateStr}.xlsx`);
+
+    } catch (err) {
+        console.error('Excel export error:', err);
+        alert('Export failed. Please try again.');
+    } finally {
+        btn.classList.remove('loading');
+        btn.innerHTML = '<i class="fas fa-file-excel"></i> Export Data';
+    }
+}
+</script>
+</body>
+</html>

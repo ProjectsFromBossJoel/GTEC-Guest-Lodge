@@ -1,0 +1,973 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Library — GTEC Guest Lodge</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/jpg" href="img/logo1.jpg">
+    <style>
+        .sidebar-menu { visibility: hidden; }
+
+        :root {
+            --navy: #1f3b57;
+            --navy-lt: #2a5180;
+            --gold: #c9a84c;
+            --ink: #0f1923;
+            --muted: #64748b;
+            --border: #e2e8f0;
+            --bg: #f8fafc;
+            --white: #ffffff;
+            --success: #22c55e;
+            --danger: #ef4444;
+            --shadow: 0 4px 24px rgba(0,0,0,0.07);
+        }
+
+        .fl-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .fl-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .fl-title-icon {
+            width: 44px;
+            height: 44px;
+            background: linear-gradient(135deg, var(--navy), var(--navy-lt));
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 18px;
+        }
+
+        .fl-title h1 {
+            font-family: 'Playfair Display', serif;
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--ink);
+            margin: 0;
+        }
+
+        .fl-title p {
+            font-size: 12px;
+            color: var(--muted);
+            margin: 2px 0 0;
+        }
+
+        .fl-toolbar {
+            background: var(--white);
+            border-radius: 14px;
+            padding: 16px 20px;
+            margin-bottom: 20px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .fl-search-wrap {
+            flex: 1;
+            min-width: 200px;
+            position: relative;
+        }
+
+        .fl-search-wrap i {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #94a3b8;
+            font-size: 13px;
+        }
+
+        .fl-search {
+            width: 100%;
+            padding: 9px 12px 9px 34px;
+            border: 1.5px solid var(--border);
+            border-radius: 9px;
+            font-size: 13px;
+            font-family: 'DM Sans', sans-serif;
+            color: var(--ink);
+            background: var(--bg);
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            box-sizing: border-box;
+        }
+
+        .fl-search:focus {
+            border-color: var(--navy);
+            box-shadow: 0 0 0 3px rgba(31,59,87,0.08);
+            background: white;
+        }
+
+        .fl-filter-group {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .fl-filter-btn {
+            padding: 7px 14px;
+            border-radius: 20px;
+            border: 1.5px solid var(--border);
+            background: white;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--muted);
+            cursor: pointer;
+            transition: all 0.15s;
+            font-family: 'DM Sans', sans-serif;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .fl-filter-btn:hover { border-color: var(--navy); color: var(--navy); }
+        .fl-filter-btn.active { background: var(--navy); border-color: var(--navy); color: white; }
+
+        .fl-view-toggle {
+            display: flex;
+            gap: 4px;
+            background: var(--bg);
+            border-radius: 8px;
+            padding: 3px;
+            border: 1px solid var(--border);
+        }
+
+        .fl-view-btn {
+            width: 32px;
+            height: 32px;
+            border: none;
+            background: none;
+            border-radius: 6px;
+            cursor: pointer;
+            color: var(--muted);
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s;
+        }
+
+        .fl-view-btn.active {
+            background: white;
+            color: var(--navy);
+            box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+        }
+
+        .fl-stats {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .fl-stat {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 10px 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            color: var(--muted);
+            font-weight: 500;
+        }
+
+        .fl-stat strong { color: var(--ink); font-size: 15px; font-weight: 700; }
+        .fl-stat i { font-size: 14px; }
+
+        .fl-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 16px;
+        }
+
+        .fl-card {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            overflow: hidden;
+            transition: all 0.2s;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .fl-card:hover {
+            box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+            transform: translateY(-2px);
+            border-color: #cbd5e1;
+        }
+
+        .fl-card-preview {
+            height: 130px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .fl-card-preview img { width: 100%; height: 100%; object-fit: cover; }
+        .fl-card-preview .fl-file-icon { font-size: 44px; }
+
+        .fl-card-body { padding: 12px; border-top: 1px solid var(--border); }
+
+        .fl-card-name {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--ink);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-bottom: 4px;
+        }
+
+        .fl-card-meta {
+            font-size: 11px;
+            color: var(--muted);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .fl-card-uploader {
+            font-size: 11px;
+            color: var(--muted);
+            margin-top: 3px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .fl-card-actions {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            display: flex;
+            gap: 4px;
+            opacity: 0;
+            transition: opacity 0.15s;
+        }
+
+        .fl-card:hover .fl-card-actions { opacity: 1; }
+
+        .fl-action-btn {
+            width: 28px;
+            height: 28px;
+            border-radius: 7px;
+            border: none;
+            cursor: pointer;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s;
+        }
+
+        .fl-action-btn.download { background: var(--navy); color: white; }
+        .fl-action-btn.view { background: white; color: var(--navy); box-shadow: 0 1px 4px rgba(0,0,0,0.15); }
+        .fl-action-btn:hover { transform: scale(1.1); }
+
+        .fl-list {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            overflow: hidden;
+            box-shadow: var(--shadow);
+        }
+
+        .fl-list-header {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr 80px;
+            gap: 12px;
+            padding: 12px 20px;
+            background: var(--bg);
+            border-bottom: 1px solid var(--border);
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .fl-list-row {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr 80px;
+            gap: 12px;
+            padding: 14px 20px;
+            border-bottom: 1px solid #f8fafc;
+            align-items: center;
+            transition: background 0.1s;
+        }
+
+        .fl-list-row:last-child { border-bottom: none; }
+        .fl-list-row:hover { background: #f8fafc; }
+
+        .fl-list-name { display: flex; align-items: center; gap: 10px; min-width: 0; }
+
+        .fl-list-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 9px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+
+        .fl-list-filename {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--ink);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .fl-list-cell {
+            font-size: 12px;
+            color: var(--muted);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .fl-list-actions { display: flex; gap: 6px; justify-content: flex-end; }
+
+        .fl-type-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 8px;
+            border-radius: 20px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .fl-empty {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 80px 40px;
+            text-align: center;
+            color: var(--muted);
+        }
+
+        .fl-empty i { font-size: 56px; color: #e2e8f0; margin-bottom: 16px; }
+        .fl-empty h3 { font-size: 16px; font-weight: 700; color: #94a3b8; margin: 0 0 8px; }
+        .fl-empty p { font-size: 13px; margin: 0; max-width: 280px; }
+
+        .fl-shimmer {
+            background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.4s infinite;
+            border-radius: 14px;
+            height: 200px;
+        }
+
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        .fl-channel-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            font-size: 10px;
+            font-weight: 600;
+            color: var(--navy);
+            background: #eff6ff;
+            padding: 2px 7px;
+            border-radius: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .fl-list-header, .fl-list-row { grid-template-columns: 2fr 1fr 80px; }
+            .fl-list-header > *:nth-child(2),
+            .fl-list-header > *:nth-child(4),
+            .fl-list-row > *:nth-child(2),
+            .fl-list-row > *:nth-child(4) { display: none; }
+        }
+
+        @media (max-width: 480px) {
+            .fl-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+        }
+    </style>
+</head>
+
+<body>
+<div class="app-container">
+
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-logo">
+                <img src="img/logo1.jpg" alt="Logo" style="width:40px;height:40px;border-radius:8px;"> Guest Lodge
+            </div>
+        </div>
+        <div class="sidebar-menu" id="sidebarMenu" style="visibility:hidden;">
+            <div class="menu-label">Main Menu</div>
+            <a href="dashboard.html" class="menu-item"><i class="fas fa-chart-pie"></i> Dashboard</a>
+            <a href="rooms.html" class="menu-item"><i class="fas fa-bed"></i> Rooms</a>
+            <div class="menu-label" style="margin-top:20px;">Guest Activity</div>
+            <a href="checkin.html" class="menu-item"><i class="fas fa-sign-in-alt"></i> Check-In</a>
+            <a href="checkout.html" class="menu-item"><i class="fas fa-sign-out-alt"></i> Check-Out</a>
+            <a href="guests.html" class="menu-item"><i class="fas fa-users"></i> Guests</a>
+            <a href="chatroom.html" class="menu-item"><i class="fas fa-comments"></i> Chat Room</a>
+            <a href="logs.html" class="menu-item"><i class="fas fa-clipboard-list"></i> Logs</a>
+            <a href="chat.html" class="menu-item"><i class="fas fa-comment"></i> Client Messages</a>
+            <a href="verification.html" class="menu-item"><i class="fas fa-user-check"></i> Verification</a>
+            <a href="invoice.html" class="menu-item"><i class="fas fa-file-invoice"></i> Invoice</a>
+            <a href="payments.html" class="menu-item"><i class="fas fa-credit-card"></i> Payments</a>
+            <a href="calendar.html" class="menu-item"><i class="fas fa-calendar-alt"></i> Calendar</a>
+            <a href="filelibrary.html" class="menu-item active"><i class="fas fa-folder-open"></i> File Library</a>
+            <div class="menu-label" style="margin-top:20px;">Analysis</div>
+            <a href="reports.html" class="menu-item"><i class="fas fa-chart-bar"></i> Reports</a>
+            <div class="menu-label" style="margin-top:20px;">Administration</div>
+            <a href="profile.html" class="menu-item"><i class="fas fa-circle-user"></i> My Profile</a>
+            <a href="roles.html" class="menu-item"><i class="fas fa-user-shield"></i> Roles</a>
+        </div>
+        <div class="sidebar-footer">
+            <a href="#" id="logout-btn" class="menu-item" style="color:var(--status-occupied);padding-left:0;">
+                <i class="fas fa-power-off"></i> Logout
+            </a>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <header class="header">
+            <div class="toggle-sidebar" id="toggle-sidebar"><i class="fas fa-bars"></i></div>
+            <div class="header-right" style="margin-left:auto;">
+                <a href="index.html" style="color:var(--text-light);font-size:14px;font-weight:500;">🏠 Home</a>
+                <div class="user-profile" style="cursor:pointer;" onclick="window.location.href='profile.html'" title="View Profile">
+                    <div class="user-avatar"><i class="fas fa-user"></i></div>
+                    <span id="user-email-display" style="font-weight:500;">Admin</span>
+                </div>
+            </div>
+        </header>
+
+        <div class="content-area">
+
+            <div class="fl-header">
+                <div class="fl-title">
+                    <div class="fl-title-icon"><i class="fas fa-folder-open"></i></div>
+                    <div>
+                        <h1>File Library</h1>
+                        <p>All files shared in Chat Room channels & Invoices generated</p>
+                    </div>
+                </div>
+            </div>
+
+            <div style="display:flex;gap:8px;margin-bottom:20px;">
+                <button id="tab-chat" onclick="switchSource('chat')"
+                    style="padding:9px 20px;border-radius:10px;border:1.5px solid var(--navy);background:var(--navy);color:white;font-size:13px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;align-items:center;gap:6px;">
+                    <i class="fas fa-comments"></i> Chat Attachments
+                </button>
+                <button id="tab-invoices" onclick="switchSource('invoices')"
+                    style="padding:9px 20px;border-radius:10px;border:1.5px solid var(--border);background:white;color:var(--muted);font-size:13px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;align-items:center;gap:6px;">
+                    <i class="fas fa-file-invoice"></i> Invoices
+                </button>
+            </div>
+
+            <div class="fl-stats" id="fl-stats">
+                <div class="fl-stat">
+                    <i class="fas fa-file" style="color:var(--navy);"></i>
+                    <div>Total Files <strong id="stat-total">—</strong></div>
+                </div>
+                <div class="fl-stat">
+                    <i class="fas fa-image" style="color:#1d4ed8;"></i>
+                    <div>Images <strong id="stat-images">—</strong></div>
+                </div>
+                <div class="fl-stat">
+                    <i class="fas fa-file-pdf" style="color:#be123c;"></i>
+                    <div>Documents <strong id="stat-docs">—</strong></div>
+                </div>
+                <div class="fl-stat">
+                    <i class="fas fa-film" style="color:#7e22ce;"></i>
+                    <div>Other <strong id="stat-other">—</strong></div>
+                </div>
+            </div>
+
+            <div class="fl-toolbar">
+                <div class="fl-search-wrap">
+                    <i class="fas fa-search"></i>
+                    <input type="text" class="fl-search" id="fl-search" placeholder="Search files…">
+                </div>
+                <div class="fl-filter-group" id="fl-filters">
+                    <button class="fl-filter-btn active" data-type="all" onclick="setFilter('all',this)">
+                        <i class="fas fa-th"></i> All
+                    </button>
+                    <button class="fl-filter-btn" data-type="image" onclick="setFilter('image',this)">
+                        <i class="fas fa-image"></i> Images
+                    </button>
+                    <button class="fl-filter-btn" data-type="pdf" onclick="setFilter('pdf',this)">
+                        <i class="fas fa-file-pdf"></i> PDFs
+                    </button>
+                    <button class="fl-filter-btn" data-type="doc" onclick="setFilter('doc',this)">
+                        <i class="fas fa-file-word"></i> Docs
+                    </button>
+                    <button class="fl-filter-btn" data-type="other" onclick="setFilter('other',this)">
+                        <i class="fas fa-file"></i> Other
+                    </button>
+                </div>
+                <div class="fl-view-toggle">
+                    <button class="fl-view-btn" id="btn-grid" title="Grid view" onclick="setView('grid')">
+                        <i class="fas fa-th-large"></i>
+                    </button>
+                    <button class="fl-view-btn active" id="btn-list" title="List view" onclick="setView('list')">
+                        <i class="fas fa-list"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- File Container -->
+            <!-- ✅ FIX: shimmer divs are now injected by JS in DOMContentLoaded,
+                 not written as a ${...} template literal in static HTML -->
+            <div id="fl-container">
+                <div class="fl-grid" id="fl-shimmer-grid"></div>
+            </div>
+
+        </div>
+    </main>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+<script src="js/firebase.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/sidebar.js"></script>
+
+<script>
+    const CHANNELS = ['general','announcements','housekeeping','front-desk'];
+    const INVOICE_COLLECTION = 'invoices';
+    let currentSource = 'chat';
+
+    let allFiles = [];
+    let currentFilter = 'all';
+    let currentView = 'list';
+    let searchQuery = '';
+
+    function getFileStyle(mimeType, name) {
+        const ext = (name || '').split('.').pop().toLowerCase();
+        if ((mimeType || '').startsWith('image/'))
+            return { icon: 'fa-image', bg: '#eff6ff', color: '#1d4ed8', type: 'image', label: 'Image' };
+        if (mimeType === 'application/pdf' || ext === 'pdf')
+            return { icon: 'fa-file-pdf', bg: '#fff1f2', color: '#be123c', type: 'pdf', label: 'PDF' };
+        if (['doc','docx'].includes(ext))
+            return { icon: 'fa-file-word', bg: '#eff6ff', color: '#1d4ed8', type: 'doc', label: 'Word' };
+        if (['xls','xlsx'].includes(ext))
+            return { icon: 'fa-file-excel', bg: '#f0fdf4', color: '#15803d', type: 'doc', label: 'Excel' };
+        if (['ppt','pptx'].includes(ext))
+            return { icon: 'fa-file-powerpoint', bg: '#fff7ed', color: '#c2410c', type: 'doc', label: 'PPT' };
+        if (['mp4','mov','avi','mkv'].includes(ext))
+            return { icon: 'fa-file-video', bg: '#faf5ff', color: '#7e22ce', type: 'other', label: 'Video' };
+        if (['mp3','wav','ogg'].includes(ext))
+            return { icon: 'fa-file-audio', bg: '#fffbeb', color: '#92400e', type: 'other', label: 'Audio' };
+        if (['zip','rar','7z'].includes(ext))
+            return { icon: 'fa-file-archive', bg: '#f1f5f9', color: '#475569', type: 'other', label: 'Archive' };
+        return { icon: 'fa-file-alt', bg: '#f8fafc', color: '#64748b', type: 'other', label: 'File' };
+    }
+
+    function formatSize(bytes) {
+        if (!bytes) return '—';
+        if (bytes < 1024) return bytes + ' B';
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+        return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+
+    function formatDate(ts) {
+        if (!ts) return '—';
+        const d = ts.toDate ? ts.toDate() : new Date(ts);
+        return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    }
+
+    function formatTime(ts) {
+        if (!ts) return '';
+        const d = ts.toDate ? ts.toDate() : new Date(ts);
+        return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    }
+
+    async function loadFiles() {
+        allFiles = [];
+
+        const promises = CHANNELS.map(async ch => {
+            const snap = await db.collection('chatrooms').doc(ch)
+                .collection('messages')
+                .orderBy('time', 'desc')
+                .get();
+
+            snap.forEach(doc => {
+                const data = doc.data();
+                if (data.attachment) {
+                    allFiles.push({
+                        id: doc.id,
+                        channel: ch,
+                        uploader: data.senderName || 'Unknown',
+                        time: data.time,
+                        ...data.attachment,
+                    });
+                }
+            });
+        });
+
+        await Promise.all(promises);
+
+        allFiles.sort((a, b) => {
+            const ta = a.time ? (a.time.seconds || 0) : 0;
+            const tb = b.time ? (b.time.seconds || 0) : 0;
+            return tb - ta;
+        });
+
+        updateStats();
+        renderFiles();
+    }
+
+    function updateStats() {
+        let images = 0, docs = 0, other = 0;
+        allFiles.forEach(f => {
+            const style = getFileStyle(f.mimeType, f.name);
+            if (style.type === 'image') images++;
+            else if (['pdf','doc'].includes(style.type)) docs++;
+            else other++;
+        });
+        document.getElementById('stat-total').textContent = allFiles.length;
+        document.getElementById('stat-images').textContent = images;
+        document.getElementById('stat-docs').textContent = docs;
+        document.getElementById('stat-other').textContent = other;
+    }
+
+    function setFilter(type, btn) {
+        currentFilter = type;
+        document.querySelectorAll('.fl-filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        renderFiles();
+    }
+
+    function setView(view) {
+        currentView = view;
+        document.getElementById('btn-grid').classList.toggle('active', view === 'grid');
+        document.getElementById('btn-list').classList.toggle('active', view === 'list');
+        renderFiles();
+    }
+
+    document.getElementById('fl-search').addEventListener('input', function () {
+        searchQuery = this.value.trim().toLowerCase();
+        renderFiles();
+    });
+
+    function getFilteredFiles() {
+        return allFiles.filter(f => {
+            const style = getFileStyle(f.mimeType, f.name);
+            const matchesType = currentFilter === 'all' || style.type === currentFilter;
+            const matchesSearch = !searchQuery ||
+                (f.name || '').toLowerCase().includes(searchQuery) ||
+                (f.uploader || '').toLowerCase().includes(searchQuery);
+            return matchesType && matchesSearch;
+        });
+    }
+
+    function renderFiles() {
+        const container = document.getElementById('fl-container');
+        const shimmer = document.getElementById('fl-shimmer-grid');
+        if (shimmer) shimmer.remove();
+
+        const files = getFilteredFiles();
+
+        if (files.length === 0) {
+            container.innerHTML = `
+                <div class="fl-empty">
+                    <i class="fas fa-folder-open"></i>
+                    <h3>No files found</h3>
+                    <p>${searchQuery || currentFilter !== 'all'
+                        ? 'Try adjusting your search or filter.'
+                        : 'Files shared in the Chat Room will appear here.'}</p>
+                </div>`;
+            return;
+        }
+
+        if (currentView === 'grid') {
+            renderGrid(files, container);
+        } else {
+            renderList(files, container);
+        }
+    }
+
+    function renderGrid(files, container) {
+        const grid = document.createElement('div');
+        grid.className = 'fl-grid';
+
+        files.forEach(f => {
+            const style = getFileStyle(f.mimeType, f.name);
+            const isImage = (f.mimeType || '').startsWith('image/') && f.previewUrl;
+
+            const card = document.createElement('div');
+            card.className = 'fl-card';
+            card.innerHTML = `
+                <div class="fl-card-preview" style="background:${style.bg};">
+                    ${isImage
+                        ? `<img src="${f.previewUrl}" alt="${f.name}" loading="lazy" onerror="this.style.display='none';this.parentElement.style.background='${style.bg}';this.parentElement.insertAdjacentHTML('beforeend','<i class=&quot;fas ${style.icon} fl-file-icon&quot; style=&quot;color:${style.color};font-size:44px;&quot;></i>')">`
+                        : `<i class="fas ${style.icon} fl-file-icon" style="color:${style.color};font-size:44px;"></i>`
+                    }
+                    <div class="fl-card-actions">
+                        <button class="fl-action-btn view" onclick="event.stopPropagation();window.open(getViewUrl(${JSON.stringify(f)}),'_blank')" title="Open">
+                            <i class="fas fa-external-link-alt"></i>
+                        </button>
+                        <button class="fl-action-btn download" onclick="event.stopPropagation();downloadFile('${f.downloadUrl}','${f.name}')" title="Download">
+                            <i class="fas fa-download"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="fl-card-body">
+                    <div class="fl-card-name" title="${f.name}">${f.name || 'Unnamed file'}</div>
+                    <div class="fl-card-meta">
+                        <span>${formatSize(f.size)}</span>
+                        <span class="fl-channel-tag">#${f.channel}</span>
+                    </div>
+                    <div class="fl-card-uploader">
+                        <i class="fas fa-user" style="font-size:9px;"></i>
+                        ${f.uploader} · ${formatDate(f.time)}
+                    </div>
+                </div>`;
+
+            card.onclick = () => window.open(getViewUrl(f), '_blank');
+            grid.appendChild(card);
+        });
+
+        container.innerHTML = '';
+        container.appendChild(grid);
+    }
+
+    function getViewUrl(f) {
+        const url = f.viewUrl || '';
+        const ext = (f.name || '').split('.').pop().toLowerCase();
+        const docExts = ['pdf','doc','docx','xls','xlsx','ppt','pptx'];
+
+        if (url.includes('drive.google.com')) {
+            const fileIdMatch = url.match(/\/d\/([a-zA-Z0-9_-]+)\//);
+            if (fileIdMatch) {
+                const fileId = fileIdMatch[1];
+                if (docExts.includes(ext) || f.mimeType === 'application/pdf') {
+                    return `https://docs.google.com/viewer?url=${encodeURIComponent(`https://drive.google.com/uc?export=view&id=${fileId}`)}&embedded=false`;
+                }
+                if ((f.mimeType || '').startsWith('image/')) {
+                    return `https://drive.google.com/file/d/${fileId}/view`;
+                }
+            }
+        }
+
+        return url;
+    }
+
+    function renderList(files, container) {
+        const list = document.createElement('div');
+        list.className = 'fl-list';
+
+        list.innerHTML = `
+            <div class="fl-list-header">
+                <div>File Name</div>
+                <div>Type</div>
+                <div>Uploaded By</div>
+                <div>Date</div>
+                <div style="text-align:right;">Actions</div>
+            </div>`;
+
+        files.forEach(f => {
+            const style = getFileStyle(f.mimeType, f.name);
+            const safeViewUrl = getViewUrl(f);
+
+            const row = document.createElement('div');
+            row.className = 'fl-list-row';
+            row.innerHTML = `
+                <div class="fl-list-name">
+                    <div class="fl-list-icon" style="background:${style.bg};">
+                        <i class="fas ${style.icon}" style="color:${style.color};"></i>
+                    </div>
+                    <div>
+                        <div class="fl-list-filename" title="${f.name}">${f.name || 'Unnamed'}</div>
+                        <div style="font-size:11px;color:#94a3b8;">${formatSize(f.size)} · <span class="fl-channel-tag">#${f.channel}</span></div>
+                    </div>
+                </div>
+                <div class="fl-list-cell">
+                    <span class="fl-type-badge" style="background:${style.bg};color:${style.color};">
+                        ${style.label}
+                    </span>
+                </div>
+                <div class="fl-list-cell">
+                    <i class="fas fa-user" style="font-size:10px;margin-right:4px;"></i>${f.uploader}
+                </div>
+                <div class="fl-list-cell">
+                    ${formatDate(f.time)}<br>
+                    <span style="font-size:10px;color:#cbd5e1;">${formatTime(f.time)}</span>
+                    ${f.isInvoice ? `<br><span style="font-size:11px;font-weight:700;color:#15803d;">GHS ${f.amount.toFixed(2)}</span>` : ''}
+                </div>
+                <div class="fl-list-actions">
+                    ${safeViewUrl
+                        ? `<button class="fl-action-btn view" onclick="window.open(this.dataset.url,'_blank')" data-url="${safeViewUrl}" title="Open">
+                            <i class="fas fa-external-link-alt"></i>
+                           </button>`
+                        : `<button class="fl-action-btn view" disabled title="File not yet available" style="opacity:0.4;cursor:not-allowed;">
+                            <i class="fas fa-hourglass-half"></i>
+                           </button>`
+                    }
+                    ${f.downloadUrl
+                        ? `<button class="fl-action-btn download" onclick="downloadFile(this.dataset.url, this.dataset.name)" data-url="${f.downloadUrl}" data-name="${(f.name||'').replace(/"/g,'&quot;')}" title="Download">
+                            <i class="fas fa-download"></i>
+                           </button>`
+                        : `<button class="fl-action-btn download" disabled title="File not yet available" style="opacity:0.4;cursor:not-allowed;background:#e2e8f0;color:#94a3b8;">
+                            <i class="fas fa-hourglass-half"></i>
+                           </button>`
+                    }
+                </div>`;
+
+            list.appendChild(row);
+        });
+
+        container.innerHTML = '';
+        container.appendChild(list);
+    }
+
+    async function downloadFile(url, name) {
+        if (!url) {
+            showToast && showToast('File not yet available on Drive.', 'error');
+            return;
+        }
+
+        if (url.includes('drive.google.com')) {
+            const match = url.match(/[?&]id=([a-zA-Z0-9_-]+)/) || url.match(/\/d\/([a-zA-Z0-9_-]+)\//);
+            const fileId = match ? match[1] : null;
+            const a = document.createElement('a');
+            a.href = fileId ? `https://drive.google.com/uc?export=download&id=${fileId}` : url;
+            a.download = name || 'file';
+            a.target = '_blank';
+            a.rel = 'noopener';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            return;
+        }
+
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = name || 'file';
+        a.target = '_blank';
+        a.rel = 'noopener';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+    }
+
+    function switchSource(source) {
+        currentSource = source;
+        const chatBtn    = document.getElementById('tab-chat');
+        const invoiceBtn = document.getElementById('tab-invoices');
+
+        if (source === 'chat') {
+            chatBtn.style.background    = 'var(--navy)';
+            chatBtn.style.color         = 'white';
+            chatBtn.style.borderColor   = 'var(--navy)';
+            invoiceBtn.style.background = 'white';
+            invoiceBtn.style.color      = 'var(--muted)';
+            invoiceBtn.style.borderColor = 'var(--border)';
+            document.querySelector('.fl-title p').textContent = 'All files shared in Chat Room channels';
+            loadFiles();
+        } else {
+            invoiceBtn.style.background  = 'var(--navy)';
+            invoiceBtn.style.color       = 'white';
+            invoiceBtn.style.borderColor = 'var(--navy)';
+            chatBtn.style.background     = 'white';
+            chatBtn.style.color          = 'var(--muted)';
+            chatBtn.style.borderColor    = 'var(--border)';
+            document.querySelector('.fl-title p').textContent = 'All generated invoices';
+            loadInvoices();
+        }
+    }
+
+    async function loadInvoices() {
+        allFiles = [];
+        const container = document.getElementById('fl-container');
+        // ✅ FIX: use string concatenation, not a template literal in HTML
+        container.innerHTML = '<div class="fl-grid" id="fl-shimmer-grid">' +
+            Array(4).fill('<div class="fl-shimmer"></div>').join('') + '</div>';
+
+        try {
+            const snap = await db.collection('invoices').orderBy('createdAt', 'desc').get();
+            snap.forEach(doc => {
+                const d = doc.data();
+                allFiles.push({
+                    id:          doc.id,
+                    name:        `${d.invoiceNumber || 'Invoice'} — ${d.guestName || ''}`.trim(),
+                    mimeType:    'application/pdf',
+                    size:        null,
+                    uploader:    d.generatedBy || 'Staff',
+                    time:        d.createdAt,
+                    channel:     `Room ${d.room || '—'}`,
+                    viewUrl:     d.driveViewUrl || '',
+                    downloadUrl: d.driveDownUrl || '',
+                    invoiceData: d,
+                    isInvoice:   true,
+                    amount:      d.subtotal || 0,
+                    payment:     d.paymentMethod || '',
+                });
+            });
+        } catch(e) {
+            console.error('Invoice load error:', e);
+        }
+
+        updateStats();
+        renderFiles();
+    }
+
+
+    function showToast(msg) {
+        const t = document.createElement('div');
+        t.style.cssText = 'position:fixed;bottom:24px;right:24px;background:#1f3b57;color:white;padding:12px 18px;border-radius:10px;font-size:13px;font-weight:500;box-shadow:0 8px 24px rgba(0,0,0,0.2);z-index:9999;display:flex;align-items:center;gap:8px;';
+        t.innerHTML = `<i class="fas fa-info-circle"></i> ${msg}`;
+        document.body.appendChild(t);
+        setTimeout(() => t.remove(), 3500);
+    }
+
+    // ── Boot ──────────────────────────────────────────────────────────────
+    
+    document.addEventListener('DOMContentLoaded', () => {
+        // ✅ FIX: Populate shimmer via JS instead of using ${...} in static HTML
+        const shimmerGrid = document.getElementById('fl-shimmer-grid');
+        if (shimmerGrid) {
+            shimmerGrid.innerHTML = Array(8).fill('<div class="fl-shimmer"></div>').join('');
+        }
+
+        firebase.auth().onAuthStateChanged(user => {
+            if (!user) { window.location.href = 'admin.html'; return; }
+            loadFiles();
+            setTimeout(() => {
+                const sm = document.getElementById('sidebarMenu');
+                if (sm) sm.style.visibility = 'visible';
+            }, 100);
+        });
+    });
+    
+</script>
+</body>
+</html>

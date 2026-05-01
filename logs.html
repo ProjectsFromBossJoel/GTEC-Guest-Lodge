@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guest House Admin - Logs</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="icon" type="image/jpg" href="img/logo1.jpg">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        .sidebar-menu {
+            visibility: hidden;
+        }
+
+        .log-action-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .badge-login {
+            background: #dcfce7;
+            color: #15803d;
+        }
+
+        .badge-logout {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+
+        .badge-checkin {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .badge-checkout {
+            background: #fef3c7;
+            color: #854d0e;
+        }
+
+        .badge-created {
+            background: #f3e8ff;
+            color: #6b21a8;
+        }
+
+        .badge-deleted {
+            background: #fef2f2;
+            color: #991b1b;
+        }
+
+        .badge-reset {
+            background: #fff7ed;
+            color: #9a3412;
+        }
+
+        .badge-role {
+            background: #e0f2fe;
+            color: #0369a1;
+        }
+
+        .badge-locked {
+            background: #fef2f2;
+            color: #dc2626;
+        }
+
+        .badge-default {
+            background: #f1f5f9;
+            color: #475569;
+        }
+
+        .log-user {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .log-avatar {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: #dbeafe;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            color: #1e40af;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .log-time {
+            font-size: 12px;
+            color: #94a3b8;
+            white-space: nowrap;
+        }
+
+        .log-details {
+            font-size: 13px;
+            color: #64748b;
+        }
+
+        .filter-bar {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .filter-bar .form-control {
+            flex: 1;
+            min-width: 160px;
+        }
+
+        .access-notice {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: #f0f9ff;
+            border: 1px solid #bae6fd;
+            border-radius: 10px;
+            padding: 12px 16px;
+            font-size: 13px;
+            color: #0369a1;
+            font-weight: 500;
+            margin-bottom: 16px;
+        }
+
+        .empty-logs {
+            text-align: center;
+            padding: 60px 20px;
+            color: #94a3b8;
+        }
+
+        .empty-logs i {
+            font-size: 40px;
+            margin-bottom: 12px;
+            display: block;
+        }
+
+        /* ── Export button ── */
+        .btn-export {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            font-family: inherit;
+            font-size: 13px;
+            font-weight: 700;
+            color: #1a2942;
+            background: #e8f5e9;
+            border: 1px solid #a5d6a7;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all .2s;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, .06);
+        }
+
+        .btn-export:hover {
+            background: #22c55e;
+            color: white;
+            border-color: #22c55e;
+        }
+
+        .btn-export.loading {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .btn-export.loading i {
+            animation: spin .8s linear infinite;
+        }
+
+        /* ── Pagination ── */
+        .pagination-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid #f1f5f9;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .pagination-info {
+            font-size: 13px;
+            color: #64748b;
+            font-weight: 500;
+        }
+
+        .pagination-controls {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .page-btn {
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            border: 1.5px solid #e2e8f0;
+            background: #fff;
+            color: #374151;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s;
+        }
+
+        .page-btn:hover:not(:disabled) {
+            background: #3b82f6;
+            border-color: #3b82f6;
+            color: #fff;
+        }
+
+        .page-btn:disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+        }
+
+        .page-btn.active {
+            background: #1e40af;
+            border-color: #1e40af;
+            color: #fff;
+        }
+
+        .page-size-select {
+            padding: 6px 10px;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 13px;
+            color: #374151;
+            background: #fff;
+            cursor: pointer;
+            outline: none;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="app-container">
+
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">
+                    <img src="img/logo1.jpg" style="width:40px;height:40px;"> Guest Lodge
+                </div>
+            </div>
+            <div class="sidebar-menu">
+                <div class="menu-label">Main Menu</div>
+                <a href="dashboard.html" class="menu-item"><i class="fas fa-chart-pie"></i> Dashboard</a>
+                <a href="rooms.html" class="menu-item"><i class="fas fa-bed"></i> Rooms</a>
+
+                <div class="menu-label" style="margin-top:20px;">Guest Activity</div>
+                <a href="checkin.html" class="menu-item"><i class="fas fa-sign-in-alt"></i> Check-In</a>
+                <a href="checkout.html" class="menu-item"><i class="fas fa-sign-out-alt"></i> Check-Out</a>
+                <a href="guests.html" class="menu-item"><i class="fas fa-users"></i> Guests</a>
+                <a href="chatroom.html" class="menu-item"><i class="fas fa-comments"></i> Chat Room</a>
+                <a href="logs.html" class="menu-item active"><i class="fas fa-clipboard-list"></i> Logs</a>
+                <a href="chat.html" class="menu-item"><i class="fas fa-comment"></i> Client Messages</a>
+                <a href="verification.html" class="menu-item"><i class="fas fa-user-check"></i> Verification</a>
+                <a href="invoice.html" class="menu-item"><i class="fas fa-file-invoice"></i> Invoice</a>
+                <a href="payments.html"     class="menu-item active"><i class="fas fa-credit-card"></i> Payments</a>
+                <a href="calendar.html" class="menu-item"><i class="fas fa-calendar-alt"></i> Calendar</a>
+                <a href="filelibrary.html" class="menu-item"><i class="fas fa-folder-open"></i> File Library</a>
+
+                <div class="menu-label" style="margin-top:20px;">Analysis</div>
+                <a href="reports.html" class="menu-item"><i class="fas fa-chart-bar"></i> Reports</a>
+                <div class="menu-label" style="margin-top:20px;">Administration</div>
+            <a href="profile.html" class="menu-item"><i class="fas fa-circle-user"></i> My Profile</a>
+                <a href="roles.html" class="menu-item"><i class="fas fa-user-shield"></i> Roles</a>
+            </div>
+            <div class="sidebar-footer">
+                <a href="#" id="logout-btn" class="menu-item" style="color:var(--status-occupied);padding-left:0;">
+                    <i class="fas fa-power-off"></i> Logout
+                </a>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="header">
+                <div class="toggle-sidebar" id="toggle-sidebar"><i class="fas fa-bars"></i></div>
+                <div class="header-right" style="margin-left:auto;">
+                    <a href="index.html">&#127968; Home</a>
+                    <div class="user-profile" style="cursor:pointer;" onclick="window.location.href='profile.html'" title="View Profile">
+    <div class="user-avatar"><i class="fas fa-user"></i></div>
+    <span id="user-email-display" style="font-weight:500;">Admin</span>
+</div>
+                </div>
+            </header>
+
+            <div class="content-area">
+
+                <!-- ✅ Page header with Export button -->
+                <div class="page-header"
+                    style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:16px;">
+                    <h1 class="page-title">System Activity Logs</h1>
+                    <button class="btn-export" id="export-logs-btn" onclick="exportLogsExcel()">
+                        <i class="fas fa-file-excel"></i> Export Data
+                    </button>
+                </div>
+
+                <div class="card">
+                    <!-- Access notice — shown for non-superadmin roles -->
+                    <div class="access-notice" id="access-notice" style="display:none;">
+                        <i class="fas fa-info-circle" style="font-size:16px;flex-shrink:0;"></i>
+                        <span id="access-notice-text"></span>
+                    </div>
+
+                    <div class="filter-bar">
+                        <input type="text" id="searchLogs" class="form-control"
+                            placeholder="🔍  Search by user, action or details…">
+                        <input type="date" id="filterDate" class="form-control" title="Filter by date">
+                        <select id="filterAction" class="form-control" style="max-width:220px;">
+                            <option value="">All Actions</option>
+                            <option value="logged in">Logged In</option>
+                            <option value="logged out">Logged Out</option>
+                            <option value="auto logged out">Auto Logged Out</option>
+                            <option value="checked in">Checked In</option>
+                            <option value="checked out">Checked Out</option>
+                            <option value="user created">User Created</option>
+                            <option value="user removed">User Removed</option>
+                            <option value="role changed">Role Changed</option>
+                            <option value="password reset">Password Reset</option>
+                            <option value="account locked">Account Locked</option>
+                        </select>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>User</th>
+                                    <th>Action</th>
+                                    <th>Details</th>
+                                    <th>Time</th>
+                                </tr>
+                            </thead>
+                            <tbody id="logsTable">
+                                <tr>
+                                    <td colspan="4" style="text-align:center;padding:40px;color:#94a3b8;">
+                                        <i class="fas fa-spinner fa-spin"></i> Loading logs…
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- ── Pagination bar ── -->
+                    <div class="pagination-bar" id="pagination-bar" style="display:none;">
+                        <div class="pagination-info" id="pagination-info"></div>
+                        <div style="display:flex;align-items:center;gap:12px;">
+                            <div class="pagination-controls" id="pagination-controls"></div>
+                            <select class="page-size-select" id="page-size-select" title="Rows per page">
+                                <option value="10">10 / page</option>
+                                <option value="20" selected>20 / page</option>
+                                <option value="50">50 / page</option>
+                                <option value="100">100 / page</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+    <script src="js/firebase.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/sidebar.js"></script>
+    <script src="js/chatnotify.js"></script>
+
+    <script>
+        const logsTable = document.getElementById('logsTable');
+        const searchInput = document.getElementById('searchLogs');
+        const filterDate = document.getElementById('filterDate');
+        const filterAction = document.getElementById('filterAction');
+        const paginationBar = document.getElementById('pagination-bar');
+        const paginationInfo = document.getElementById('pagination-info');
+        const paginationCtrl = document.getElementById('pagination-controls');
+        const pageSizeSelect = document.getElementById('page-size-select');
+
+        let allLogs = [];
+        let filteredLogs = [];
+        let currentPage = 1;
+        let pageSize = 20;
+        let logsLoaded = false;
+
+        // ── Wait for both Firebase Auth AND role to be ready ─────────────────
+        firebase.auth().onAuthStateChanged(user => {
+            if (user && !logsLoaded) {
+                logsLoaded = true;
+                const waitForRole = setInterval(() => {
+                    if (window._userRole) {
+                        clearInterval(waitForRole);
+                        applyRoleRestrictions(window._userRole, user.email);
+                        startLogsListener(window._userRole, user.email);
+                    }
+                }, 100);
+            }
+        });
+
+        // ── Restrict filter dropdown + show access notice for non-superadmin ─
+        function applyRoleRestrictions(role, email) {
+            const notice = document.getElementById('access-notice');
+            const noticeText = document.getElementById('access-notice-text');
+
+            if (role === 'manager' || role === 'receptionist') {
+                filterAction.innerHTML = `
+                    <option value="">All Actions</option>
+                    <option value="logged in">Logged In</option>
+                    <option value="logged out">Logged Out</option>
+                    <option value="auto logged out">Auto Logged Out</option>
+                    <option value="checked in">Checked In</option>
+                    <option value="checked out">Checked Out</option>
+                `;
+                notice.style.display = 'flex';
+                noticeText.textContent = 'Showing activity logs relevant to your role.';
+            }
+            // superadmin: full dropdown, no notice
+        }
+
+        // ── Real-time logs listener with role-based filtering ─────────────────
+        function startLogsListener(role, userEmail) {
+            const me = (userEmail || '').toLowerCase();
+
+            if (role === 'manager') {
+                db.collection('users').where('role', '==', 'superadmin').get().then(snap => {
+                    const superadminEmails = [];
+                    snap.forEach(doc => superadminEmails.push((doc.data().email || '').toLowerCase()));
+                    attachLogsSnapshot(role, me, superadminEmails);
+                });
+            } else {
+                attachLogsSnapshot(role, me, []);
+            }
+        }
+
+        // ── Attach the Firestore snapshot listener ────────────────────────────
+        function attachLogsSnapshot(role, me, superadminEmails) {
+            db.collection('logs')
+                .orderBy('time', 'desc')
+                .limit(500)
+                .onSnapshot(snapshot => {
+                    allLogs = [];
+
+                    snapshot.forEach(doc => {
+                        const log = doc.data();
+                        const action = (log.action || '').toLowerCase();
+                        const logUser = (log.user || '').toLowerCase();
+
+                        if (role === 'superadmin') {
+                            allLogs.push(log);
+
+                        } else if (role === 'manager') {
+                            const isAllowedAction =
+                                action.includes('logged in') ||
+                                action.includes('logged out') ||
+                                action.includes('checked in') ||
+                                action.includes('checked out');
+                            const isSuperAdmin = superadminEmails.includes(logUser);
+                            if (isAllowedAction && !isSuperAdmin) allLogs.push(log);
+
+                        } else if (role === 'receptionist') {
+                            const isAllowedAction =
+                                action.includes('logged in') ||
+                                action.includes('logged out') ||
+                                action.includes('checked in') ||
+                                action.includes('checked out');
+                            if (isAllowedAction && logUser.trim() === me.trim()) allLogs.push(log);
+                        }
+                    });
+
+                    // Sort by time descending
+                    allLogs.sort((a, b) => {
+                        const getMs = t => {
+                            if (!t) return 0;
+                            if (t.seconds) return t.seconds * 1000;
+                            if (typeof t === 'string') return new Date(t).getTime();
+                            return t;
+                        };
+                        return getMs(b.time) - getMs(a.time);
+                    });
+
+                    currentPage = 1;
+                    applyFilters();
+
+                }, err => {
+                    console.error('[Logs] Snapshot error:', err);
+                    logsTable.innerHTML = `
+                        <tr><td colspan="4" style="text-align:center;color:#ef4444;padding:40px;">
+                            <i class="fas fa-exclamation-circle"></i> Failed to load logs. Check Firestore rules.
+                        </td></tr>`;
+                });
+        }
+
+        // ── Apply search / date / action filters ──────────────────────────────
+        function applyFilters() {
+            const search = searchInput.value.toLowerCase().trim();
+            const date = filterDate.value;
+            const action = filterAction.value.toLowerCase();
+
+            filteredLogs = allLogs.filter(log => {
+                const user = (log.user || '').toLowerCase();
+                const act = (log.action || '').toLowerCase();
+                const details = (log.details || '').toLowerCase();
+
+                const matchSearch = !search || user.includes(search) || act.includes(search) || details.includes(search);
+                const matchAction = !action || act.includes(action);
+                const matchDate = !date || getLogDateStr(log) === date;
+
+                return matchSearch && matchAction && matchDate;
+            });
+
+            currentPage = 1;
+            renderPage();
+        }
+
+        // ── Render the current page of logs ──────────────────────────────────
+        function renderPage() {
+            const total = filteredLogs.length;
+            const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+            if (currentPage < 1) currentPage = 1;
+            if (currentPage > totalPages) currentPage = totalPages;
+
+            const start = (currentPage - 1) * pageSize;
+            const end = Math.min(start + pageSize, total);
+            const pageLogs = filteredLogs.slice(start, end);
+
+            if (total === 0) {
+                logsTable.innerHTML = `
+                    <tr><td colspan="4">
+                        <div class="empty-logs">
+                            <i class="fas fa-clipboard-list"></i>
+                            No logs match your filters.
+                        </div>
+                    </td></tr>`;
+                paginationBar.style.display = 'none';
+                return;
+            }
+
+            logsTable.innerHTML = '';
+            pageLogs.forEach(log => {
+                const initials = (log.user || 'U').split('@')[0].substring(0, 2).toUpperCase();
+                const timeStr = formatLogTime(log.time);
+                const badge = getActionBadge(log.action || '');
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>
+                        <div class="log-user">
+                            <div class="log-avatar">${initials}</div>
+                            <span style="font-size:13px;font-weight:500;">${log.user || '—'}</span>
+                        </div>
+                    </td>
+                    <td><span class="log-action-badge ${badge.cls}">
+                        <i class="fas ${badge.icon}"></i> ${log.action || '—'}
+                    </span></td>
+                    <td><span class="log-details">${log.details || '—'}</span></td>
+                    <td><span class="log-time">${timeStr}</span></td>
+                `;
+                logsTable.appendChild(tr);
+            });
+
+            paginationBar.style.display = 'flex';
+            paginationInfo.textContent =
+                `Showing ${start + 1}–${end} of ${total} log ${total === 1 ? 'entry' : 'entries'}`;
+            renderPaginationControls(totalPages);
+        }
+
+        // ── Build pagination buttons ──────────────────────────────────────────
+        function renderPaginationControls(totalPages) {
+            paginationCtrl.innerHTML = '';
+
+            const prevBtn = document.createElement('button');
+            prevBtn.className = 'page-btn';
+            prevBtn.innerHTML = '<i class="fas fa-chevron-left"></i>';
+            prevBtn.disabled = currentPage === 1;
+            prevBtn.title = 'Previous page';
+            prevBtn.onclick = () => { currentPage--; renderPage(); };
+            paginationCtrl.appendChild(prevBtn);
+
+            getPageRange(currentPage, totalPages).forEach(p => {
+                if (p === '...') {
+                    const dots = document.createElement('span');
+                    dots.textContent = '…';
+                    dots.style.cssText = 'padding:0 4px;color:#94a3b8;font-size:13px;';
+                    paginationCtrl.appendChild(dots);
+                } else {
+                    const btn = document.createElement('button');
+                    btn.className = `page-btn${p === currentPage ? ' active' : ''}`;
+                    btn.textContent = p;
+                    btn.onclick = () => { currentPage = p; renderPage(); };
+                    paginationCtrl.appendChild(btn);
+                }
+            });
+
+            const nextBtn = document.createElement('button');
+            nextBtn.className = 'page-btn';
+            nextBtn.innerHTML = '<i class="fas fa-chevron-right"></i>';
+            nextBtn.disabled = currentPage === totalPages;
+            nextBtn.title = 'Next page';
+            nextBtn.onclick = () => { currentPage++; renderPage(); };
+            paginationCtrl.appendChild(nextBtn);
+        }
+
+        function getPageRange(current, total) {
+            if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+            const range = [];
+            range.push(1);
+            if (current > 3) range.push('...');
+            for (let p = Math.max(2, current - 1); p <= Math.min(total - 1, current + 1); p++) range.push(p);
+            if (current < total - 2) range.push('...');
+            range.push(total);
+            return range;
+        }
+
+        pageSizeSelect.addEventListener('change', function () {
+            pageSize = parseInt(this.value);
+            currentPage = 1;
+            renderPage();
+        });
+
+        // ── Badge style + icon per action type ───────────────────────────────
+        function getActionBadge(action) {
+            const a = action.toLowerCase();
+            if (a.includes('auto logged out')) return { cls: 'badge-logout', icon: 'fa-clock' };
+            if (a.includes('account locked')) return { cls: 'badge-locked', icon: 'fa-lock' };
+            if (a.includes('password reset') || a.includes('reset sent')) return { cls: 'badge-reset', icon: 'fa-key' };
+            if (a.includes('role changed')) return { cls: 'badge-role', icon: 'fa-user-edit' };
+            if (a.includes('user created') || a.includes('created')) return { cls: 'badge-created', icon: 'fa-user-plus' };
+            if (a.includes('user removed') || a.includes('removed') || a.includes('deleted')) return { cls: 'badge-deleted', icon: 'fa-trash' };
+            if (a.includes('logged in') || a.includes('login')) return { cls: 'badge-login', icon: 'fa-sign-in-alt' };
+            if (a.includes('logged out') || a.includes('logout')) return { cls: 'badge-logout', icon: 'fa-sign-out-alt' };
+            if (a.includes('checked in') || a.includes('check-in')) return { cls: 'badge-checkin', icon: 'fa-plane-arrival' };
+            if (a.includes('checked out') || a.includes('checkout')) return { cls: 'badge-checkout', icon: 'fa-plane-departure' };
+            return { cls: 'badge-default', icon: 'fa-circle' };
+        }
+
+        // ── Format Firestore timestamp ────────────────────────────────────────
+        function formatLogTime(time) {
+            if (!time) return '—';
+            try {
+                const ms = time.seconds
+                    ? time.seconds * 1000
+                    : typeof time === 'string'
+                        ? new Date(time).getTime()
+                        : time;
+                return new Date(ms).toLocaleString('en-US', {
+                    day: '2-digit', month: 'short', year: 'numeric',
+                    hour: '2-digit', minute: '2-digit', hour12: true
+                });
+            } catch { return '—'; }
+        }
+
+        // ── Extract YYYY-MM-DD for date filter ────────────────────────────────
+        function getLogDateStr(log) {
+            if (!log.time) return '';
+            try {
+                const ms = log.time.seconds
+                    ? log.time.seconds * 1000
+                    : typeof log.time === 'string'
+                        ? new Date(log.time).getTime()
+                        : log.time;
+                return new Date(ms).toISOString().split('T')[0];
+            } catch { return ''; }
+        }
+
+        // ── Filter event listeners ────────────────────────────────────────────
+        searchInput.addEventListener('input', applyFilters);
+        filterDate.addEventListener('change', applyFilters);
+        filterAction.addEventListener('change', applyFilters);
+
+
+        // ─────────────────────────────────────────────────────────────────────
+        // ✅ EXPORT DATA — exports current filtered logs to .xlsx
+        //    Two sheets: "Activity Logs" (all rows) + "Summary" (count by action)
+        //    Respects active search / date / action filters automatically.
+        // ─────────────────────────────────────────────────────────────────────
+        async function exportLogsExcel() {
+            const btn = document.getElementById('export-logs-btn');
+            btn.classList.add('loading');
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Exporting...';
+
+            try {
+                // Use filteredLogs (respects current filters).
+                // If nothing has been searched yet filteredLogs === allLogs so all data is exported.
+                const logsToExport = filteredLogs.length > 0 ? filteredLogs : allLogs;
+
+                if (logsToExport.length === 0) {
+                    alert('No logs to export. Try removing your filters first.');
+                    return;
+                }
+
+                const formatTime = (time) => {
+                    if (!time) return '—';
+                    try {
+                        const ms = time.seconds
+                            ? time.seconds * 1000
+                            : typeof time === 'string'
+                                ? new Date(time).getTime()
+                                : time;
+                        return new Date(ms).toLocaleString('en-US', {
+                            day: '2-digit', month: 'short', year: 'numeric',
+                            hour: '2-digit', minute: '2-digit', hour12: true
+                        });
+                    } catch { return '—'; }
+                };
+
+                // ── Sheet 1: Activity Logs ────────────────────────────────
+                const logsRows = [['User', 'Action', 'Details', 'Date & Time']];
+                logsToExport.forEach(log => {
+                    logsRows.push([
+                        log.user || '—',
+                        log.action || '—',
+                        log.details || '—',
+                        formatTime(log.time)
+                    ]);
+                });
+                const ws1 = XLSX.utils.aoa_to_sheet(logsRows);
+                ws1['!cols'] = [28, 20, 40, 22].map(w => ({ wch: w }));
+                // Freeze top header row so it stays visible while scrolling
+                ws1['!freeze'] = { xSplit: 0, ySplit: 1 };
+
+                // ── Sheet 2: Summary ──────────────────────────────────────
+                const now = new Date().toLocaleDateString('en-GB', {
+                    day: 'numeric', month: 'long', year: 'numeric'
+                });
+
+                // Count occurrences of each action type
+                const actionCounts = {};
+                logsToExport.forEach(log => {
+                    const a = log.action || 'Unknown';
+                    actionCounts[a] = (actionCounts[a] || 0) + 1;
+                });
+
+                const summaryRows = [
+                    ['GTEC Guest Lodge — Activity Log Export'],
+                    [`Generated: ${now}`],
+                    [`Total Entries Exported: ${logsToExport.length}`],
+                    [],
+                    ['Action', 'Count'],
+                    // Sort by count descending
+                    ...Object.entries(actionCounts).sort((a, b) => b[1] - a[1])
+                ];
+                const ws2 = XLSX.utils.aoa_to_sheet(summaryRows);
+                ws2['!cols'] = [30, 10].map(w => ({ wch: w }));
+
+                // ── Build & save workbook ─────────────────────────────────
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws1, 'Activity Logs');
+                XLSX.utils.book_append_sheet(wb, ws2, 'Summary');
+
+                const dateStr = new Date().toISOString().split('T')[0];
+                XLSX.writeFile(wb, `GTEC_Guest_Lodge_Logs_${dateStr}.xlsx`);
+
+            } catch (err) {
+                console.error('Logs export error:', err);
+                alert('Export failed: ' + err.message);
+            } finally {
+                btn.classList.remove('loading');
+                btn.innerHTML = '<i class="fas fa-file-excel"></i> Export Data';
+            }
+        }
+
+    </script>
+</body>
+
+</html>

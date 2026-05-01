@@ -1,0 +1,1266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reservations Calendar — GTEC Guest Lodge</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/jpg" href="img/logo1.jpg">
+    <style>
+        .sidebar-menu { visibility: hidden; }
+
+        :root {
+            --navy: #1f3b57;
+            --navy-lt: #2a5180;
+            --gold: #c9a84c;
+            --ink: #0f1923;
+            --muted: #64748b;
+            --border: #e2e8f0;
+            --bg: #f8fafc;
+            --white: #ffffff;
+            --checkin-bg: #dcfce7;
+            --checkin-color: #15803d;
+            --checkin-border: #86efac;
+            --checkout-bg: #fee2e2;
+            --checkout-color: #dc2626;
+            --checkout-border: #fca5a5;
+            --both-bg: #fef9c3;
+            --both-color: #854d0e;
+            --shadow: 0 4px 24px rgba(0,0,0,0.07);
+        }
+
+        /* ── Calendar Header ── */
+        .cal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .cal-title-wrap {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .cal-title-icon {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, var(--navy), var(--navy-lt));
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 20px;
+        }
+
+        .cal-title h1 {
+            font-family: 'Playfair Display', serif;
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--ink);
+            margin: 0;
+        }
+
+        .cal-title p {
+            font-size: 12px;
+            color: var(--muted);
+            margin: 2px 0 0;
+        }
+
+        /* ── Month Navigator ── */
+        .cal-nav {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .cal-nav-btn {
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+            border: 1.5px solid var(--border);
+            background: white;
+            color: var(--navy);
+            font-size: 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s;
+        }
+
+        .cal-nav-btn:hover {
+            background: var(--navy);
+            color: white;
+            border-color: var(--navy);
+        }
+
+        .cal-month-label {
+            font-family: 'Playfair Display', serif;
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--ink);
+            min-width: 200px;
+            text-align: center;
+        }
+
+        .cal-today-btn {
+            padding: 8px 18px;
+            border-radius: 10px;
+            border: 1.5px solid var(--navy);
+            background: white;
+            color: var(--navy);
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            font-family: 'DM Sans', sans-serif;
+            transition: all 0.15s;
+        }
+
+        .cal-today-btn:hover {
+            background: var(--navy);
+            color: white;
+        }
+
+        /* ── Stats Row ── */
+        .cal-stats {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .cal-stat {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px 18px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 13px;
+            color: var(--muted);
+            font-weight: 500;
+            flex: 1;
+            min-width: 140px;
+        }
+
+        .cal-stat strong {
+            color: var(--ink);
+            font-size: 20px;
+            font-weight: 800;
+            display: block;
+            line-height: 1;
+        }
+
+        .cal-stat-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+
+        /* ── Legend ── */
+        .cal-legend {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--muted);
+        }
+
+        .legend-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 3px;
+        }
+
+        /* ── Calendar Grid ── */
+        .cal-grid-wrap {
+            background: white;
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+
+        .cal-days-header {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            background: var(--navy);
+        }
+
+        .cal-day-name {
+            padding: 14px 8px;
+            text-align: center;
+            font-size: 11px;
+            font-weight: 700;
+            color: rgba(255,255,255,0.7);
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+        }
+
+        .cal-day-name.weekend { color: rgba(201,168,76,0.9); }
+
+        .cal-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+        }
+
+        .cal-cell {
+            min-height: 110px;
+            border-right: 1px solid var(--border);
+            border-bottom: 1px solid var(--border);
+            padding: 8px;
+            position: relative;
+            transition: background 0.15s;
+            cursor: pointer;
+        }
+
+        .cal-cell:nth-child(7n) { border-right: none; }
+        .cal-cell:hover { background: #f8fafc; }
+
+        .cal-cell.other-month {
+            background: #fafbfc;
+            cursor: default;
+        }
+
+        .cal-cell.other-month:hover { background: #fafbfc; }
+
+        .cal-cell.today {
+            background: #eff6ff;
+        }
+
+        .cal-cell.today:hover { background: #dbeafe; }
+
+        .cal-cell.has-events { cursor: pointer; }
+
+        .cal-date-num {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--ink);
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            margin-bottom: 4px;
+            flex-shrink: 0;
+        }
+
+        .cal-cell.other-month .cal-date-num { color: #cbd5e1; }
+
+        .cal-cell.today .cal-date-num {
+            background: var(--navy);
+            color: white;
+        }
+
+        .cal-cell.weekend:not(.other-month) .cal-date-num { color: #7c3aed; }
+
+        /* Event pills in calendar */
+        .cal-event {
+            border-radius: 5px;
+            padding: 3px 7px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-bottom: 3px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            cursor: pointer;
+            transition: opacity 0.15s;
+        }
+
+        .cal-event:hover { opacity: 0.8; }
+
+        .cal-event.checkin {
+            background: var(--checkin-bg);
+            color: var(--checkin-color);
+            border-left: 3px solid var(--checkin-color);
+        }
+
+        .cal-event.checkout {
+            background: var(--checkout-bg);
+            color: var(--checkout-color);
+            border-left: 3px solid var(--checkout-color);
+        }
+
+        .cal-event i { font-size: 9px; flex-shrink: 0; }
+
+        .cal-more {
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--muted);
+            padding: 2px 7px;
+            background: #f1f5f9;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .cal-more:hover { background: #e2e8f0; }
+
+        /* ── Side Panel ── */
+        .cal-layout {
+            display: grid;
+            grid-template-columns: 1fr 320px;
+            gap: 20px;
+            align-items: start;
+        }
+
+        .cal-side {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        /* Selected Day Panel */
+        .day-detail-panel {
+            background: white;
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+            position: sticky;
+            top: 90px;
+        }
+
+        .day-detail-header {
+            background: linear-gradient(135deg, var(--navy), var(--navy-lt));
+            padding: 20px;
+            color: white;
+        }
+
+        .day-detail-date {
+            font-family: 'Playfair Display', serif;
+            font-size: 28px;
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        .day-detail-weekday {
+            font-size: 13px;
+            color: rgba(255,255,255,0.6);
+            margin-top: 4px;
+        }
+
+        .day-detail-badges {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .day-badge {
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .day-badge.in { background: rgba(34,197,94,0.2); color: #4ade80; }
+        .day-badge.out { background: rgba(239,68,68,0.2); color: #f87171; }
+
+        .day-detail-body { padding: 16px; }
+
+        .day-section-title {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--muted);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .day-section-title::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border);
+        }
+
+        .day-guest-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            margin-bottom: 8px;
+            border: 1px solid var(--border);
+            transition: all 0.15s;
+        }
+
+        .day-guest-item:hover {
+            border-color: #93c5fd;
+            background: #f0f9ff;
+        }
+
+        .day-guest-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 13px;
+            flex-shrink: 0;
+        }
+
+        .day-guest-avatar.in { background: var(--checkin-bg); color: var(--checkin-color); }
+        .day-guest-avatar.out { background: var(--checkout-bg); color: var(--checkout-color); }
+
+        .day-guest-name {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--ink);
+        }
+
+        .day-guest-meta {
+            font-size: 11px;
+            color: var(--muted);
+            margin-top: 2px;
+        }
+
+        .day-type-badge {
+            margin-left: auto;
+            padding: 3px 8px;
+            border-radius: 20px;
+            font-size: 10px;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .day-type-badge.in { background: var(--checkin-bg); color: var(--checkin-color); }
+        .day-type-badge.out { background: var(--checkout-bg); color: var(--checkout-color); }
+
+        .day-empty-state {
+            text-align: center;
+            padding: 32px 20px;
+            color: var(--muted);
+        }
+
+        .day-empty-state i { font-size: 36px; color: #e2e8f0; display: block; margin-bottom: 10px; }
+        .day-empty-state p { font-size: 13px; color: #94a3b8; }
+
+        /* ── Upcoming Panel ── */
+        .upcoming-panel {
+            background: white;
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+
+        .upcoming-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--ink);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .upcoming-header i { color: var(--gold); }
+
+        .upcoming-list { padding: 12px; max-height: 280px; overflow-y: auto; }
+
+        .upcoming-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 10px;
+            border-radius: 9px;
+            margin-bottom: 6px;
+            border: 1px solid var(--border);
+            font-size: 12px;
+        }
+
+        .upcoming-date-badge {
+            background: var(--navy);
+            color: white;
+            border-radius: 8px;
+            padding: 6px 8px;
+            text-align: center;
+            min-width: 36px;
+            flex-shrink: 0;
+        }
+
+        .upcoming-date-badge .ud-day { font-size: 15px; font-weight: 800; line-height: 1; }
+        .upcoming-date-badge .ud-mon { font-size: 9px; opacity: 0.7; text-transform: uppercase; }
+
+        .upcoming-name { font-weight: 700; color: var(--ink); }
+        .upcoming-room { color: var(--muted); font-size: 11px; }
+
+        /* ── Shimmer ── */
+        .cal-shimmer-cell {
+            min-height: 110px;
+            background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.4s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        /* ── Modal ── */
+        .event-modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(15,25,35,0.6);
+            backdrop-filter: blur(4px);
+            z-index: 500;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.25s;
+        }
+
+        .event-modal-overlay.open { opacity: 1; visibility: visible; }
+
+        .event-modal {
+            background: white;
+            border-radius: 20px;
+            width: 100%;
+            max-width: 480px;
+            box-shadow: 0 24px 64px rgba(0,0,0,0.2);
+            transform: translateY(20px) scale(0.97);
+            transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
+            overflow: hidden;
+        }
+
+        .event-modal-overlay.open .event-modal { transform: translateY(0) scale(1); }
+
+        .event-modal-header {
+            background: linear-gradient(135deg, var(--navy), var(--navy-lt));
+            padding: 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .event-modal-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 20px;
+            font-weight: 700;
+            color: white;
+        }
+
+        .event-modal-sub { font-size: 12px; color: rgba(255,255,255,0.5); margin-top: 4px; }
+
+        .event-modal-close {
+            width: 32px; height: 32px;
+            background: rgba(255,255,255,0.15);
+            border: none; border-radius: 8px;
+            color: white; font-size: 16px;
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+        }
+
+        .event-modal-body { padding: 20px; max-height: 60vh; overflow-y: auto; }
+
+        .event-modal-guest {
+            display: flex; align-items: center; gap: 12px;
+            padding: 12px; border-radius: 12px;
+            border: 1px solid var(--border);
+            margin-bottom: 10px;
+        }
+
+        .emg-avatar {
+            width: 44px; height: 44px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 800; font-size: 15px; flex-shrink: 0;
+        }
+
+        .emg-avatar.in { background: var(--checkin-bg); color: var(--checkin-color); }
+        .emg-avatar.out { background: var(--checkout-bg); color: var(--checkout-color); }
+
+        .emg-name { font-size: 14px; font-weight: 700; color: var(--ink); }
+        .emg-meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+        .emg-badge {
+            margin-left: auto; padding: 4px 10px; border-radius: 20px;
+            font-size: 11px; font-weight: 700; flex-shrink: 0;
+        }
+        .emg-badge.in { background: var(--checkin-bg); color: var(--checkin-color); }
+        .emg-badge.out { background: var(--checkout-bg); color: var(--checkout-color); }
+
+        @media (max-width: 1100px) {
+            .cal-layout { grid-template-columns: 1fr; }
+            .day-detail-panel { position: static; }
+        }
+
+        @media (max-width: 768px) {
+            .cal-cell { min-height: 70px; padding: 4px; }
+            .cal-event { display: none; }
+            .cal-more { display: none; }
+            .cal-date-num { font-size: 12px; width: 24px; height: 24px; }
+            .cal-day-name { font-size: 9px; padding: 10px 4px; }
+            .cal-stats { display: none; }
+        }
+    </style>
+</head>
+
+<body>
+<div class="app-container">
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-logo">
+                <img src="img/logo1.jpg" alt="Logo" style="width:40px;height:40px;border-radius:8px;"> Guest Lodge
+            </div>
+        </div>
+        <div class="sidebar-menu" id="sidebarMenu" style="visibility:hidden;">
+            <div class="menu-label">Main Menu</div>
+            <a href="dashboard.html" class="menu-item"><i class="fas fa-chart-pie"></i> Dashboard</a>
+            <a href="rooms.html" class="menu-item"><i class="fas fa-bed"></i> Rooms</a>
+            <div class="menu-label" style="margin-top:20px;">Guest Activity</div>
+            <a href="checkin.html" class="menu-item"><i class="fas fa-sign-in-alt"></i> Check-In</a>
+            <a href="checkout.html" class="menu-item"><i class="fas fa-sign-out-alt"></i> Check-Out</a>
+            <a href="guests.html" class="menu-item"><i class="fas fa-users"></i> Guests</a>
+            <a href="chatroom.html" class="menu-item"><i class="fas fa-comments"></i> Chat Room</a>
+            <a href="logs.html" class="menu-item"><i class="fas fa-clipboard-list"></i> Logs</a>
+            <a href="chat.html" class="menu-item"><i class="fas fa-comment"></i> Client Messages</a>
+            <a href="verification.html" class="menu-item"><i class="fas fa-user-check"></i> Verification</a>
+            <a href="invoice.html" class="menu-item"><i class="fas fa-file-invoice"></i> Invoice</a>
+            <a href="payments.html" class="menu-item"><i class="fas fa-credit-card"></i> Payments</a>
+            <a href="calendar.html" class="menu-item active"><i class="fas fa-calendar-alt"></i> Calendar</a>
+            <a href="filelibrary.html" class="menu-item"><i class="fas fa-folder-open"></i> File Library</a>
+
+            <div class="menu-label" style="margin-top:20px;">Analysis</div>
+            <a href="reports.html" class="menu-item"><i class="fas fa-chart-bar"></i> Reports</a>
+            
+            <div class="menu-label" style="margin-top:20px;">Administration</div>
+            <a href="profile.html" class="menu-item"><i class="fas fa-circle-user"></i> My Profile</a>
+            <a href="roles.html" class="menu-item"><i class="fas fa-user-shield"></i> Roles</a>
+        </div>
+        <div class="sidebar-footer">
+            <a href="#" id="logout-btn" class="menu-item" style="color:var(--status-occupied);padding-left:0;">
+                <i class="fas fa-power-off"></i> Logout
+            </a>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <header class="header">
+            <div class="toggle-sidebar" id="toggle-sidebar"><i class="fas fa-bars"></i></div>
+            <div class="header-right" style="margin-left:auto;">
+                <a href="index.html" style="color:var(--text-light);font-size:14px;font-weight:500;">🏠 Home</a>
+                <div class="user-profile" style="cursor:pointer;" onclick="window.location.href='profile.html'" title="View Profile">
+                    <div class="user-avatar"><i class="fas fa-user"></i></div>
+                    <span id="user-email-display" style="font-weight:500;">Admin</span>
+                </div>
+            </div>
+        </header>
+
+        <div class="content-area">
+
+            <!-- Page Header -->
+            <div class="cal-header">
+                <div class="cal-title-wrap">
+                    <div class="cal-title-icon"><i class="fas fa-calendar-alt"></i></div>
+                    <div class="cal-title">
+                        <h1>Reservations Calendar</h1>
+                        <p>All check-ins and check-outs across the month</p>
+                    </div>
+                </div>
+                <div class="cal-nav">
+                    <button class="cal-today-btn" onclick="goToToday()">Today</button>
+                    <button class="cal-nav-btn" onclick="changeMonth(-1)"><i class="fas fa-chevron-left"></i></button>
+                    <div class="cal-month-label" id="cal-month-label">—</div>
+                    <button class="cal-nav-btn" onclick="changeMonth(1)"><i class="fas fa-chevron-right"></i></button>
+                </div>
+            </div>
+
+            <!-- Stats -->
+            <div class="cal-stats" id="cal-stats">
+                <div class="cal-stat">
+                    <div class="cal-stat-icon" style="background:#dcfce7;">
+                        <i class="fas fa-plane-arrival" style="color:#15803d;"></i>
+                    </div>
+                    <div>
+                        <strong id="stat-checkins-month">—</strong>
+                        Check-ins this month
+                    </div>
+                </div>
+                <div class="cal-stat">
+                    <div class="cal-stat-icon" style="background:#fee2e2;">
+                        <i class="fas fa-plane-departure" style="color:#dc2626;"></i>
+                    </div>
+                    <div>
+                        <strong id="stat-checkouts-month">—</strong>
+                        Check-outs this month
+                    </div>
+                </div>
+                <div class="cal-stat">
+                    <div class="cal-stat-icon" style="background:#ede9fe;">
+                        <i class="fas fa-users" style="color:#7c3aed;"></i>
+                    </div>
+                    <div>
+                        <strong id="stat-active-month">—</strong>
+                        Active guests
+                    </div>
+                </div>
+                <div class="cal-stat">
+                    <div class="cal-stat-icon" style="background:#fef9c3;">
+                        <i class="fas fa-calendar-day" style="color:#854d0e;"></i>
+                    </div>
+                    <div>
+                        <strong id="stat-busy-days">—</strong>
+                        Busy days
+                    </div>
+                </div>
+            </div>
+
+            <!-- Legend -->
+            <div class="cal-legend">
+                <div class="legend-item">
+                    <div class="legend-dot" style="background:#15803d;"></div>
+                    Check-In
+                </div>
+                <div class="legend-item">
+                    <div class="legend-dot" style="background:#dc2626;"></div>
+                    Check-Out
+                </div>
+                <div class="legend-item">
+                    <div class="legend-dot" style="background:#1f3b57; border-radius:50%;"></div>
+                    Today
+                </div>
+                <div class="legend-item">
+                    <div class="legend-dot" style="background:#7c3aed;border-radius:2px;"></div>
+                    Weekend
+                </div>
+            </div>
+
+            <!-- Main Layout -->
+            <div class="cal-layout">
+
+                <!-- Calendar Grid -->
+                <div>
+                    <div class="cal-grid-wrap">
+                        <div class="cal-days-header">
+                            <div class="cal-day-name weekend">Sun</div>
+                            <div class="cal-day-name">Mon</div>
+                            <div class="cal-day-name">Tue</div>
+                            <div class="cal-day-name">Wed</div>
+                            <div class="cal-day-name">Thu</div>
+                            <div class="cal-day-name">Fri</div>
+                            <div class="cal-day-name weekend">Sat</div>
+                        </div>
+                        <div class="cal-grid" id="cal-grid">
+                            <!-- Shimmer -->
+                            ${Array(35).fill('<div class="cal-shimmer-cell"></div>').join('')}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Side Panel -->
+                <div class="cal-side">
+
+                    <!-- Selected Day Detail -->
+                    <div class="day-detail-panel" id="day-detail-panel">
+                        <div class="day-detail-header">
+                            <div class="day-detail-date" id="detail-date">Select a Day</div>
+                            <div class="day-detail-weekday" id="detail-weekday">Click any date to see details</div>
+                            <div class="day-detail-badges" id="detail-badges"></div>
+                        </div>
+                        <div class="day-detail-body" id="detail-body">
+                            <div class="day-empty-state">
+                                <i class="fas fa-hand-pointer"></i>
+                                <p>Click a date on the calendar to view check-ins and check-outs</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Upcoming Events -->
+                    <div class="upcoming-panel">
+                        <div class="upcoming-header">
+                            <i class="fas fa-clock"></i>
+                            Upcoming (Next 7 Days)
+                        </div>
+                        <div class="upcoming-list" id="upcoming-list">
+                            <div style="text-align:center;padding:20px;color:#94a3b8;font-size:13px;">
+                                Loading…
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<!-- Event Modal (for mobile / overflow) -->
+<div class="event-modal-overlay" id="event-modal" onclick="closeModal(event)">
+    <div class="event-modal">
+        <div class="event-modal-header">
+            <div>
+                <div class="event-modal-title" id="modal-title">—</div>
+                <div class="event-modal-sub" id="modal-sub">—</div>
+            </div>
+            <button class="event-modal-close" onclick="document.getElementById('event-modal').classList.remove('open')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="event-modal-body" id="modal-body"></div>
+    </div>
+</div>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+<script src="js/firebase.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/sidebar.js"></script>
+<script src="js/chatnotify.js"></script>
+
+<script>
+    const MONTH_NAMES = ['January','February','March','April','May','June',
+                         'July','August','September','October','November','December'];
+    const DAY_NAMES   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    const MON_SHORT   = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+    let currentYear  = new Date().getFullYear();
+    let currentMonth = new Date().getMonth();
+    let allGuests    = [];
+    let allHistory   = [];
+    let selectedDate = null;
+
+    // ── Date helpers ──────────────────────────────────────────────────────
+    function getSafeDateStr(val) {
+        if (!val) return '';
+        if (typeof val === 'string') return val;
+        if (val.toDate) { try { return val.toDate().toISOString(); } catch(e) { return ''; } }
+        try { return new Date(val).toISOString(); } catch(e) { return ''; }
+    }
+
+    function toDateKey(val) {
+        const s = getSafeDateStr(val);
+        return s ? s.split('T')[0] : '';
+    }
+
+    // ── Build event maps for the current month ────────────────────────────
+    function buildEventMaps() {
+        const checkinMap  = {};
+        const checkoutMap = {};
+
+        allGuests.forEach(g => {
+            const key = toDateKey(g.checkinDateStr || g.checkinDate);
+            if (!key) return;
+            if (!checkinMap[key]) checkinMap[key] = [];
+            checkinMap[key].push(g);
+        });
+
+        // Check-outs from history
+        allHistory.forEach(h => {
+            const key = toDateKey(h.checkoutDateStr || h.checkoutDate);
+            if (!key) return;
+            if (!checkoutMap[key]) checkoutMap[key] = [];
+            checkoutMap[key].push(h);
+        });
+
+        // Expected check-outs from active guests
+        allGuests.forEach(g => {
+            const key = toDateKey(g.expectedCheckout || g.checkoutDate || g.checkoutDateStr);
+            if (!key) return;
+            if (!checkoutMap[key]) checkoutMap[key] = [];
+            const name = g.name || g.guestName || 'Guest';
+            if (!checkoutMap[key].find(x => (x.name||x.guestName||'') === name)) {
+                checkoutMap[key].push(g);
+            }
+        });
+
+        return { checkinMap, checkoutMap };
+    }
+
+    // ── Render Calendar ───────────────────────────────────────────────────
+    function renderCalendar() {
+        document.getElementById('cal-month-label').textContent =
+            `${MONTH_NAMES[currentMonth]} ${currentYear}`;
+
+        const { checkinMap, checkoutMap } = buildEventMaps();
+
+        const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+        const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+        const daysInPrev  = new Date(currentYear, currentMonth, 0).getDate();
+        const today = new Date();
+        const todayKey = today.toISOString().split('T')[0];
+
+        const grid = document.getElementById('cal-grid');
+        grid.innerHTML = '';
+
+        // Count stats
+        let ciCount = 0, coCount = 0, busyDays = 0;
+        for (let d = 1; d <= daysInMonth; d++) {
+            const key = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+            const ins  = (checkinMap[key] || []).length;
+            const outs = (checkoutMap[key] || []).length;
+            ciCount += ins;
+            coCount += outs;
+            if (ins + outs > 0) busyDays++;
+        }
+
+        document.getElementById('stat-checkins-month').textContent  = ciCount;
+        document.getElementById('stat-checkouts-month').textContent = coCount;
+        document.getElementById('stat-active-month').textContent    = allGuests.length;
+        document.getElementById('stat-busy-days').textContent       = busyDays;
+
+        // Previous month filler cells
+        for (let i = 0; i < firstDay; i++) {
+            const day = daysInPrev - firstDay + 1 + i;
+            const cell = document.createElement('div');
+            cell.className = 'cal-cell other-month';
+            cell.innerHTML = `<div class="cal-date-num">${day}</div>`;
+            grid.appendChild(cell);
+        }
+
+        // Current month cells
+        for (let d = 1; d <= daysInMonth; d++) {
+            const dateKey = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+            const ins     = checkinMap[dateKey]  || [];
+            const outs    = checkoutMap[dateKey] || [];
+            const isToday = dateKey === todayKey;
+            const dateObj = new Date(currentYear, currentMonth, d);
+            const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6;
+            const isSelected = selectedDate === dateKey;
+
+            const cell = document.createElement('div');
+            let cls = 'cal-cell';
+            if (isToday)   cls += ' today';
+            if (isWeekend) cls += ' weekend';
+            if (ins.length + outs.length > 0) cls += ' has-events';
+            if (isSelected) cell.style.outline = '2px solid var(--navy)';
+            cell.className = cls;
+            cell.onclick = () => selectDate(dateKey, ins, outs);
+
+            const dateNum = document.createElement('div');
+            dateNum.className = 'cal-date-num';
+            dateNum.textContent = d;
+            cell.appendChild(dateNum);
+
+            const MAX_PILLS = 3;
+            let shown = 0;
+
+            ins.slice(0, MAX_PILLS).forEach(g => {
+                if (shown >= MAX_PILLS) return;
+                const pill = document.createElement('div');
+                pill.className = 'cal-event checkin';
+                pill.innerHTML = `<i class="fas fa-plane-arrival"></i> ${truncate(g.name || g.guestName || 'Guest', 12)}`;
+                pill.title = g.name || g.guestName || 'Guest';
+                pill.onclick = (e) => { e.stopPropagation(); selectDate(dateKey, ins, outs); };
+                cell.appendChild(pill);
+                shown++;
+            });
+
+            outs.slice(0, MAX_PILLS - shown).forEach(g => {
+                if (shown >= MAX_PILLS) return;
+                const pill = document.createElement('div');
+                pill.className = 'cal-event checkout';
+                pill.innerHTML = `<i class="fas fa-plane-departure"></i> ${truncate(g.name || g.guestName || 'Guest', 12)}`;
+                pill.title = g.name || g.guestName || 'Guest';
+                pill.onclick = (e) => { e.stopPropagation(); selectDate(dateKey, ins, outs); };
+                cell.appendChild(pill);
+                shown++;
+            });
+
+            const total = ins.length + outs.length;
+            if (total > MAX_PILLS) {
+                const more = document.createElement('div');
+                more.className = 'cal-more';
+                more.textContent = `+${total - MAX_PILLS} more`;
+                more.onclick = (e) => { e.stopPropagation(); openModal(dateKey, ins, outs); };
+                cell.appendChild(more);
+            }
+
+            grid.appendChild(cell);
+        }
+
+        // Next month filler
+        const totalCells = firstDay + daysInMonth;
+        const remaining  = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
+        for (let i = 1; i <= remaining; i++) {
+            const cell = document.createElement('div');
+            cell.className = 'cal-cell other-month';
+            cell.innerHTML = `<div class="cal-date-num">${i}</div>`;
+            grid.appendChild(cell);
+        }
+    }
+
+    // ── Select Date → Side Panel ──────────────────────────────────────────
+    function selectDate(dateKey, ins, outs) {
+        selectedDate = dateKey;
+        renderCalendar(); // re-render to show selection outline
+
+        const d = new Date(dateKey + 'T00:00:00');
+        document.getElementById('detail-date').textContent    = `${d.getDate()} ${MON_SHORT[d.getMonth()]} ${d.getFullYear()}`;
+        document.getElementById('detail-weekday').textContent = DAY_NAMES[d.getDay()];
+
+        const badges = document.getElementById('detail-badges');
+        badges.innerHTML = '';
+        if (ins.length)
+            badges.innerHTML += `<span class="day-badge in"><i class="fas fa-plane-arrival"></i> ${ins.length} Check-in${ins.length>1?'s':''}</span>`;
+        if (outs.length)
+            badges.innerHTML += `<span class="day-badge out"><i class="fas fa-plane-departure"></i> ${outs.length} Check-out${outs.length>1?'s':''}</span>`;
+
+        const body = document.getElementById('detail-body');
+
+        if (ins.length + outs.length === 0) {
+            body.innerHTML = `<div class="day-empty-state">
+                <i class="fas fa-calendar-check"></i>
+                <p>No check-ins or check-outs on this day</p>
+            </div>`;
+            return;
+        }
+
+        body.innerHTML = '';
+
+        if (ins.length) {
+            const title = document.createElement('div');
+            title.className = 'day-section-title';
+            title.innerHTML = `<i class="fas fa-plane-arrival" style="color:#15803d;"></i> Check-ins`;
+            body.appendChild(title);
+
+            ins.forEach(g => {
+                const name = g.name || g.guestName || 'Guest';
+                const initials = name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase();
+                const item = document.createElement('div');
+                item.className = 'day-guest-item';
+                item.innerHTML = `
+                    <div class="day-guest-avatar in">${initials}</div>
+                    <div style="flex:1;min-width:0;">
+                        <div class="day-guest-name">${name}</div>
+                        <div class="day-guest-meta">
+                            ${g.roomNumber || g.room ? `Room ${g.roomNumber || g.room}` : '—'}
+                            ${g.phone ? ' · ' + g.phone : ''}
+                        </div>
+                    </div>
+                    <span class="day-type-badge in">Check-in</span>
+                `;
+                body.appendChild(item);
+            });
+        }
+
+        if (outs.length) {
+            const title = document.createElement('div');
+            title.className = 'day-section-title';
+            title.style.marginTop = ins.length ? '16px' : '0';
+            title.innerHTML = `<i class="fas fa-plane-departure" style="color:#dc2626;"></i> Check-outs`;
+            body.appendChild(title);
+
+            outs.forEach(g => {
+                const name = g.name || g.guestName || 'Guest';
+                const initials = name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase();
+                const item = document.createElement('div');
+                item.className = 'day-guest-item';
+                item.innerHTML = `
+                    <div class="day-guest-avatar out">${initials}</div>
+                    <div style="flex:1;min-width:0;">
+                        <div class="day-guest-name">${name}</div>
+                        <div class="day-guest-meta">
+                            ${g.roomNumber || g.room ? `Room ${g.roomNumber || g.room}` : '—'}
+                            ${g.phone ? ' · ' + g.phone : ''}
+                        </div>
+                    </div>
+                    <span class="day-type-badge out">Check-out</span>
+                `;
+                body.appendChild(item);
+            });
+        }
+    }
+
+    // ── Modal (overflow events) ───────────────────────────────────────────
+    function openModal(dateKey, ins, outs) {
+        const d = new Date(dateKey + 'T00:00:00');
+        document.getElementById('modal-title').textContent =
+            `${d.getDate()} ${MON_SHORT[d.getMonth()]} ${d.getFullYear()}`;
+        document.getElementById('modal-sub').textContent =
+            `${ins.length} check-in${ins.length!==1?'s':''} · ${outs.length} check-out${outs.length!==1?'s':''}`;
+
+        const body = document.getElementById('modal-body');
+        body.innerHTML = '';
+
+        [...ins.map(g=>({...g,type:'in'})), ...outs.map(g=>({...g,type:'out'}))].forEach(g => {
+            const name = g.name || g.guestName || 'Guest';
+            const initials = name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase();
+            const div = document.createElement('div');
+            div.className = 'event-modal-guest';
+            div.innerHTML = `
+                <div class="emg-avatar ${g.type}">${initials}</div>
+                <div style="flex:1;min-width:0;">
+                    <div class="emg-name">${name}</div>
+                    <div class="emg-meta">Room ${g.roomNumber || g.room || '—'} · ${g.phone || '—'}</div>
+                </div>
+                <span class="emg-badge ${g.type}">${g.type === 'in' ? 'Check-in' : 'Check-out'}</span>
+            `;
+            body.appendChild(div);
+        });
+
+        document.getElementById('event-modal').classList.add('open');
+    }
+
+    function closeModal(e) {
+        if (e.target === document.getElementById('event-modal')) {
+            document.getElementById('event-modal').classList.remove('open');
+        }
+    }
+
+    // ── Upcoming 7 Days ───────────────────────────────────────────────────
+    function renderUpcoming() {
+        const list = document.getElementById('upcoming-list');
+        const today = new Date();
+        today.setHours(0,0,0,0);
+        const { checkinMap, checkoutMap } = buildEventMaps();
+        const items = [];
+
+        for (let i = 0; i < 7; i++) {
+            const d = new Date(today);
+            d.setDate(today.getDate() + i);
+            const key = d.toISOString().split('T')[0];
+            const ins  = checkinMap[key]  || [];
+            const outs = checkoutMap[key] || [];
+            ins.forEach(g  => items.push({ date: d, key, type: 'in',  guest: g }));
+            outs.forEach(g => items.push({ date: d, key, type: 'out', guest: g }));
+        }
+
+        if (items.length === 0) {
+            list.innerHTML = `<div style="text-align:center;padding:20px;color:#94a3b8;font-size:13px;">
+                No upcoming events in the next 7 days
+            </div>`;
+            return;
+        }
+
+        list.innerHTML = '';
+        items.slice(0, 15).forEach(item => {
+            const name = item.guest.name || item.guest.guestName || 'Guest';
+            const room = item.guest.roomNumber || item.guest.room || '—';
+            const div = document.createElement('div');
+            div.className = 'upcoming-item';
+            div.style.borderLeft = `3px solid ${item.type === 'in' ? '#15803d' : '#dc2626'}`;
+            div.innerHTML = `
+                <div class="upcoming-date-badge">
+                    <div class="ud-day">${item.date.getDate()}</div>
+                    <div class="ud-mon">${MON_SHORT[item.date.getMonth()]}</div>
+                </div>
+                <div style="flex:1;min-width:0;">
+                    <div class="upcoming-name">${name}</div>
+                    <div class="upcoming-room">Room ${room} · ${item.type === 'in' ? '✈️ Check-in' : '🛫 Check-out'}</div>
+                </div>
+            `;
+            div.onclick = () => {
+                const { checkinMap: cm, checkoutMap: om } = buildEventMaps();
+                selectDate(item.key, cm[item.key]||[], om[item.key]||[]);
+                // scroll to calendar on mobile
+                document.getElementById('cal-grid').scrollIntoView({ behavior: 'smooth', block: 'start' });
+            };
+            list.appendChild(div);
+        });
+    }
+
+    // ── Navigation ────────────────────────────────────────────────────────
+    function changeMonth(delta) {
+        currentMonth += delta;
+        if (currentMonth > 11) { currentMonth = 0; currentYear++; }
+        if (currentMonth < 0)  { currentMonth = 11; currentYear--; }
+        selectedDate = null;
+        renderCalendar();
+    }
+
+    function goToToday() {
+        const now = new Date();
+        currentYear  = now.getFullYear();
+        currentMonth = now.getMonth();
+        selectedDate = null;
+        renderCalendar();
+    }
+
+    // ── Load Data ─────────────────────────────────────────────────────────
+    async function loadData() {
+        try {
+            const [gSnap, hSnap] = await Promise.all([
+                db.collection('guests').get(),
+                db.collection('history').get()
+            ]);
+
+            allGuests  = [];
+            allHistory = [];
+            gSnap.forEach(doc => allGuests.push({ id: doc.id, ...doc.data() }));
+            hSnap.forEach(doc => allHistory.push({ id: doc.id, ...doc.data() }));
+
+            renderCalendar();
+            renderUpcoming();
+
+            // Auto-select today if it has events
+            const todayKey = new Date().toISOString().split('T')[0];
+            const { checkinMap, checkoutMap } = buildEventMaps();
+            const todayIns  = checkinMap[todayKey]  || [];
+            const todayOuts = checkoutMap[todayKey] || [];
+            if (todayIns.length + todayOuts.length > 0) {
+                selectDate(todayKey, todayIns, todayOuts);
+            }
+
+        } catch(err) {
+            console.error('Calendar load error:', err);
+        }
+    }
+
+    function truncate(str, len) {
+        return (str||'').length > len ? str.substring(0, len) + '…' : str;
+    }
+
+    // ── Boot ──────────────────────────────────────────────────────────────
+    document.addEventListener('DOMContentLoaded', () => {
+        firebase.auth().onAuthStateChanged(user => {
+            if (!user) { window.location.href = 'admin.html'; return; }
+            loadData();
+            setTimeout(() => {
+                const sm = document.getElementById('sidebarMenu');
+                if (sm) sm.style.visibility = 'visible';
+            }, 100);
+        });
+
+        document.addEventListener('keydown', e => {
+            if (e.key === 'ArrowLeft')  changeMonth(-1);
+            if (e.key === 'ArrowRight') changeMonth(1);
+            if (e.key === 'Escape') document.getElementById('event-modal').classList.remove('open');
+        });
+    });
+</script>
+</body>
+</html>

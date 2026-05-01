@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guest Lodge - Login</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <link rel="icon" type="image/jpg" href="img/logo1.jpg">
+
+    <style>
+        /* Hide browser's native password reveal button */
+        input[type="password"]::-ms-reveal,
+        input[type="password"]::-ms-clear,
+        input[type="password"]::-webkit-credentials-auto-fill-button,
+        input::-webkit-password-auto-fill-button {
+            display: none !important;
+            visibility: hidden;
+        }
+
+        /* ── Divider ─────────────────────────────────────────── */
+        .divider {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 20px 0;
+            color: #94a3b8;
+            font-size: 13px;
+            font-weight: 500;
+        }
+        .divider::before,
+        .divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: #e2e8f0;
+        }
+
+        /* ── Google Sign-In button ───────────────────────────── */
+        .btn-google {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            width: 100%;
+            padding: 11px 24px;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 8px;
+            background: #ffffff;
+            color: #3c4043;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: 'Inter', sans-serif;
+        }
+        .btn-google:hover {
+            background: #f8fafc;
+            border-color: #c7d2fe;
+            box-shadow: 0 2px 8px rgba(66, 133, 244, 0.15);
+        }
+        .btn-google:active {
+            transform: translateY(1px);
+        }
+        .btn-google svg {
+            width: 18px;
+            height: 18px;
+            flex-shrink: 0;
+        }
+        .btn-google:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        /* ── Register link ───────────────────────────────────── */
+        .register-link {
+            margin-top: 20px;
+            font-size: 13px;
+            color: #64748b;
+            text-align: center;
+        }
+        .register-link a {
+            color: #4361ee;
+            font-weight: 600;
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+        .register-link a:hover {
+            color: #3a56d4;
+            text-decoration: underline;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="auth-container">
+        <div class="auth-card">
+            <img src="img/logo1.jpg" alt="Logo" class="logo" style="width:100px;height:100px;" align="center">
+            <h1 class="auth-title">Guest Lodge</h1>
+            <p class="auth-subtitle">Welcome back👋! Please login to your account.</p>
+
+            <!-- ── Google Sign-In ─────────────────────────────────────── -->
+            <button id="google-signin-btn" class="btn-google">
+                <!-- Official Google "G" logo SVG -->
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                </svg>
+                Continue with Google
+            </button>
+
+            <div class="divider">or sign in with email</div>
+
+            <form id="login-form" autocomplete="off">
+                <div class="form-group">
+                    <label for="email">Email Address</label>
+                    <input type="email" id="email" class="form-control" placeholder="admin@guestlodge.com"
+                        autocomplete="off" spellcheck="false" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <div style="position:relative;">
+                        <input type="password" id="password" class="form-control" placeholder="Enter your password"
+                            autocomplete="new-password" style="padding-right:44px;" required>
+                        <button type="button" id="toggle-login-password" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);
+                                       background:none;border:none;cursor:pointer;
+                                       color:#94a3b8;font-size:15px;padding:0;line-height:1;">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <button type="submit" id="login-btn" class="btn btn-primary" style="margin-top:10px;">
+                    <i class="fas fa-sign-in-alt"></i> Login
+                </button>
+            </form>
+
+            <!-- ── Lock / attempt warning message ── -->
+            <div id="login-warning" style="
+                display:none; margin-top:16px; padding:12px 16px;
+                border-radius:10px; font-size:13px; font-weight:600;
+                text-align:center; line-height:1.5;">
+            </div>
+
+            <!-- ── Register link ── -->
+            <p class="register-link">
+                Don't have an account? <a href="register.html">Create one</a>
+            </p>
+        </div>
+    </div>
+
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+    <script src="js/firebase.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/logs.js"></script>
+
+    <script>
+        const MAX_ATTEMPTS = 5;
+
+        // ── Tell auth.js NOT to redirect on this page ─────────────────────
+        window._loginPageHandlingRedirect = true;
+
+        // ── Pre-load registered emails into memory on page load ───────────
+        let registeredEmailsCache = null;
+
+        async function loadRegisteredEmails() {
+            if (registeredEmailsCache !== null) return registeredEmailsCache;
+            try {
+                const snap = await db.collection('users').get();
+                registeredEmailsCache = new Set();
+                snap.forEach(doc => {
+                    const email = (doc.data().email || '').toLowerCase().trim();
+                    if (email) registeredEmailsCache.add(email);
+                });
+                console.log('[Login] ✅ Loaded', registeredEmailsCache.size, 'registered emails');
+                return registeredEmailsCache;
+            } catch (e) {
+                console.warn('[Login] Could not load users:', e);
+                registeredEmailsCache = null;
+                return null;
+            }
+        }
+
+        async function isRegisteredEmail(email) {
+            const emailLower = email.toLowerCase().trim();
+            const emails = await loadRegisteredEmails();
+            if (emails !== null) return emails.has(emailLower);
+            return false;
+        }
+
+        // ── Password visibility toggle ────────────────────────────────────
+        document.getElementById('toggle-login-password').addEventListener('click', function () {
+            const input = document.getElementById('password');
+            const icon = this.querySelector('i');
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.className = 'fas fa-eye-slash';
+            } else {
+                input.type = 'password';
+                icon.className = 'fas fa-eye';
+            }
+        });
+
+        // ── Show / hide warning message ───────────────────────────────────
+        function showWarning(message, type = 'error') {
+            const el = document.getElementById('login-warning');
+            el.style.display = 'block';
+            if (type === 'error') {
+                el.style.background = '#fef2f2';
+                el.style.border = '1px solid #fecaca';
+                el.style.color = '#dc2626';
+            } else if (type === 'warning') {
+                el.style.background = '#fef9ec';
+                el.style.border = '1px solid #fde68a';
+                el.style.color = '#854d0e';
+            } else {
+                el.style.background = '#f0f9ff';
+                el.style.border = '1px solid #bae6fd';
+                el.style.color = '#0369a1';
+            }
+            el.innerHTML = message;
+        }
+
+        function hideWarning() {
+            document.getElementById('login-warning').style.display = 'none';
+        }
+
+        function showLockedMessage() {
+            showWarning(
+                `<i class="fas fa-lock" style="margin-right:6px;"></i>
+                 Your account has been locked due to too many failed login attempts.<br>
+                 <span style="font-weight:400;font-size:12px;margin-top:4px;display:block;">
+                    Kindly contact IT Support to reset your password.
+                 </span>`,
+                'error'
+            );
+        }
+
+        // ── Firestore loginAttempts helpers ───────────────────────────────
+        function getAttemptRef(email) {
+            const safeEmail = email.replace(/\./g, '_').replace(/@/g, '_at_');
+            return db.collection('loginAttempts').doc(safeEmail);
+        }
+
+        async function getAttemptData(email) {
+            try {
+                const doc = await getAttemptRef(email).get();
+                if (doc.exists) return doc.data();
+            } catch (e) {
+                console.warn('[Login] Could not read attempt data:', e);
+            }
+            return { attempts: 0, locked: false };
+        }
+
+        async function recordFailedAttempt(email) {
+            try {
+                const ref = getAttemptRef(email);
+                const data = await getAttemptData(email);
+                const newCount = (data.attempts || 0) + 1;
+                const locked = newCount >= MAX_ATTEMPTS;
+
+                await ref.set({
+                    attempts: newCount,
+                    locked: locked,
+                    lastFailed: new Date().toISOString(),
+                    email: email,
+                });
+
+                if (locked && typeof _writeLog === 'function') {
+                    await _writeLog(email, "Account Locked",
+                        `${email} — locked after ${MAX_ATTEMPTS} failed login attempts`);
+                }
+
+                return { attempts: newCount, locked };
+            } catch (e) {
+                console.warn('[Login] Could not record attempt:', e);
+                return { attempts: 0, locked: false };
+            }
+        }
+
+        // ── Pre-load emails as soon as Firebase is ready ──────────────────
+        firebase.auth().onAuthStateChanged(user => {
+            if (!user) loadRegisteredEmails();
+        });
+
+        // ══════════════════════════════════════════════════════════════════
+        // ✅ VERIFY USER STATUS BEFORE ALLOWING DASHBOARD ACCESS
+        // This runs on the login page itself — the user never sees the
+        // dashboard unless Firestore confirms status === 'active'.
+        // ══════════════════════════════════════════════════════════════════
+        async function checkUserStatus(uid) {
+            try {
+                const doc = await db.collection('users').doc(uid).get();
+                if (!doc.exists) return 'unregistered';
+                return (doc.data().status || 'active');
+            } catch (e) {
+                console.error('[Login] Status check failed:', e);
+                return 'error';
+            }
+        }
+
+        // Central handler called after every successful Firebase Auth sign-in.
+        // Keeps the loader visible while verifying — user sees nothing until approved.
+        async function handleSuccessfulAuth(user, logMessage) {
+            const status = await checkUserStatus(user.uid);
+
+            if (status === 'active') {
+                try {
+                    await _writeLog(user.email, "User Logged In", logMessage);
+                } catch (err) {
+                    console.warn('[Login] Log write failed:', err);
+                }
+                window.location.href = 'dashboard.html';
+
+            } else {
+                await firebase.auth().signOut();
+                UI.hideLoader();
+
+                if (status === 'pending') {
+                    showWarning(
+                        `<i class="fas fa-clock" style="margin-right:6px;color:#f59e0b;"></i>
+                         Your account is <strong>pending approval</strong>.<br>
+                         <span style="font-weight:400;font-size:12px;margin-top:4px;display:block;">
+                             Please contact your System Administrator to grant you access.
+                         </span>`,
+                        'warning'
+                    );
+                } else if (status === 'rejected') {
+                    showWarning(
+                        `<i class="fas fa-ban" style="margin-right:6px;"></i>
+                         Your account request was <strong>not approved</strong>.<br>
+                         <span style="font-weight:400;font-size:12px;margin-top:4px;display:block;">
+                             Contact your System Administrator to grant you access.
+                         </span>`,
+                        'error'
+                    );
+                } else {
+                    showWarning(
+                        `<i class="fas fa-user-slash" style="margin-right:6px;"></i>
+                         Your account is <strong>not registered</strong> in this system.<br>
+                         <span style="font-weight:400;font-size:12px;margin-top:4px;display:block;">
+                             Contact your Super Admin or <a href="register.html" style="color:#4361ee;font-weight:600;">create an account</a>.
+                         </span>`,
+                        'error'
+                    );
+                }
+            }
+        }
+
+        // ── Show status messages if redirected from auth.js ───────────────
+        (function () {
+            const params = new URLSearchParams(window.location.search);
+            const status = params.get('status');
+
+            if (status === 'pending') {
+                showWarning(
+                    `<i class="fas fa-clock" style="margin-right:6px;color:#f59e0b;"></i>
+                     Your account is <strong>pending approval</strong>.<br>
+                     <span style="font-weight:400;font-size:12px;margin-top:4px;display:block;">
+                         Please contact your Super Admin to grant you access.
+                     </span>`,
+                    'warning'
+                );
+            } else if (status === 'rejected') {
+                showWarning(
+                    `<i class="fas fa-ban" style="margin-right:6px;"></i>
+                     Your account request was <strong>not approved</strong>.<br>
+                     <span style="font-weight:400;font-size:12px;margin-top:4px;display:block;">
+                         Contact your Super Admin if you believe this is a mistake.
+                     </span>`,
+                    'error'
+                );
+            } else if (status === 'unregistered') {
+                showWarning(
+                    `<i class="fas fa-user-slash" style="margin-right:6px;"></i>
+                     Your account is <strong>not registered</strong> in this system.<br>
+                     <span style="font-weight:400;font-size:12px;margin-top:4px;display:block;">
+                         Contact your Super Admin or <a href="register.html" style="color:#4361ee;font-weight:600;">create an account</a>.
+                     </span>`,
+                    'error'
+                );
+            }
+
+            if (status) history.replaceState(null, '', 'admin.html');
+        })();
+
+        // ══════════════════════════════════════════════════════════════════
+        // ✅ GOOGLE SIGN-IN
+        // ══════════════════════════════════════════════════════════════════
+        document.getElementById('google-signin-btn').addEventListener('click', async () => {
+            const btn = document.getElementById('google-signin-btn');
+            btn.disabled = true;
+            btn.innerHTML = `
+                <i class="fas fa-spinner fa-spin" style="color:#4285F4;"></i>
+                Signing in with Google…`;
+
+            try {
+                UI.showLoader();
+                const provider = new firebase.auth.GoogleAuthProvider();
+
+                // Always show the account picker, even if already signed in
+                provider.setCustomParameters({ prompt: 'select_account' });
+
+                const result = await auth.signInWithPopup(provider);
+                const user = result.user;
+
+                // ── Check if this Google email is a registered system user ──
+                const registered = await isRegisteredEmail(user.email);
+                if (!registered) {
+                    // Not a registered user — sign them out and block access
+                    await firebase.auth().signOut();
+                    UI.hideLoader();
+                    btn.disabled = false;
+                    btn.innerHTML = `
+                        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width:18px;height:18px;">
+                            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+                            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                        </svg>
+                        Continue with Google`;
+                    showWarning(
+                        `<i class="fas fa-ban" style="margin-right:6px;"></i>
+                         This Google account is not registered in the system.<br>
+                         <span style="font-weight:400;font-size:12px;margin-top:4px;display:block;">
+                            Contact your System Administrator to be added, or <a href="register.html" style="color:#4361ee;font-weight:600;">create an account</a>.
+                         </span>`,
+                        'error'
+                    );
+                    return;
+                }
+
+                // ── Registered — check if account is locked ────────────────
+                const attemptData = await getAttemptData(user.email);
+                if (attemptData.locked) {
+                    await firebase.auth().signOut();
+                    UI.hideLoader();
+                    btn.disabled = false;
+                    btn.innerHTML = `
+                        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width:18px;height:18px;">
+                            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+                            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                        </svg>
+                        Continue with Google`;
+                    showLockedMessage();
+                    return;
+                }
+
+                // ── All checks passed — verify Firestore status then redirect ──
+                // Restore button now in case status check blocks them
+                btn.disabled = false;
+                btn.innerHTML = `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width:18px;height:18px;"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg> Continue with Google`;
+                await handleSuccessfulAuth(user, `${user.email} signed in via Google`);
+
+            } catch (error) {
+                UI.hideLoader();
+                btn.disabled = false;
+                btn.innerHTML = `
+                    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width:18px;height:18px;">
+                        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+                        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                    </svg>
+                    Continue with Google`;
+
+                // User closed the popup — don't show an error
+                if (error.code === 'auth/popup-closed-by-user' ||
+                    error.code === 'auth/cancelled-popup-request') return;
+
+                showWarning(
+                    `<i class="fas fa-exclamation-circle" style="margin-right:6px;"></i>
+                     Google sign-in failed. Please try again.`,
+                    'error'
+                );
+                console.error('[Login] Google sign-in error:', error);
+            }
+        });
+
+        // ── Email/Password Login form submit ──────────────────────────────
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            hideWarning();
+
+            const email = document.getElementById('email').value.trim().toLowerCase();
+            const password = document.getElementById('password').value;
+            const loginBtn = document.getElementById('login-btn');
+
+            if (!email || !password) return;
+
+            // ── Step 1: Check Firestore lock ──────────────────────────────
+            const attemptData = await getAttemptData(email);
+            if (attemptData.locked) { showLockedMessage(); return; }
+
+            loginBtn.disabled = true;
+            loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Logging in…';
+
+            try {
+                UI.showLoader();
+
+                // ── Re-check lock just before Firebase call ───────────────
+                const latestData = await getAttemptData(email);
+                if (latestData.locked) {
+                    UI.hideLoader();
+                    loginBtn.disabled = false;
+                    loginBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Login';
+                    showLockedMessage();
+                    return;
+                }
+
+                // ── Sign in with Firebase Auth ────────────────────────────
+                const credential = await auth.signInWithEmailAndPassword(email, password);
+
+                // ── Final lock check ──────────────────────────────────────
+                const finalCheck = await getAttemptData(email);
+                if (finalCheck.locked) {
+                    await firebase.auth().signOut();
+                    UI.hideLoader();
+                    loginBtn.disabled = false;
+                    loginBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Login';
+                    showLockedMessage();
+                    return;
+                }
+
+                // ── Success — verify Firestore status before redirecting ─────
+                loginBtn.disabled = false;
+                loginBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Login';
+                await handleSuccessfulAuth(credential.user, `${credential.user.email} signed in`);
+
+            } catch (error) {
+                UI.hideLoader();
+                loginBtn.disabled = false;
+                loginBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Login';
+
+                const isCredentialError =
+                    error.code === 'auth/wrong-password' ||
+                    error.code === 'auth/invalid-credential' ||
+                    error.code === 'auth/invalid-login-credentials' ||
+                    error.code === 'auth/user-not-found';
+
+                if (isCredentialError) {
+                    const registered = await isRegisteredEmail(email);
+                    if (!registered) {
+                        showWarning(
+                            `<i class="fas fa-exclamation-circle" style="margin-right:6px;"></i>
+                             No account found with that email address.`,
+                            'error'
+                        );
+                        return;
+                    }
+
+                    const { attempts, locked } = await recordFailedAttempt(email);
+                    const remaining = MAX_ATTEMPTS - attempts;
+
+                    if (locked) {
+                        showLockedMessage();
+                    } else if (remaining === 1) {
+                        showWarning(
+                            `<i class="fas fa-exclamation-triangle" style="margin-right:6px;"></i>
+                             Wrong password. <strong>1 attempt remaining</strong> before your account is locked.`,
+                            'warning'
+                        );
+                    } else {
+                        showWarning(
+                            `<i class="fas fa-exclamation-circle" style="margin-right:6px;"></i>
+                             Wrong password. ${remaining} attempt${remaining !== 1 ? 's' : ''} remaining.`,
+                            'warning'
+                        );
+                    }
+
+                } else if (error.code === 'auth/too-many-requests') {
+                    const registered = await isRegisteredEmail(email);
+                    if (registered) await recordFailedAttempt(email);
+                    showLockedMessage();
+
+                } else {
+                    showWarning(
+                        `<i class="fas fa-exclamation-circle" style="margin-right:6px;"></i>
+                         Login failed. Please try again.`,
+                        'error'
+                    );
+                }
+            }
+        });
+
+        // ── Clear warning when user starts typing ─────────────────────────
+        document.getElementById('email').addEventListener('input', hideWarning);
+        document.getElementById('password').addEventListener('input', hideWarning);
+    </script>
+</body>
+
+</html>

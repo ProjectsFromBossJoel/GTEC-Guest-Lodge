@@ -1,0 +1,176 @@
+<!--checkin.html -->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guest House Admin - Check-In</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="icon" type="image/jpg" href="img/logo1.jpg">
+    <!-- ✅ EmailJS v4 — self-hosted SDK (same as index.html) -->
+    <script type="text/javascript" src="js/email.min.js"></script>
+    <script type="text/javascript">
+        (function() {
+            var ejs = window.emailjs;
+            if (ejs) {
+                if (ejs.default) ejs = ejs.default;
+                window.emailjs = ejs;
+                ejs.init({ publicKey: "vPjaLNbCn77LyjNzA" });
+                console.log("[EmailJS] SDK initialized ✅");
+            } else {
+                console.error("[EmailJS] ❌ SDK failed to load — check js/email.min.js exists");
+            }
+        })();
+    </script>
+
+    <style>
+    /* Hide sidebar menu instantly until role is confirmed — prevents FOUC */
+    .sidebar-menu { visibility: hidden; }
+</style>
+
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">
+                    <img src="img/logo1.jpg" alt="Logo" class="logo" style="width: 40px; height: 40px;"> Guest Lodge
+                </div>
+            </div>
+
+            <div class="sidebar-menu">
+                <div class="menu-label">Main Menu</div>
+                <a href="dashboard.html" class="menu-item"><i class="fas fa-chart-pie"></i> Dashboard</a>
+                <a href="rooms.html" class="menu-item"><i class="fas fa-bed"></i> Rooms</a>
+
+                <div class="menu-label" style="margin-top: 20px;">Guest Activity</div>
+                <a href="checkin.html" class="menu-item active"><i class="fas fa-sign-in-alt"></i> Check-In</a>
+                <a href="checkout.html" class="menu-item"><i class="fas fa-sign-out-alt"></i> Check-Out</a>
+                <a href="guests.html" class="menu-item"><i class="fas fa-users"></i> Guests</a>
+                <a href="chatroom.html" class="menu-item"><i class="fas fa-comments"></i> Chat Room</a>
+                <a href="logs.html" class="menu-item"><i class="fas fa-clipboard-list"></i> Logs</a>
+                <a href="chat.html" class="menu-item"><i class="fas fa-comment"></i> Client Messages</a>
+                <a href="verification.html" class="menu-item"><i class="fas fa-user-check"></i> Verification</a>
+                <a href="invoice.html"      class="menu-item"><i class="fas fa-file-invoice"></i> Invoice</a>
+                <a href="payments.html"     class="menu-item active"><i class="fas fa-credit-card"></i> Payments</a>
+                <a href="calendar.html" class="menu-item"><i class="fas fa-calendar-alt"></i> Calendar</a>
+                <a href="filelibrary.html" class="menu-item"><i class="fas fa-folder-open"></i> File Library</a>
+
+                <div class="menu-label" style="margin-top: 20px;">Analysis</div>
+                <a href="reports.html" class="menu-item"><i class="fas fa-chart-bar"></i> Reports</a>
+                <div class="menu-label" style="margin-top:20px;">Administration</div>
+            <a href="profile.html" class="menu-item"><i class="fas fa-circle-user"></i> My Profile</a>
+                <a href="roles.html" class="menu-item"><i class="fas fa-user-shield"></i> Roles</a>
+            </div>
+
+            <div class="sidebar-footer">
+                <a href="#" id="logout-btn" class="menu-item" style="color:var(--status-occupied);padding-left:0;">
+                    <i class="fas fa-power-off"></i> Logout
+                </a>
+            </div>
+        </aside>
+
+        <!-- Main Content Wrapper -->
+        <main class="main-content">
+            <!-- Top Header -->
+            <header class="header">
+                <div class="toggle-sidebar" id="toggle-sidebar">
+                    <i class="fas fa-bars"></i>
+                </div>
+                <div class="header-right" style="margin-left: auto;">
+                    <a href="index.html">&#127968; Home</a>
+                    <div class="user-profile" style="cursor:pointer;" onclick="window.location.href='profile.html'" title="View Profile">
+    <div class="user-avatar"><i class="fas fa-user"></i></div>
+    <span id="user-email-display" style="font-weight:500;">Admin</span>
+</div>
+                </div>
+            </header>
+
+            <!-- Checkin Content -->
+            <div class="content-area">
+                <div class="page-header">
+                    <h1 class="page-title">New Guest Check-In</h1>
+                </div>
+                <div class="card" style="max-width: 800px;">
+                    <div class="card-header">
+                        <h2 class="card-title">Guest Information Details</h2>
+                    </div>
+                    <div class="card-body">
+                        <form id="checkin-form">
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label for="guest-name">Full Name <span style="color:red;">*</span></label>
+                                    <input type="text" id="guest-name" class="form-control"
+                                        placeholder="Enter guest full name" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="guest-phone">Phone Number <span style="color:red;">*</span></label>
+                                    <input type="tel" id="guest-phone" class="form-control"
+                                        placeholder="+1 234 567 8900" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="guest-email">Guest Email <span style="color:red;">*</span></label>
+                                    <input type="email" id="guest-email" class="form-control"
+                                        placeholder="guest@example.com" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="guest-count">Number of Guests <span style="color:red;">*</span></label>
+                                    <input type="number" id="guest-count" class="form-control" min="1" value="1" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="room-select">Assign Room <span style="color:red;">*</span></label>
+                                    <select id="room-select" class="form-control" required>
+                                        <option value="" disabled selected>Loading available rooms...</option>
+                                    </select>
+                                </div>
+                                <div class="form-group"></div>
+                                <div class="form-group">
+                                    <label for="checkin-date">Check-In Date/Time <span style="color:red;">*</span></label>
+                                    <input type="datetime-local" id="checkin-date" class="form-control" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="checkout-date">Expected Checkout Date/Time <span style="color:red;">*</span></label>
+                                    <input type="datetime-local" id="checkout-date" class="form-control" required>
+                                </div>
+                                <div class="form-group full-width">
+                                    <label for="notes">Purpose of Stay<span style="color:red;">*</span></label><div style="font-size:12px;color:#ff0000;">(eg. GTEC Guest, Personal, etc)</div>
+                                    <textarea id="notes" class="form-control"
+                                        placeholder="Purpose of stay..." required></textarea>
+                                </div>
+                            </div>
+
+                            <hr style="border: 0; height: 1px; background: #e2e8f0; margin: 24px 0;">
+
+                            <div style="display: flex; gap: 16px; justify-content: flex-end;">
+                                <button type="reset" class="btn btn-outline" style="min-width: 120px;">Clear</button>
+                                <button type="submit" class="btn btn-primary" style="min-width: 120px; width: auto;"
+                                    id="submit-checkin-btn">
+                                    Check In Guest <i class="fas fa-arrow-right"></i>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+
+    <!-- App Scripts -->
+    <script src="js/firebase.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/checkin.js"></script>
+    <script src="js/logs.js"></script>
+    <script src="js/sidebar.js"></script>
+    <script src="js/chatnotify.js"></script>
+</body>
+
+</html>

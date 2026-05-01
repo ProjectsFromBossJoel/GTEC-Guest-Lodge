@@ -1,0 +1,2015 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invoice Generator — GTEC Guest Lodge</title>
+
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=DM+Sans:wght@300;400;500;600&display=swap"
+        rel="stylesheet">
+    <link rel="icon" type="image/png" href="img/favicon.png">
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+    <script src="js/firebase.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/sidebar.js"></script>
+    
+
+    <style>
+        .sidebar-menu { visibility: hidden; }
+
+        :root {
+            --ink: #0f1923;
+            --gold: #c9a84c;
+            --gold-lt: #e8d08a;
+            --cream: #faf8f3;
+            --white: #ffffff;
+            --muted: #64748b;
+            --border: #e2e8f0;
+            --success: #16a34a;
+            --danger: #dc2626;
+            --primary: #4361ee;
+            --sidebar-width: 260px;
+            --shadow: 0 20px 60px rgba(0, 0, 0, 0.08);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--cream);
+            color: var(--ink);
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            width: var(--sidebar-width);
+            background: var(--white);
+            border-right: 1px solid var(--border);
+            position: fixed;
+            height: 100vh;
+            top: 0; left: 0;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            transition: all 0.3s ease;
+        }
+
+        .sidebar-header { padding: 24px; border-bottom: 1px solid var(--border); }
+
+        .sidebar-logo {
+            font-size: 20px; font-weight: 700; color: var(--primary);
+            display: flex; align-items: center; gap: 10px;
+        }
+
+        .sidebar-menu { padding: 20px 0; flex-grow: 1; overflow-y: auto; }
+
+        .menu-label {
+            padding: 0 24px; font-size: 12px; text-transform: uppercase;
+            letter-spacing: 1px; color: var(--muted); font-weight: 600; margin-bottom: 12px;
+        }
+
+        .menu-item {
+            display: flex; align-items: center; padding: 12px 24px;
+            color: var(--ink); font-weight: 500; transition: all 0.3s;
+            border-left: 3px solid transparent; gap: 12px; cursor: pointer; text-decoration: none;
+        }
+
+        .menu-item:hover, .menu-item.active {
+            background: #f8fafc; color: var(--primary); border-left-color: var(--primary);
+        }
+
+        .menu-item i { font-size: 18px; width: 20px; text-align: center; }
+
+        .sidebar-footer { padding: 20px 24px; border-top: 1px solid var(--border); }
+
+        .main-content { margin-left: var(--sidebar-width); flex-grow: 1; display: flex; flex-direction: column; min-height: 100vh; }
+
+        .header {
+            height: 70px; background: var(--white); border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 30px; position: sticky; top: 0; z-index: 90;
+        }
+
+        .header-title { font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 600; color: var(--ink); }
+
+        .header-right { display: flex; align-items: center; gap: 16px; }
+
+        .user-profile { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+
+        .user-avatar {
+            width: 36px; height: 36px; border-radius: 50%;
+            background: var(--primary); color: white;
+            display: flex; align-items: center; justify-content: center; font-weight: 600;
+        }
+
+        .content-area { padding: 30px; flex-grow: 1; }
+
+        .history-bar {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 20px;
+            max-width: 1400px;
+        }
+
+        .view-all-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 11px 22px;
+            background: linear-gradient(135deg, #4361ee, #3451d1);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            font-family: 'DM Sans', sans-serif;
+            transition: all 0.25s;
+            box-shadow: 0 4px 16px rgba(67, 97, 238, 0.3);
+            letter-spacing: 0.2px;
+            position: relative;
+        }
+
+        .view-all-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 28px rgba(67, 97, 238, 0.45);
+        }
+
+        .view-all-btn:active { transform: translateY(0); }
+
+        .inv-count-badge {
+            background: rgba(255,255,255,0.25);
+            border-radius: 20px;
+            padding: 1px 8px;
+            font-size: 12px;
+            font-weight: 800;
+            min-width: 22px;
+            text-align: center;
+        }
+
+        .page-grid { display: grid; grid-template-columns: 420px 1fr; gap: 28px; max-width: 1400px; }
+
+        .form-panel {
+            background: var(--white); border-radius: 16px; box-shadow: var(--shadow);
+            overflow: visible; height: fit-content; position: sticky; top: 90px;
+        }
+
+        .form-panel-header {
+            background: linear-gradient(135deg, var(--ink), #1e3a5f);
+            padding: 24px 28px; display: flex; align-items: center; gap: 14px;
+            border-radius: 16px 16px 0 0;
+        }
+
+        .form-panel-icon {
+            width: 44px; height: 44px; border-radius: 12px;
+            background: rgba(201,168,76,0.2); border: 1px solid rgba(201,168,76,0.3);
+            display: flex; align-items: center; justify-content: center;
+            color: var(--gold); font-size: 18px;
+        }
+
+        .form-panel-title { font-family: 'Playfair Display', serif; font-size: 18px; color: white; font-weight: 600; }
+        .form-panel-sub { font-size: 12px; color: rgba(255,255,255,0.5); margin-top: 2px; }
+
+        .form-panel-body { padding: 24px 28px; background: var(--white); border-radius: 0 0 16px 16px; }
+
+        .search-section { margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid var(--border); }
+
+        .search-label {
+            font-size: 11px; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 1px; color: var(--muted); margin-bottom: 8px; display: block;
+        }
+
+        .search-row { display: flex; gap: 8px; }
+
+        .search-input {
+            flex: 1; padding: 10px 14px; border: 1.5px solid var(--border);
+            border-radius: 10px; font-size: 14px; font-family: 'DM Sans', sans-serif;
+            outline: none; transition: border 0.2s; background: #f8fafc;
+        }
+
+        .search-input:focus { border-color: var(--gold); background: white; }
+
+        .search-btn {
+            padding: 10px 16px; background: var(--ink); color: white; border: none;
+            border-radius: 10px; cursor: pointer; font-size: 13px; font-weight: 600;
+            transition: all 0.2s; display: flex; align-items: center; gap: 6px;
+        }
+
+        .search-btn:hover { background: var(--gold); color: var(--ink); }
+
+        .guest-card {
+            display: none; background: linear-gradient(135deg, #f0f7ff, #e8f4fd);
+            border: 1px solid #bfdbfe; border-radius: 12px; padding: 14px 16px; margin-bottom: 20px;
+        }
+
+        .guest-card.show { display: flex; align-items: center; gap: 12px; }
+
+        .guest-avatar {
+            width: 44px; height: 44px; border-radius: 50%; background: var(--primary);
+            color: white; display: flex; align-items: center; justify-content: center;
+            font-weight: 700; font-size: 16px; flex-shrink: 0;
+        }
+
+        .guest-card-name { font-weight: 700; font-size: 14px; color: var(--ink); }
+        .guest-card-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+        .field-group { margin-bottom: 16px; }
+
+        .field-label {
+            display: block; font-size: 11px; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); margin-bottom: 6px;
+        }
+
+        .field-input {
+            width: 100%; padding: 10px 14px; border: 1.5px solid var(--border);
+            border-radius: 10px; font-size: 14px; font-family: 'DM Sans', sans-serif;
+            outline: none; transition: border 0.2s, box-shadow 0.2s;
+            background: #f8fafc; color: var(--ink);
+        }
+
+        .field-input:focus {
+            border-color: var(--primary); background: white;
+            box-shadow: 0 0 0 3px rgba(67,97,238,0.1);
+        }
+
+        .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+        .charges-section { margin-bottom: 20px; }
+
+        .charges-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+
+        .charges-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); }
+
+        .add-charge-btn {
+            display: flex; align-items: center; gap: 5px; background: none;
+            border: 1px dashed var(--border); color: var(--primary);
+            padding: 5px 10px; border-radius: 8px; font-size: 12px;
+            font-weight: 600; cursor: pointer; transition: all 0.2s;
+        }
+
+        .add-charge-btn:hover { background: #f0f4ff; border-color: var(--primary); }
+
+        .charge-item {
+            display: grid; grid-template-columns: 1fr 80px 30px;
+            gap: 6px; align-items: center; margin-bottom: 8px;
+            animation: fadeIn 0.2s ease; overflow: visible;
+        }
+
+        .charge-item.room-row { grid-template-columns: 1fr 72px 72px 30px; }
+
+        .charge-desc {
+            padding: 8px 8px; border: 1.5px solid var(--border); border-radius: 8px;
+            font-size: 13px; font-family: 'DM Sans', sans-serif; outline: none;
+            background: #f8fafc; min-width: 0;
+        }
+
+        .charge-desc:focus { border-color: var(--primary); background: white; }
+
+        .charge-amount {
+            width: 100%; padding: 8px 6px; border: 1.5px solid var(--border);
+            border-radius: 8px; font-size: 13px; font-family: 'DM Sans', sans-serif;
+            outline: none; background: #f8fafc; text-align: right;
+        }
+
+        .charge-amount:focus { border-color: var(--primary); background: white; }
+
+        .remove-charge {
+            width: 30px; height: 30px; border: none; background: #fef2f2; color: var(--danger);
+            border-radius: 8px; cursor: pointer; display: flex; align-items: center;
+            justify-content: center; font-size: 12px; transition: background 0.2s; flex-shrink: 0;
+        }
+
+        .remove-charge:hover { background: #fee2e2; }
+
+        .payment-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .pay-method-btn {
+            flex: 1;
+            padding: 10px 6px 8px;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            text-align: center;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: 700;
+            transition: all 0.2s;
+            background: #f8fafc;
+            color: var(--muted);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            line-height: 1.3;
+        }
+
+        .pay-method-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+
+        .pay-method-btn.momo-btn:hover,
+        .pay-method-btn.momo-btn.active { border-color: #f5a623; background: #fff8ec; color: #b86e00; }
+
+        .pay-method-btn.cash-btn:hover,
+        .pay-method-btn.cash-btn.active { border-color: #16a34a; background: #f0fdf4; color: #15803d; }
+
+        .pay-method-btn.bank-btn:hover,
+        .pay-method-btn.bank-btn.active { border-color: #2563eb; background: #eff6ff; color: #1d4ed8; }
+
+        .pay-method-icon {
+            width: 34px; height: 34px; border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 16px; margin-bottom: 2px; transition: transform 0.2s;
+        }
+
+        .momo-icon { background: #fff3cc; }
+        .cash-icon { background: #dcfce7; color: #16a34a; }
+        .bank-icon { background: #dbeafe; color: #2563eb; }
+
+        .pay-method-btn.active .pay-method-icon { transform: scale(1.12); }
+
+        .pay-method-label { font-size: 11px; letter-spacing: 0.3px; font-weight: 700; }
+        .pay-method-sub   { font-size: 9px; opacity: 0.7; font-weight: 500; }
+
+        .generate-btn {
+            width: 100%; padding: 14px;
+            background: linear-gradient(135deg, var(--ink), #1e3a5f);
+            color: white; border: none; border-radius: 12px;
+            font-size: 15px; font-weight: 700; cursor: pointer;
+            font-family: 'DM Sans', sans-serif; transition: all 0.2s;
+            display: flex; align-items: center; justify-content: center;
+            gap: 10px; letter-spacing: 0.3px;
+        }
+
+        .generate-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(15,25,35,0.3); }
+        .generate-btn:active { transform: translateY(0); }
+        .generate-btn:disabled { opacity: 0.65; cursor: not-allowed; transform: none; }
+
+        .preview-panel { background: var(--white); border-radius: 16px; box-shadow: var(--shadow); overflow: hidden; }
+
+        .preview-header {
+            padding: 20px 28px; border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; justify-content: space-between;
+        }
+
+        .preview-title {
+            font-size: 15px; font-weight: 700; color: var(--ink);
+            display: flex; align-items: center; gap: 8px;
+        }
+
+        .preview-actions { display: flex; gap: 10px; }
+
+        .action-btn {
+            display: flex; align-items: center; gap: 6px; padding: 9px 18px;
+            border-radius: 10px; font-size: 13px; font-weight: 600;
+            cursor: pointer; transition: all 0.2s; font-family: 'DM Sans', sans-serif; border: none;
+        }
+
+        .btn-print { background: #f1f5f9; color: var(--ink); }
+        .btn-print:hover { background: #e2e8f0; }
+
+        .btn-download { background: linear-gradient(135deg, var(--gold), #b8943e); color: var(--ink); }
+        .btn-download:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(201,168,76,0.4); }
+
+        .preview-body {
+            padding: 32px; background: #f8fafc;
+            min-height: 500px; height: auto;
+            display: flex; align-items: flex-start; justify-content: center;
+        }
+
+        #invoiceDoc {
+            width: 100%; max-width: 760px; background: white;
+            border-radius: 12px; box-shadow: 0 4px 40px rgba(0,0,0,0.08);
+            overflow: visible; font-family: 'DM Sans', sans-serif;
+        }
+
+        .inv-header {
+            background: linear-gradient(135deg, #0f1923 0%, #1a3a5c 60%, #0f2d4a 100%);
+            padding: 40px 44px 36px; position: relative; overflow: hidden;
+            border-radius: 12px 12px 0 0;
+        }
+
+        .inv-header::before {
+            content: ''; position: absolute; top: -40px; right: -40px;
+            width: 200px; height: 200px; border-radius: 50%;
+            background: rgba(201,168,76,0.08);
+        }
+
+        .inv-header::after {
+            content: ''; position: absolute; bottom: -60px; right: 60px;
+            width: 160px; height: 160px; border-radius: 50%;
+            background: rgba(201,168,76,0.05);
+        }
+
+        .inv-header-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 28px; }
+
+        .inv-brand { display: flex; align-items: center; gap: 14px; }
+
+        .inv-logo { width: 52px; height: 52px; border-radius: 12px; border: 2px solid rgba(201,168,76,0.4); overflow: hidden; }
+        .inv-logo img { width: 100%; height: 100%; object-fit: cover; }
+
+        .inv-brand-name { font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 700; color: white; }
+        .inv-brand-sub { font-size: 11px; color: rgba(255,255,255,0.5); letter-spacing: 2px; text-transform: uppercase; margin-top: 2px; }
+
+        .inv-number-block { text-align: right; }
+
+        .inv-label { font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: rgba(255,255,255,0.4); margin-bottom: 4px; }
+        .inv-number { font-family: 'Playfair Display', serif; font-size: 28px; font-weight: 700; color: var(--gold); letter-spacing: -0.5px; }
+        .inv-date { font-size: 12px; color: rgba(255,255,255,0.5); margin-top: 4px; }
+
+        .inv-header-bottom { display: flex; justify-content: space-between; align-items: flex-end; }
+
+        .inv-to-label { font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: rgba(255,255,255,0.35); margin-bottom: 6px; }
+        .inv-guest-name { font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 600; color: white; }
+        .inv-guest-detail { font-size: 12px; color: rgba(255,255,255,0.5); margin-top: 3px; }
+
+        .inv-status-pill { padding: 8px 20px; border-radius: 30px; font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+        .inv-status-pill.paid    { background: rgba(22,163,74,0.2);  color: #4ade80; border: 1px solid rgba(74,222,128,0.3); }
+        .inv-status-pill.partial { background: rgba(217,119,6,0.2);  color: #fbbf24; border: 1px solid rgba(251,191,36,0.3); }
+        .inv-status-pill.unpaid  { background: rgba(220,38,38,0.2);  color: #f87171; border: 1px solid rgba(248,113,113,0.3); }
+
+        .inv-stay { display: grid; grid-template-columns: repeat(4,1fr); border-bottom: 1px solid var(--border); }
+
+        .inv-stay-item { padding: 20px 24px; border-right: 1px solid var(--border); }
+        .inv-stay-item:last-child { border-right: none; }
+
+        .inv-stay-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 6px; }
+        .inv-stay-value { font-size: 15px; font-weight: 700; color: var(--ink); }
+        .inv-stay-sub   { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+        .inv-charges { padding: 28px 44px; }
+
+        .inv-section-title {
+            font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+            color: var(--muted); margin-bottom: 16px; display: flex; align-items: center; gap: 8px;
+        }
+
+        .inv-section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+        .inv-table { width: 100%; border-collapse: collapse; }
+        .inv-table th {
+            background: #f8fafc; padding: 10px 14px; text-align: left;
+            font-size: 11px; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.8px; color: var(--muted); border-bottom: 2px solid var(--border);
+        }
+        .inv-table th:last-child { text-align: right; }
+        .inv-table td { padding: 14px 14px; font-size: 14px; color: var(--ink); border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+        .inv-table td:last-child { text-align: right; font-weight: 600; }
+        .inv-table tbody tr:last-child td { border-bottom: none; }
+        .inv-table tbody tr:hover td { background: #fafbff; }
+
+        .charge-icon {
+            width: 32px; height: 32px; border-radius: 8px; background: #f0f4ff;
+            color: var(--primary); display: inline-flex; align-items: center;
+            justify-content: center; font-size: 13px; margin-right: 10px; vertical-align: middle;
+        }
+
+        .inv-totals { padding: 0 44px 28px; display: flex; justify-content: flex-end; }
+
+        .inv-totals-box { width: 300px; background: #f8fafc; border-radius: 12px; overflow: hidden; border: 1px solid var(--border); }
+
+        .inv-total-row {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 12px 18px; border-bottom: 1px solid var(--border); font-size: 14px;
+        }
+        .inv-total-row:last-child { border-bottom: none; }
+        .inv-total-label { color: var(--muted); font-weight: 500; }
+        .inv-total-value { font-weight: 600; color: var(--ink); }
+
+        .inv-grand-total {
+            background: linear-gradient(135deg, var(--ink), #1e3a5f);
+            padding: 16px 18px; display: flex; justify-content: space-between; align-items: center;
+        }
+        .inv-grand-label { font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: rgba(255,255,255,0.6); }
+        .inv-grand-value { font-family: 'Playfair Display', serif; font-size: 24px; font-weight: 700; color: var(--gold); }
+
+        .inv-notes { padding: 0 44px 28px; }
+        .inv-notes-box {
+            background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px;
+            padding: 14px 16px; font-size: 13px; color: #92400e;
+            display: flex; gap: 10px; align-items: flex-start;
+        }
+
+        .inv-footer {
+            background: #f8fafc; border-top: 1px solid var(--border);
+            padding: 20px 44px; display: flex; justify-content: space-between;
+            align-items: center; border-radius: 0 0 12px 12px;
+        }
+        .inv-footer-brand { font-family: 'Playfair Display', serif; font-size: 16px; color: var(--ink); font-weight: 600; }
+        .inv-footer-contact { font-size: 12px; color: var(--muted); display: flex; gap: 16px; }
+        .inv-footer-contact span { display: flex; align-items: center; gap: 5px; }
+
+        .inv-watermark { text-align: center; padding: 12px; font-size: 11px; color: #cbd5e1; letter-spacing: 1px; }
+
+        .empty-state { text-align: center; padding: 60px 20px; color: var(--muted); }
+        .empty-icon  { font-size: 48px; color: #e2e8f0; margin-bottom: 16px; }
+        .empty-title { font-size: 18px; font-weight: 600; color: #94a3b8; margin-bottom: 8px; }
+        .empty-sub   { font-size: 14px; }
+
+        @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+        .fade-in { animation: fadeIn 0.4s ease both; }
+
+        #driveStatusStrip {
+            display: none;
+            align-items: center;
+            gap: 10px;
+            margin-top: 12px;
+            padding: 10px 14px;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        #driveStatusStrip.uploading { display: flex; background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; }
+        #driveStatusStrip.success   { display: flex; background: #f0fdf4; border: 1px solid #bbf7d0; color: #15803d; }
+        #driveStatusStrip.error     { display: flex; background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .spin { display: inline-block; animation: spin 0.9s linear infinite; }
+
+        .toast {
+            position: fixed; bottom: 24px; right: 24px;
+            background: var(--ink); color: white; padding: 14px 20px;
+            border-radius: 12px; font-size: 14px; font-weight: 500;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.2); z-index: 9999;
+            opacity: 0; transform: translateY(10px); transition: all 0.3s;
+            display: flex; align-items: center; gap: 10px;
+        }
+        .toast.show    { opacity: 1; transform: translateY(0); }
+        .toast.success { border-left: 4px solid #4ade80; }
+        .toast.error   { border-left: 4px solid #f87171; }
+
+        .hidden { display: none !important; }
+
+        /* ═══ INVOICE HISTORY MODAL ═══ */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(10, 18, 30, 0.72);
+            backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+            z-index: 500; display: flex; align-items: center; justify-content: center;
+            padding: 20px; opacity: 0; visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+        .modal-overlay.open { opacity: 1; visibility: visible; }
+
+        .history-modal {
+            background: var(--white); border-radius: 20px; width: 100%; max-width: 860px;
+            max-height: 88vh; display: flex; flex-direction: column;
+            box-shadow: 0 32px 80px rgba(0,0,0,0.3);
+            transform: translateY(24px) scale(0.97);
+            transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1); overflow: hidden;
+        }
+        .modal-overlay.open .history-modal { transform: translateY(0) scale(1); }
+
+        .history-modal-header {
+            background: linear-gradient(135deg, var(--ink), #1a3a5c);
+            padding: 28px 32px; display: flex; align-items: center;
+            justify-content: space-between; flex-shrink: 0;
+        }
+        .history-modal-title {
+            font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 700;
+            color: white; display: flex; align-items: center; gap: 12px;
+        }
+        .history-modal-title i { color: var(--gold); font-size: 20px; }
+        .history-modal-sub { font-size: 13px; color: rgba(255,255,255,0.45); margin-top: 3px; }
+
+        .modal-close-btn {
+            width: 38px; height: 38px; background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.15); border-radius: 10px;
+            color: white; font-size: 18px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; transition: all 0.2s;
+        }
+        .modal-close-btn:hover { background: rgba(255,255,255,0.2); transform: scale(1.05); }
+
+        .history-search-bar {
+            padding: 16px 24px; border-bottom: 1px solid var(--border);
+            display: flex; gap: 10px; align-items: center; flex-shrink: 0; background: #fafbff;
+        }
+        .history-search-input {
+            flex: 1; padding: 9px 14px; border: 1.5px solid var(--border); border-radius: 10px;
+            font-size: 13px; font-family: 'DM Sans', sans-serif; outline: none;
+            background: white; transition: border 0.2s;
+        }
+        .history-search-input:focus { border-color: var(--primary); }
+
+        .history-count-tag {
+            padding: 6px 14px; background: #f0f4ff; border-radius: 20px;
+            font-size: 12px; font-weight: 700; color: var(--primary); white-space: nowrap;
+        }
+
+        .clear-all-btn {
+            padding: 8px 14px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 10px;
+            color: var(--danger); font-size: 12px; font-weight: 700; cursor: pointer;
+            font-family: 'DM Sans', sans-serif; transition: all 0.2s; white-space: nowrap;
+            display: flex; align-items: center; gap: 5px;
+        }
+        .clear-all-btn:hover { background: #fee2e2; }
+
+        .history-list { overflow-y: auto; flex: 1; padding: 16px 24px; }
+
+        .history-empty { text-align: center; padding: 60px 20px; color: var(--muted); }
+        .history-empty i { font-size: 44px; color: #e2e8f0; display: block; margin-bottom: 14px; }
+        .history-empty p { font-size: 15px; color: #94a3b8; font-weight: 600; }
+        .history-empty span { font-size: 13px; color: #b4c0cc; }
+
+        .history-item {
+            display: flex; align-items: center; gap: 14px; padding: 14px 16px;
+            border: 1.5px solid var(--border); border-radius: 14px; margin-bottom: 10px;
+            background: white; transition: all 0.2s; animation: fadeIn 0.3s ease both;
+        }
+        .history-item:hover {
+            border-color: #c7d5ff; box-shadow: 0 4px 16px rgba(67,97,238,0.1);
+            transform: translateY(-1px);
+        }
+
+        .history-item-avatar {
+            width: 46px; height: 46px; border-radius: 12px;
+            background: linear-gradient(135deg, #4361ee, #3451d1);
+            color: white; display: flex; align-items: center; justify-content: center;
+            font-weight: 800; font-size: 16px; flex-shrink: 0; letter-spacing: -0.5px;
+        }
+
+        .history-item-body { flex: 1; min-width: 0; }
+        .history-item-name {
+            font-weight: 700; font-size: 15px; color: var(--ink);
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .history-item-meta {
+            font-size: 12px; color: var(--muted); margin-top: 3px;
+            display: flex; gap: 10px; flex-wrap: wrap;
+        }
+        .history-item-meta span { display: flex; align-items: center; gap: 4px; }
+        .history-item-amount {
+            font-family: 'Playfair Display', serif; font-size: 18px; font-weight: 700;
+            color: var(--ink); white-space: nowrap; flex-shrink: 0;
+        }
+        .history-item-num { font-size: 11px; font-weight: 700; color: var(--gold); letter-spacing: 0.5px; margin-bottom: 3px; }
+
+        .history-pay-badge {
+            display: inline-flex; align-items: center; gap: 4px; padding: 2px 9px;
+            border-radius: 20px; font-size: 10px; font-weight: 700; letter-spacing: 0.3px;
+        }
+        .pay-badge-momo { background: #fff3cc; color: #b86e00; }
+        .pay-badge-cash { background: #dcfce7; color: #15803d; }
+        .pay-badge-bank { background: #dbeafe; color: #1d4ed8; }
+
+        .history-item-actions { display: flex; gap: 8px; flex-shrink: 0; }
+
+        .hist-view-btn, .hist-del-btn {
+            display: flex; align-items: center; gap: 5px; padding: 8px 14px;
+            border-radius: 10px; font-size: 12px; font-weight: 700; cursor: pointer;
+            font-family: 'DM Sans', sans-serif; border: none; transition: all 0.2s;
+        }
+        .hist-view-btn {
+            background: linear-gradient(135deg, #4361ee, #3451d1); color: white;
+            box-shadow: 0 3px 10px rgba(67,97,238,0.3);
+        }
+        .hist-view-btn:hover { transform: translateY(-1px); box-shadow: 0 5px 16px rgba(67,97,238,0.4); }
+        .hist-del-btn { background: #fef2f2; color: var(--danger); border: 1px solid #fecaca; }
+        .hist-del-btn:hover { background: #fee2e2; transform: translateY(-1px); }
+
+        .del-confirm {
+            position: absolute; right: 0; top: 100%; background: white;
+            border: 1.5px solid #fecaca; border-radius: 12px; padding: 12px 14px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.12); z-index: 10;
+            min-width: 180px; font-size: 12px; text-align: center; animation: fadeIn 0.2s ease;
+        }
+        .del-confirm p { color: var(--ink); font-weight: 600; margin-bottom: 10px; }
+        .del-confirm-btns { display: flex; gap: 6px; }
+        .del-yes, .del-no {
+            flex: 1; padding: 7px; border-radius: 8px; font-size: 12px;
+            font-weight: 700; cursor: pointer; font-family: 'DM Sans', sans-serif; border: none;
+        }
+        .del-yes { background: var(--danger); color: white; }
+        .del-no  { background: #f1f5f9; color: var(--ink); }
+
+        @media print {
+            body * { visibility: hidden; }
+            @page { size: A4 portrait; margin: 10mm; }
+            #invoiceDoc, #invoiceDoc * { visibility: visible !important; }
+            #invoiceDoc {
+                position: static !important; width: 100% !important; max-width: 100% !important;
+                box-shadow: none !important; border-radius: 0 !important;
+                font-size: 12px !important; overflow: visible !important;
+            }
+            .inv-header    { page-break-after:  avoid; }
+            .inv-stay      { page-break-inside: avoid; }
+            .inv-charges   { page-break-inside: avoid; }
+            .inv-totals    { page-break-inside: avoid; }
+            .inv-notes     { page-break-inside: avoid; }
+            .inv-footer    { page-break-inside: avoid; }
+            .inv-header, .inv-grand-total {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            .sidebar, .main-content > .header, .form-panel, .preview-header,
+            .history-bar, .modal-overlay, #driveStatusStrip { display: none !important; }
+            body           { margin: 0 !important; padding: 0 !important; display: block !important; }
+            .main-content  { margin-left: 0 !important; width: 100% !important; }
+            .content-area  { padding: 0 !important; width: 100% !important; }
+            .page-grid     { display: block !important; width: 100% !important; max-width: 100% !important; }
+            .preview-panel { width: 100% !important; box-shadow: none !important; border-radius: 0 !important; }
+            .preview-body  { padding: 0 !important; background: white !important; }
+        }
+
+        @media (max-width: 1100px) {
+            .page-grid { grid-template-columns: 1fr; }
+            .form-panel { position: static; }
+        }
+
+        @media (max-width: 768px) {
+            .sidebar { transform: translateX(-100%); }
+            .main-content { margin-left: 0; }
+            .inv-stay { grid-template-columns: repeat(2,1fr); }
+            .inv-header, .inv-charges, .inv-totals, .inv-notes, .inv-footer { padding-left: 24px; padding-right: 24px; }
+            .history-item { flex-wrap: wrap; }
+        }
+    </style>
+</head>
+
+<body>
+
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-logo">
+                <img src="img/logo1.jpg" alt="Logo" style="width:40px;height:40px;border-radius:8px;"> Guest Lodge
+            </div>
+        </div>
+        <div class="sidebar-menu" id="sidebarMenu" style="visibility:hidden;">
+            <div class="menu-label">Main Menu</div>
+            <a href="dashboard.html" class="menu-item"><i class="fas fa-chart-pie"></i> Dashboard</a>
+            <a href="rooms.html"     class="menu-item"><i class="fas fa-bed"></i> Rooms</a>
+            <div class="menu-label" style="margin-top:20px;">Guest Activity</div>
+            <a href="checkin.html"      class="menu-item"><i class="fas fa-sign-in-alt"></i> Check-In</a>
+            <a href="checkout.html"     class="menu-item"><i class="fas fa-sign-out-alt"></i> Check-Out</a>
+            <a href="guests.html"       class="menu-item"><i class="fas fa-users"></i> Guests</a>
+            <a href="chatroom.html"     class="menu-item"><i class="fas fa-comments"></i> Chat Room</a>
+            <a href="logs.html"         class="menu-item"><i class="fas fa-clipboard-list"></i> Logs</a>
+            <a href="chat.html"         class="menu-item"><i class="fas fa-comment"></i> Client Messages</a>
+            <a href="verification.html" class="menu-item"><i class="fas fa-user-check"></i> Verification</a>
+            <a href="invoice.html"      class="menu-item active"><i class="fas fa-file-invoice"></i> Invoice</a>
+            <a href="payments.html"     class="menu-item active"><i class="fas fa-credit-card"></i> Payments</a>
+            <a href="calendar.html" class="menu-item"><i class="fas fa-calendar-alt"></i> Calendar</a>
+            <a href="filelibrary.html" class="menu-item"><i class="fas fa-folder-open"></i> File Library</a>
+
+            <div class="menu-label" style="margin-top:20px;">Analysis</div>
+            <a href="reports.html" class="menu-item"><i class="fas fa-chart-bar"></i> Reports</a>
+
+            <div class="menu-label" style="margin-top:20px;">Administration</div>
+            <a href="profile.html" class="menu-item"><i class="fas fa-circle-user"></i> My Profile</a>
+            <a href="roles.html"   class="menu-item"><i class="fas fa-user-shield"></i> Roles</a>
+        </div>
+        <div class="sidebar-footer">
+            <a href="#" id="logout-btn" class="menu-item" style="color:var(--status-occupied);padding-left:0;">
+                    <i class="fas fa-power-off"></i> Logout
+                </a>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <header class="header">
+            <div class="header-title">
+                <i class="fas fa-file-invoice" style="color:var(--gold);margin-right:10px;"></i> Invoice Generator
+            </div>
+            <div class="header-right">
+                <a href="index.html" style="color:var(--muted);font-size:14px;font-weight:500;">🏠 Home</a>
+                <div class="user-profile" style="cursor:pointer;" onclick="window.location.href='profile.html'" title="View Profile">
+    <div class="user-avatar"><i class="fas fa-user"></i></div>
+    <span id="user-email-display" style="font-weight:500;">Admin</span>
+</div>
+            </div>
+        </header>
+
+        <div class="content-area">
+
+            <div class="history-bar">
+                <button class="view-all-btn" onclick="openHistoryModal()">
+                    <i class="fas fa-history"></i>
+                    View All Invoices
+                    <span class="inv-count-badge" id="historyCountBadge">0</span>
+                </button>
+            </div>
+
+            <div class="page-grid">
+
+                <!-- ── Form Panel ── -->
+                <div class="form-panel">
+                    <div class="form-panel-header">
+                        <div class="form-panel-icon"><i class="fas fa-magic"></i></div>
+                        <div>
+                            <div class="form-panel-title">Build Invoice</div>
+                            <div class="form-panel-sub">Search guest or fill manually</div>
+                        </div>
+                    </div>
+                    <div class="form-panel-body">
+
+                        <div class="search-section">
+                            <span class="search-label"><i class="fas fa-search" style="margin-right:4px;"></i> Search Guest</span>
+                            <div class="search-row">
+                                <input type="text" id="guestSearchInput" class="search-input" placeholder="Name, phone or Guest ID...">
+                                <button class="search-btn" onclick="searchGuest()"><i class="fas fa-search"></i> Find</button>
+                            </div>
+                            <div id="searchResults" style="margin-top:8px;"></div>
+                        </div>
+
+                        <div id="guestCard" class="guest-card">
+                            <div id="guestCardAvatar" class="guest-avatar">?</div>
+                            <div>
+                                <div id="guestCardName" class="guest-card-name">—</div>
+                                <div id="guestCardSub" class="guest-card-sub">—</div>
+                            </div>
+                            <button onclick="clearGuest()"
+                                style="margin-left:auto;background:none;border:none;color:#94a3b8;cursor:pointer;font-size:18px;">&times;</button>
+                        </div>
+
+                        <div class="field-row">
+                            <div class="field-group">
+                                <label class="field-label">Guest Name *</label>
+                                <input type="text" id="fName" class="field-input" placeholder="Full name">
+                            </div>
+                            <div class="field-group">
+                                <label class="field-label">Guest ID</label>
+                                <input type="text" id="fGuestId" class="field-input" placeholder="GH-XXXXX">
+                            </div>
+                        </div>
+                        <div class="field-row">
+                            <div class="field-group">
+                                <label class="field-label">Phone</label>
+                                <input type="text" id="fPhone" class="field-input" placeholder="+233...">
+                            </div>
+                            <div class="field-group">
+                                <label class="field-label">Email</label>
+                                <input type="text" id="fEmail" class="field-input" placeholder="email@...">
+                            </div>
+                        </div>
+                        <div class="field-row">
+                            <div class="field-group">
+                                <label class="field-label">Room Number</label>
+                                <input type="text" id="fRoom" class="field-input" placeholder="e.g. 109">
+                            </div>
+                            <div class="field-group">
+                                <label class="field-label">No. of Guests</label>
+                                <input type="number" id="fGuests" class="field-input" placeholder="1" min="1" value="1">
+                            </div>
+                        </div>
+                        <div class="field-row">
+                            <div class="field-group">
+                                <label class="field-label">Check-in Date</label>
+                                <input type="date" id="fCheckin" class="field-input" onchange="updateNights()">
+                            </div>
+                            <div class="field-group">
+                                <label class="field-label">Check-out Date</label>
+                                <input type="date" id="fCheckout" class="field-input" onchange="updateNights()">
+                            </div>
+                        </div>
+
+                        <div id="nightsBadge"
+                            style="display:none;margin-top:-8px;margin-bottom:14px;background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:10px;padding:9px 14px;align-items:center;justify-content:space-between;">
+                            <span style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:#16a34a;">
+                                <i class="fas fa-moon" style="margin-right:6px;"></i> Duration
+                            </span>
+                            <span id="nightsBadgeText" style="font-size:14px;font-weight:700;color:#15803d;">— nights</span>
+                        </div>
+
+                        <div class="charges-section">
+                            <div class="charges-header">
+                                <span class="charges-title"><i class="fas fa-receipt" style="margin-right:4px;"></i> Charges</span>
+                                <button class="add-charge-btn" onclick="addCharge()"><i class="fas fa-plus"></i> Add Line</button>
+                            </div>
+                            <div id="chargesContainer"></div>
+                        </div>
+
+                        <div class="field-group">
+                            <label class="field-label">Mode of Payment</label>
+                            <div class="payment-row">
+                                <div class="pay-method-btn momo-btn active" id="pill-momo" onclick="setPayment('momo')">
+                                    <div class="pay-method-icon momo-icon">
+                                        <svg width="22" height="22" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+                                            <circle cx="20" cy="20" r="20" fill="#FFCC00"/>
+                                            <text x="50%" y="54%" dominant-baseline="middle" text-anchor="middle"
+                                                font-size="12" font-weight="bold" fill="#c8006a" font-family="Arial,sans-serif">MTN</text>
+                                        </svg>
+                                    </div>
+                                    <span class="pay-method-label">MoMo</span>
+                                    <span class="pay-method-sub">MTN Mobile Money</span>
+                                </div>
+                                <div class="pay-method-btn cash-btn" id="pill-cash" onclick="setPayment('cash')">
+                                    <div class="pay-method-icon cash-icon"><i class="fas fa-money-bill-wave"></i></div>
+                                    <span class="pay-method-label">Cash</span>
+                                    <span class="pay-method-sub">Physical Payment</span>
+                                </div>
+                                <div class="pay-method-btn bank-btn" id="pill-bank" onclick="setPayment('bank')">
+                                    <div class="pay-method-icon bank-icon"><i class="fas fa-university"></i></div>
+                                    <span class="pay-method-label">Bank Transfer</span>
+                                    <span class="pay-method-sub">GTEC Account</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="field-group">
+                            <label class="field-label">Notes (optional)</label>
+                            <textarea id="fNotes" class="field-input" rows="2" placeholder="Any additional notes..."></textarea>
+                        </div>
+
+                        <button class="generate-btn" id="generateBtn" onclick="generateInvoice()">
+                            <i class="fas fa-magic"></i> Generate Invoice
+                        </button>
+
+                        
+                    </div>
+                </div>
+
+                <!-- ── Preview Panel ── -->
+                <div class="preview-panel">
+                    <div class="preview-header">
+                        <div class="preview-title"><i class="fas fa-eye" style="color:var(--gold);"></i> Invoice Preview</div>
+                        <div class="preview-actions">
+                            <button class="action-btn btn-print"   onclick="printInvoice()"><i class="fas fa-print"></i> Print</button>
+                            <button class="action-btn btn-download" onclick="downloadPDF()"><i class="fas fa-download"></i> Download PDF</button>
+                        </div>
+                    </div>
+                    <div class="preview-body">
+                        <div id="emptyState" class="empty-state">
+                            <div class="empty-icon"><i class="fas fa-file-invoice"></i></div>
+                            <div class="empty-title">No Invoice Yet</div>
+                            <div class="empty-sub">Fill the form and click <strong>Generate Invoice</strong><br>to see a live preview here.</div>
+                        </div>
+
+                        <div id="invoiceDoc" style="display:none;width:100%;" class="fade-in">
+                            <div class="inv-header">
+                                <div class="inv-header-top">
+                                    <div class="inv-brand">
+                                        <div class="inv-logo"><img src="img/logo1.jpg" alt="GTEC" onerror="this.style.display='none'"></div>
+                                        <div>
+                                            <div class="inv-brand-name">GTEC Guest Lodge</div>
+                                            <div class="inv-brand-sub">Accra, Ghana</div>
+                                        </div>
+                                    </div>
+                                    <div class="inv-number-block">
+                                        <div class="inv-label">Invoice</div>
+                                        <div class="inv-number" id="invNumber">#INV-0001</div>
+                                        <div class="inv-date"   id="invDate">—</div>
+                                    </div>
+                                </div>
+                                <div class="inv-header-bottom">
+                                    <div>
+                                        <div class="inv-to-label">Billed To</div>
+                                        <div class="inv-guest-name"   id="invGuestName">Guest Name</div>
+                                        <div class="inv-guest-detail" id="invGuestPhone">—</div>
+                                        <div class="inv-guest-detail" id="invGuestEmail">—</div>
+                                        <div class="inv-guest-detail" id="invGuestId" style="color:var(--gold-lt);font-weight:600;margin-top:4px;"></div>
+                                    </div>
+                                    <div><span class="inv-status-pill paid" id="invStatusPill">📲 MTN MoMo</span></div>
+                                </div>
+                            </div>
+
+                            <div class="inv-stay">
+                                <div class="inv-stay-item">
+                                    <div class="inv-stay-label">Room</div>
+                                    <div class="inv-stay-value" id="invRoom">—</div>
+                                    <div class="inv-stay-sub">Assigned Room</div>
+                                </div>
+                                <div class="inv-stay-item">
+                                    <div class="inv-stay-label">Check-in</div>
+                                    <div class="inv-stay-value" id="invCheckin">—</div>
+                                    <div class="inv-stay-sub"   id="invCheckinDay">—</div>
+                                </div>
+                                <div class="inv-stay-item">
+                                    <div class="inv-stay-label">Check-out</div>
+                                    <div class="inv-stay-value" id="invCheckout">—</div>
+                                    <div class="inv-stay-sub"   id="invCheckoutDay">—</div>
+                                </div>
+                                <div class="inv-stay-item">
+                                    <div class="inv-stay-label">Duration</div>
+                                    <div class="inv-stay-value" id="invDuration">— Night(s)</div>
+                                    <div class="inv-stay-sub"   id="invGuests">— Guest(s)</div>
+                                </div>
+                            </div>
+
+                            <div class="inv-charges">
+                                <div class="inv-section-title">Charges &amp; Services</div>
+                                <table class="inv-table">
+                                    <thead>
+                                        <tr>
+                                            <th>#</th>
+                                            <th>Description</th>
+                                            <th style="text-align:right;">Amount (GHS)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="invChargesBody"></tbody>
+                                </table>
+                            </div>
+
+                            <div class="inv-totals">
+                                <div class="inv-totals-box">
+                                    <div class="inv-total-row">
+                                        <span class="inv-total-label">Subtotal</span>
+                                        <span class="inv-total-value" id="invSubtotal">GHS 0.00</span>
+                                    </div>
+                                    <div class="inv-total-row">
+                                        <span class="inv-total-label">Tax (0%)</span>
+                                        <span class="inv-total-value">GHS 0.00</span>
+                                    </div>
+                                    <div class="inv-grand-total">
+                                        <span class="inv-grand-label">Total Due</span>
+                                        <span class="inv-grand-value" id="invTotal">GHS 0.00</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="inv-notes" id="invNotesSection" style="display:none;">
+                                <div class="inv-notes-box">
+                                    <i class="fas fa-info-circle" style="flex-shrink:0;margin-top:1px;"></i>
+                                    <span id="invNotesText"></span>
+                                </div>
+                            </div>
+
+                            <div style="padding: 0 44px 20px;">
+                                <div id="invPaymentStrip"
+                                    style="display:flex;align-items:center;gap:10px;background:#f8fafc;border:1px solid var(--border);border-radius:10px;padding:12px 16px;">
+                                    <span id="invPaymentIcon" style="font-size:20px;">📲</span>
+                                    <div>
+                                        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);">Mode of Payment</div>
+                                        <div id="invPaymentLabel" style="font-size:14px;font-weight:700;color:var(--ink);">MTN Mobile Money</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="inv-footer">
+                                <div>
+                                    <div class="inv-footer-brand">GTEC <span style="color:var(--gold);">Guest Lodge</span></div>
+                                    <div style="font-size:11px;color:var(--muted);margin-top:3px;">Thank you for your stay!</div>
+                                </div>
+                                <div class="inv-footer-contact">
+                                    <span><i class="fas fa-phone"></i> +233 24 466 0848</span>
+                                    <span><i class="fas fa-envelope"></i> hospitality@gtec.edu.gh</span>
+                                    <span><i class="fas fa-map-marker-alt"></i> Accra, Ghana</span>
+                                </div>
+                            </div>
+
+                            <div class="inv-watermark">Generated by GTEC Guest Lodge Management System · <span id="invGenDate"></span></div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <!-- INVOICE HISTORY MODAL -->
+    <div class="modal-overlay" id="historyModal" onclick="closeHistoryOnOverlay(event)">
+        <div class="history-modal">
+            <div class="history-modal-header">
+                <div>
+                    <div class="history-modal-title">
+                        <i class="fas fa-history"></i>
+                        Invoice History
+                    </div>
+                    <div class="history-modal-sub">All invoices generated in this session &amp; saved locally</div>
+                </div>
+                <button class="modal-close-btn" onclick="closeHistoryModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <div class="history-search-bar">
+                <input type="text" class="history-search-input" id="historySearchInput"
+                    placeholder="Search by guest name, invoice number, room..."
+                    oninput="filterHistory()">
+                <span class="history-count-tag" id="historyCountLabel">0 invoices</span>
+                <button class="clear-all-btn" onclick="confirmClearAll()">
+                    <i class="fas fa-trash-alt"></i> Clear All
+                </button>
+            </div>
+
+            <div class="history-list" id="historyList">
+                <div class="history-empty">
+                    <i class="fas fa-file-invoice"></i>
+                    <p>No invoices yet</p>
+                    <span>Generated invoices will appear here</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <script src="js/chatnotify.js" defer></script>
+
+    <script>
+    // ─────────────────────────────────────────────────────────────────────
+// CONFIGURATION
+// ─────────────────────────────────────────────────────────────────────
+const DRIVE_UPLOAD_URL = "https://script.google.com/macros/s/AKfycbxcJLWeemy7PRYliGDHeSYa7BCIlOUsVzuAHFCvQIKQ8U_R2QkxneVQqNV6b_EgFj5k/exec";
+
+
+const PDF_OPTIONS = {
+    margin:      [8, 8, 8, 8],
+    image:       { type: 'jpeg', quality: 0.97 },
+    html2canvas: {
+        scale:   2,
+        useCORS: true,
+        logging: false,
+        scrollX: 0,
+        scrollY: 0
+    },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+};
+
+// ── State ─────────────────────────────────────────────────────────────
+let paymentStatus  = 'momo';
+let chargeCount    = 0;
+let invoiceCounter = Math.floor(Math.random() * 900) + 100;
+let currentInvNumber = '';
+let currentGuestName = '';
+
+// ── localStorage history ──────────────────────────────────────────────
+const STORAGE_KEY = 'gtec_invoice_history';
+
+function loadHistory() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); }
+    catch { return []; }
+}
+function saveHistory(data) {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }
+    catch (e) { console.warn('localStorage unavailable'); }
+}
+function updateBadge() {
+    document.getElementById('historyCountBadge').textContent = loadHistory().length;
+}
+
+// ── Firestore: Save invoice ───────────────────────────────────────────
+async function saveInvoiceToFirestore(invoiceData) {
+    const user = firebase.auth().currentUser;
+    if (!user) { console.warn("No user logged in"); return; }
+    try {
+        await db.collection('invoices').add({
+            ...invoiceData,
+            generatedBy: user.email,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            paymentStatus: 'paid'
+        });
+        console.log("Invoice saved to Firestore");
+    } catch (error) {
+        console.error("Firestore save error:", error);
+        showToast("Failed to save invoice to database", "error");
+    }
+}
+
+// ── Init ──────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+    const today    = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
+    document.getElementById('fCheckin').value  = today.toISOString().split('T')[0];
+    document.getElementById('fCheckout').value = tomorrow.toISOString().split('T')[0];
+    addCharge('Room Accommodation', '');
+    updateNights();
+    updateBadge();
+    setTimeout(() => {
+        const sm = document.getElementById('sidebarMenu');
+        if (sm) sm.style.visibility = 'visible';
+    }, 100);
+    document.getElementById('guestSearchInput')?.addEventListener('keydown', e => {
+        if (e.key === 'Enter') searchGuest();
+    });
+    document.getElementById('historySearchInput')?.addEventListener('keydown', e => {
+        if (e.key === 'Escape') closeHistoryModal();
+    });
+});
+
+// ── Nights Badge ──────────────────────────────────────────────────────
+function updateNights() {
+    const ci  = document.getElementById('fCheckin').value;
+    const co  = document.getElementById('fCheckout').value;
+    const badge     = document.getElementById('nightsBadge');
+    const badgeText = document.getElementById('nightsBadgeText');
+    if (!ci || !co) { badge.style.display = 'none'; return; }
+    const nights = Math.round((new Date(co + 'T00:00:00Z') - new Date(ci + 'T00:00:00Z')) / (1000 * 60 * 60 * 24));
+    if (nights <= 0) {
+        badge.style.display = 'flex'; badge.style.background = '#fef2f2'; badge.style.borderColor = '#fecaca';
+        badgeText.style.color = '#dc2626'; badgeText.textContent = '⚠️ Check-out must be after check-in';
+    } else {
+        badge.style.display = 'flex'; badge.style.background = '#f0fdf4'; badge.style.borderColor = '#bbf7d0';
+        badgeText.style.color = '#15803d'; badgeText.textContent = `${nights} night${nights !== 1 ? 's' : ''}`;
+    }
+    const firstRate = document.querySelector('.charge-rate');
+    if (firstRate && firstRate.value) recalcRoomCharge(firstRate);
+}
+
+// ── Search Guest ──────────────────────────────────────────────────────
+async function searchGuest() {
+    const query     = document.getElementById('guestSearchInput').value.trim().toLowerCase();
+    if (!query) { showToast('Enter a name, phone or Guest ID', 'error'); return; }
+    const resultsEl = document.getElementById('searchResults');
+    resultsEl.innerHTML = '<div style="font-size:13px;color:#94a3b8;padding:8px 0;">Searching...</div>';
+    try {
+        const [gSnap, hSnap] = await Promise.all([
+            db.collection('guests').get(),
+            db.collection('history').get()
+        ]);
+        const all = [...gSnap.docs, ...hSnap.docs].map(doc => ({ id: doc.id, col: doc.ref.parent.id, ...doc.data() }));
+        const matches = all.filter(g =>
+            (g.name     || '').toLowerCase().includes(query) ||
+            (g.phone    || '').toLowerCase().includes(query) ||
+            (g.idNumber || '').toLowerCase().includes(query)
+        ).slice(0, 5);
+        if (!matches.length) { resultsEl.innerHTML = '<div style="font-size:13px;color:#94a3b8;padding:8px 0;">No guests found.</div>'; return; }
+        resultsEl.innerHTML = matches.map(g => `
+            <div onclick="selectGuest(${JSON.stringify(g).replace(/"/g, '&quot;')})"
+                style="padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;margin-bottom:6px;cursor:pointer;transition:all 0.15s;font-size:13px;"
+                onmouseover="this.style.background='#f0f4ff';this.style.borderColor='#4361ee';"
+                onmouseout="this.style.background='#f8fafc';this.style.borderColor='#e2e8f0';">
+                <strong style="color:#0f1923;">${g.name || '—'}</strong>
+                <span style="color:#94a3b8;margin-left:8px;">${g.idNumber || ''}</span>
+                <span style="float:right;background:#dbeafe;color:#1d4ed8;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;">Room ${g.roomNumber || g.room || '?'}</span>
+                <div style="color:#64748b;margin-top:2px;">${g.phone || ''} · ${g.col === 'guests' ? 'Active' : 'History'}</div>
+            </div>
+        `).join('');
+    } catch (err) {
+        resultsEl.innerHTML = '<div style="color:#dc2626;font-size:13px;">Error searching guests.</div>';
+    }
+}
+
+function selectGuest(g) {
+    window.currentGuestDocId = g.id;
+    window.currentGuestCollection = g.col;
+    document.getElementById('fName').value    = g.name    || g.guestName || '';
+    document.getElementById('fPhone').value   = g.phone   || '';
+    document.getElementById('fEmail').value   = g.email   || '';
+    document.getElementById('fRoom').value    = g.roomNumber || g.room || '';
+    document.getElementById('fGuests').value  = g.guestsCount || 1;
+    document.getElementById('fGuestId').value = g.idNumber || '';
+    if (g.checkinDateStr)  document.getElementById('fCheckin').value  = new Date(g.checkinDateStr).toISOString().split('T')[0];
+    if (g.checkoutDateStr) document.getElementById('fCheckout').value = new Date(g.checkoutDateStr).toISOString().split('T')[0];
+    updateNights();
+    const initials = (g.name || '?').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
+    document.getElementById('guestCardAvatar').textContent = initials;
+    document.getElementById('guestCardName').textContent   = g.name || '—';
+    document.getElementById('guestCardSub').textContent    = `${g.idNumber || '—'} · Room ${g.roomNumber || g.room || '?'}`;
+    document.getElementById('guestCard').classList.add('show');
+    document.getElementById('searchResults').innerHTML = '';
+    document.getElementById('guestSearchInput').value  = '';
+    showToast(`${g.name} loaded ✅`, 'success');
+}
+
+function clearGuest() {
+    document.getElementById('guestCard').classList.remove('show');
+    ['fName','fPhone','fEmail','fRoom','fGuestId'].forEach(id => document.getElementById(id).value = '');
+}
+
+// ── Charges ───────────────────────────────────────────────────────────
+function addCharge(desc = '', amount = '') {
+    chargeCount++;
+    const isRoom    = chargeCount === 1;
+    const container = document.getElementById('chargesContainer');
+    const div = document.createElement('div');
+    div.className = isRoom ? 'charge-item room-row' : 'charge-item';
+    div.id = `charge-${chargeCount}`;
+    if (isRoom) {
+        div.innerHTML = `
+            <input type="text" class="charge-desc" placeholder="Room Accom." value="${desc}"
+                style="padding:8px 6px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-family:'DM Sans',sans-serif;outline:none;background:#f8fafc;min-width:0;">
+            <input type="number" class="charge-rate" placeholder="Rate/n" value="${amount}" min="0" step="0.01" title="Rate per night"
+                style="width:100%;padding:8px 4px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-family:'DM Sans',sans-serif;outline:none;background:#fff9f0;text-align:right;color:var(--ink);"
+                oninput="recalcRoomCharge(this)">
+            <input type="number" class="charge-amount" placeholder="Total" value="" min="0" step="0.01" readonly title="Auto-calculated total"
+                style="width:100%;padding:8px 4px;border:1.5px solid #bbf7d0;border-radius:8px;font-size:12px;font-family:'DM Sans',sans-serif;outline:none;background:#f0fdf4;text-align:right;font-weight:700;color:#15803d;cursor:not-allowed;">
+            <button class="remove-charge" onclick="removeCharge('charge-${chargeCount}')" title="Remove"><i class="fas fa-trash"></i></button>
+        `;
+    } else {
+        div.innerHTML = `
+            <input type="text"   class="charge-desc"   placeholder="Description (e.g. Breakfast)" value="${desc}">
+            <input type="number" class="charge-amount" placeholder="0.00" value="${amount}" min="0" step="0.01">
+            <button class="remove-charge" onclick="removeCharge('charge-${chargeCount}')" title="Remove"><i class="fas fa-trash"></i></button>
+        `;
+    }
+    container.appendChild(div);
+}
+
+function recalcRoomCharge(rateInput) {
+    const ci  = document.getElementById('fCheckin').value;
+    const co  = document.getElementById('fCheckout').value;
+    const rate   = parseFloat(rateInput.value) || 0;
+    const nights = (ci && co) ? Math.max(0, Math.round((new Date(co + 'T00:00:00Z') - new Date(ci + 'T00:00:00Z')) / (1000 * 60 * 60 * 24))) : 0;
+    const row        = rateInput.closest('.charge-item');
+    const totalInput = row.querySelector('.charge-amount');
+    const desc       = row.querySelector('.charge-desc');
+    if (totalInput) totalInput.value = nights > 0 ? (rate * nights).toFixed(2) : rate.toFixed(2);
+    if (desc && desc.value.toLowerCase().includes('room')) {
+        desc.value = nights > 0
+            ? `Room Accommodation (${nights} nights × GHS ${rate.toFixed(2)})`
+            : 'Room Accommodation';
+    }
+}
+
+function removeCharge(id) { const el = document.getElementById(id); if (el) el.remove(); }
+
+// ── Mode of Payment ───────────────────────────────────────────────────
+function setPayment(method) {
+    paymentStatus = method;
+    ['momo', 'cash', 'bank'].forEach(m => document.getElementById(`pill-${m}`).classList.remove('active'));
+    document.getElementById(`pill-${method}`).classList.add('active');
+}
+
+// ── buildPrintClone ───────────────────────────────────────────────────
+function buildPrintClone() {
+    const source = document.getElementById('invoiceDoc');
+    const clone  = source.cloneNode(true);
+    const wrapper = document.createElement('div');
+    Object.assign(wrapper.style, {
+        position:   'fixed',
+        top:        '-99999px',
+        left:       '-99999px',
+        width:      '794px',
+        background: '#ffffff',
+        zIndex:     '-9999',
+        overflow:   'visible'
+    });
+    Object.assign(clone.style, {
+        display:      'block',
+        width:        '100%',
+        maxWidth:     '794px',
+        boxShadow:    'none',
+        borderRadius: '0',
+        overflow:     'visible'
+    });
+    ['inv-header', 'inv-grand-total'].forEach(cls => {
+        const el = clone.querySelector('.' + cls);
+        if (el) {
+            el.style.webkitPrintColorAdjust = 'exact';
+            el.style.printColorAdjust       = 'exact';
+        }
+    });
+    wrapper.appendChild(clone);
+    document.body.appendChild(wrapper);
+    clone.offsetHeight;
+    return {
+        clone,
+        cleanup: () => { try { document.body.removeChild(wrapper); } catch (_) {} }
+    };
+}
+
+// ── Drive Toast ───────────────────────────────────────────────────────
+function showDriveToast(state, subText) {
+    const t = document.getElementById('drive-toast');
+    t.className = 'show' + (state !== 'uploading' ? ' ' + state : '');
+    document.getElementById('drive-toast-title').textContent =
+        state === 'uploading' ? 'Saving to Google Drive' :
+        state === 'success'   ? 'Saved to Google Drive ✓' : 'Upload failed';
+    document.getElementById('drive-toast-sub').textContent = subText || '';
+    if (state !== 'uploading') {
+        setTimeout(() => hideDriveToast(), state === 'success' ? 5000 : 7000);
+    }
+}
+
+function hideDriveToast() {
+    const t = document.getElementById('drive-toast');
+    t.style.opacity = '0';
+    t.style.transform = 'translateY(16px)';
+    setTimeout(() => {
+        t.className = '';
+        t.style.opacity = '';
+        t.style.transform = '';
+    }, 300);
+}
+
+// ── uploadInvoiceToDrive ──────────────────────────────────────────────
+async function uploadInvoiceToDriveAndGetUrl(fileName, invNum, guestName) {
+    showDriveToast('uploading', 'Uploading invoice PDF…');
+    const { clone, cleanup } = buildPrintClone();
+    try {
+        // Give the clone time to render fonts/images
+        await new Promise(r => setTimeout(r, 600));
+
+        const pdfBlob = await html2pdf()
+            .set({ ...PDF_OPTIONS, filename: fileName + '.pdf' })
+            .from(clone)
+            .outputPdf('blob');
+
+        // Convert blob → base64 reliably
+        const base64 = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload  = () => resolve(reader.result.split(',')[1]);
+            reader.onerror = () => reject(new Error('FileReader failed'));
+            reader.readAsDataURL(pdfBlob);
+        });
+
+        if (!base64 || base64.length < 100) {
+            throw new Error('PDF generation produced empty output');
+        }
+
+        console.log('[Drive] Base64 length:', base64.length, '— uploading…');
+
+        const driveRes = await fetch(DRIVE_UPLOAD_URL, {
+            method:  'POST',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify({
+                pdf:      base64,
+                fileName: fileName + '.pdf',
+                mimeType: 'application/pdf',
+                type:     'invoice',
+                folder:   'invoice'
+            })
+        });
+
+        const rawText  = await driveRes.text();
+        console.log('[Drive] Raw response:', rawText.slice(0, 300));
+
+        let driveData;
+        try { driveData = JSON.parse(rawText); }
+        catch { throw new Error('Non-JSON response from Apps Script: ' + rawText.slice(0, 200)); }
+
+        if (driveData?.success && driveData?.viewUrl) {
+            showDriveToast('success', fileName + '.pdf');
+            return {
+                viewUrl:     driveData.viewUrl,
+                downloadUrl: driveData.downloadUrl || driveData.viewUrl
+            };
+        } else {
+            throw new Error(driveData?.error || 'Drive upload failed — no viewUrl returned');
+        }
+    } catch (err) {
+        console.error('Drive upload error:', err);
+        showDriveToast('error', 'Could not save invoice to Drive.');
+        return null;
+    } finally {
+        cleanup();
+    }
+}
+
+// ── markGuestAsPaid ───────────────────────────────────────────────────
+async function markGuestAsPaid() {
+    const name    = document.getElementById('fName').value.trim();
+    const room    = document.getElementById('fRoom').value.trim();
+    const guestId = document.getElementById('fGuestId').value.trim();
+
+    if (window.currentGuestDocId && window.currentGuestCollection === 'guests') {
+        try {
+            await db.collection('guests').doc(window.currentGuestDocId).update({
+                paymentStatus: 'paid',
+                paidAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            console.log('Guest marked as paid via doc ID');
+            return true;
+        } catch (err) {
+            console.warn('Failed to update by doc ID', err);
+        }
+    }
+
+    let query = null;
+    if (guestId) {
+        query = db.collection('guests').where('idNumber', '==', guestId);
+    } else if (room && name) {
+        query = db.collection('guests').where('roomNumber', '==', room).where('name', '==', name);
+    }
+    if (query) {
+        const snap = await query.get();
+        if (!snap.empty) {
+            const doc = snap.docs[0];
+            await doc.ref.update({
+                paymentStatus: 'paid',
+                paidAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            console.log('Guest marked as paid via query');
+            return true;
+        }
+    }
+
+    console.warn('No matching active guest found – payment status not updated');
+    return false;
+}
+
+// ── Generate Invoice ──────────────────────────────────────────────────
+async function generateInvoice() {
+    const name = document.getElementById('fName').value.trim();
+    if (!name) { showToast('Please enter a guest name', 'error'); return; }
+ 
+    const phone    = document.getElementById('fPhone').value.trim();
+    const email    = document.getElementById('fEmail').value.trim();
+    const room     = document.getElementById('fRoom').value.trim();
+    const guests   = document.getElementById('fGuests').value || '1';
+    const checkin  = document.getElementById('fCheckin').value;
+    const checkout = document.getElementById('fCheckout').value;
+    const notes    = document.getElementById('fNotes').value.trim();
+    const guestId  = document.getElementById('fGuestId').value.trim();
+ 
+    const ciDate = checkin  ? new Date(checkin  + 'T00:00:00Z') : null;
+    const coDate = checkout ? new Date(checkout + 'T00:00:00Z') : null;
+    const nights = ciDate && coDate
+        ? Math.max(0, Math.round((coDate - ciDate) / (1000 * 60 * 60 * 24)))
+        : 0;
+ 
+    const fmt    = d => d ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+    const fmtDay = d => d ? new Date(d).toLocaleDateString('en-GB', { weekday: 'long' }) : '—';
+ 
+    // Collect charge rows
+    const chargeItems = [];
+    document.querySelectorAll('.charge-item').forEach((item, i) => {
+        const desc = item.querySelector('.charge-desc').value.trim();
+        const amt  = parseFloat(item.querySelector('.charge-amount').value) || 0;
+        if (desc || amt > 0) chargeItems.push({ desc: desc || 'Service', amount: amt, index: i + 1 });
+    });
+    const subtotal = chargeItems.reduce((s, c) => s + c.amount, 0);
+ 
+    invoiceCounter++;
+    const invNum = `#INV-${String(invoiceCounter).padStart(4, '0')}`;
+    currentInvNumber = invNum.replace('#', '');
+    currentGuestName = name;
+ 
+    const methodMap = {
+        momo: { pill: '📲 MTN MoMo',             pillCls: 'paid',    icon: '📲', label: 'MTN Mobile Money' },
+        cash: { pill: '💵 Cash',                  pillCls: 'paid',    icon: '💵', label: 'Cash (Physical Payment)' },
+        bank: { pill: '🏦 Bank Transfer (GTEC)',  pillCls: 'partial', icon: '🏦', label: 'Bank Transfer — GTEC Account' }
+    };
+    const chosen = methodMap[paymentStatus] || { pill: paymentStatus, pillCls: 'paid', icon: '💳', label: paymentStatus };
+ 
+    const user = firebase.auth().currentUser;
+    if (!user) { showToast('You must be logged in to generate an invoice', 'error'); return; }
+    const generatedBy = user.email;
+ 
+    // Disable button while saving
+    const genBtn = document.getElementById('generateBtn');
+    genBtn.disabled = true;
+    genBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving…';
+ 
+    try {
+        const invoiceData = {
+            invoiceNumber: invNum, guestName: name, guestPhone: phone,
+            guestEmail: email, guestId, room,
+            guestsCount: parseInt(guests), checkinDate: checkin, checkoutDate: checkout,
+            nights, subtotal, chargeItems, paymentMethod: paymentStatus, notes,
+            paymentStatus: 'paid', generatedBy,
+            paidAt:    firebase.firestore.FieldValue.serverTimestamp(),
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+ 
+        const docRef = await db.collection('invoices').add(invoiceData);
+        console.log('Invoice saved to Firestore with ID:', docRef.id);
+ 
+        await markGuestAsPaid();
+ 
+        // ── Build the history entry ───────────────────────────────────
+        const histEntry = {
+            id:            docRef.id,           // Firestore doc ID
+            invNum,
+            name, phone, email, room,
+            guests:        parseInt(guests),
+            checkin:       fmt(ciDate),
+            checkinDay:    fmtDay(ciDate),
+            checkout:      fmt(coDate),
+            checkoutDay:   fmtDay(coDate),
+            nights,
+            guestId, notes, chargeItems, subtotal,
+            payment:       paymentStatus,
+            paymentIcon:   chosen.icon,
+            paymentLabel:  chosen.label,
+            paymentPill:   chosen.pill,
+            paymentPillCls: chosen.pillCls,
+            generatedAt:   new Date().toLocaleString(),
+            issuedDate:    `Issued: ${fmt(new Date())}`,
+            paymentStatus: 'paid',
+            generatedBy,
+            paidAt:        new Date().toISOString()
+        };
+ 
+        // ── FIX 1: Persist to localStorage so history modal works ─────
+        const existing = loadHistory();
+        saveHistory([histEntry, ...existing]);   // newest first
+        updateBadge();
+ 
+        // ── Render the preview ────────────────────────────────────────
+        renderInvoiceDoc(histEntry);
+        document.getElementById('emptyState').style.display = 'none';
+        const docEl = document.getElementById('invoiceDoc');
+        docEl.style.display = 'block';
+        docEl.classList.remove('fade-in');
+        void docEl.offsetWidth;
+        docEl.classList.add('fade-in');
+ 
+        showToast(`Invoice ${invNum} generated & saved ✅`, 'success');
+ 
+// Upload to Cloudinary/Drive and save URL back to Firestore
+        const today   = new Date();
+        const dateStr = today.getFullYear() + '-'
+            + String(today.getMonth() + 1).padStart(2, '0') + '-'
+            + String(today.getDate()).padStart(2, '0');
+        const safeName = name.trim().replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_\-]/g, '');
+        const fileName = `GTEC_GuestLodge_Invoice_${currentInvNumber}_${safeName}_${dateStr}`;
+        const firestoreDocId = docRef.id;
+        setTimeout(async () => {
+    const result = await uploadInvoiceToDriveAndGetUrl(fileName, currentInvNumber, name);
+    if (result) {
+        await db.collection('invoices').doc(firestoreDocId).update({
+            driveViewUrl: result.viewUrl,
+            driveDownUrl: result.downloadUrl
+        });
+        console.log('Drive URLs saved to Firestore ✅', result);
+    } else {
+        console.warn('Invoice saved to Firestore but Drive upload failed.');
+    }
+}, 800);
+ 
+    } catch (err) {
+        console.error('Firestore save error:', err);
+        showToast('Failed to save invoice: ' + err.message, 'error');
+    } finally {
+        genBtn.disabled = false;
+        genBtn.innerHTML = '<i class="fas fa-magic"></i> Generate Invoice';
+    }
+}
+
+// ── renderInvoiceDoc ──────────────────────────────────────────────────
+function renderInvoiceDoc(entry) {
+    document.getElementById('invNumber').textContent      = entry.invNum;
+    document.getElementById('invDate').textContent        = entry.issuedDate;
+    document.getElementById('invGuestName').textContent   = entry.name;
+    document.getElementById('invGuestPhone').textContent  = entry.phone || '—';
+    document.getElementById('invGuestEmail').textContent  = entry.email || '—';
+    document.getElementById('invGuestId').textContent     = entry.guestId ? `Guest ID: ${entry.guestId}` : '';
+    document.getElementById('invRoom').textContent        = entry.room ? `Room ${entry.room}` : '—';
+    document.getElementById('invCheckin').textContent     = entry.checkin;
+    document.getElementById('invCheckinDay').textContent  = entry.checkinDay;
+    document.getElementById('invCheckout').textContent    = entry.checkout;
+    document.getElementById('invCheckoutDay').textContent = entry.checkoutDay;
+    document.getElementById('invDuration').textContent    = `${entry.nights} Night${entry.nights !== 1 ? 's' : ''}`;
+    document.getElementById('invGuests').textContent      = `${entry.guests} Guest${entry.guests != 1 ? 's' : ''}`;
+    document.getElementById('invSubtotal').textContent    = `GHS ${entry.subtotal.toFixed(2)}`;
+    document.getElementById('invTotal').textContent       = `GHS ${entry.subtotal.toFixed(2)}`;
+    document.getElementById('invGenDate').textContent     = entry.generatedAt;
+
+    const tbody = document.getElementById('invChargesBody');
+    tbody.innerHTML = entry.chargeItems.length
+        ? entry.chargeItems.map(c => `
+            <tr>
+                <td style="color:#94a3b8;font-size:13px;width:40px;">${c.index}</td>
+                <td><span class="charge-icon"><i class="fas fa-tag"></i></span>${c.desc}</td>
+                <td>GHS ${c.amount.toFixed(2)}</td>
+            </tr>`).join('')
+        : `<tr><td colspan="3" style="text-align:center;color:#94a3b8;padding:24px;">No charges added</td></tr>`;
+
+    const pill = document.getElementById('invStatusPill');
+    pill.className   = `inv-status-pill ${entry.paymentPillCls}`;
+    pill.textContent = entry.paymentPill;
+    document.getElementById('invPaymentIcon').textContent  = entry.paymentIcon;
+    document.getElementById('invPaymentLabel').textContent = entry.paymentLabel;
+
+    if (entry.notes) {
+        document.getElementById('invNotesSection').style.display = 'block';
+        document.getElementById('invNotesText').textContent = entry.notes;
+    } else {
+        document.getElementById('invNotesSection').style.display = 'none';
+    }
+
+    currentInvNumber = entry.invNum.replace('#','');
+    currentGuestName = entry.name;
+}
+
+// ── History Modal ─────────────────────────────────────────────────────
+function openHistoryModal() {
+    document.getElementById('historyModal').classList.add('open');
+    document.body.style.overflow = 'hidden';
+    setTimeout(() => document.getElementById('historySearchInput').focus(), 300);
+    // Load from Firestore every time modal opens
+    loadHistoryFromFirestore();
+}
+function closeHistoryModal() {
+    document.getElementById('historyModal').classList.remove('open');
+    document.body.style.overflow = '';
+}
+function closeHistoryOnOverlay(e) {
+    if (e.target === document.getElementById('historyModal')) closeHistoryModal();
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeHistoryModal(); });
+
+function renderHistoryList(filter = '') {
+    const history    = _firestoreInvoices.length ? _firestoreInvoices : loadHistory();
+    const listEl     = document.getElementById('historyList');
+    const countLabel = document.getElementById('historyCountLabel');
+    const q = filter.toLowerCase();
+
+    const filtered = q
+        ? history.filter(h =>
+            (h.name    || '').toLowerCase().includes(q) ||
+            (h.invNum  || '').toLowerCase().includes(q) ||
+            (h.room    || '').toLowerCase().includes(q) ||
+            (h.guestId || '').toLowerCase().includes(q) ||
+            (h.phone   || '').toLowerCase().includes(q))
+        : history;
+
+    countLabel.textContent = `${filtered.length} invoice${filtered.length !== 1 ? 's' : ''}`;
+
+    if (!filtered.length) {
+        listEl.innerHTML = `
+            <div class="history-empty">
+                <i class="fas fa-search"></i>
+                <p>${history.length === 0 ? 'No invoices yet' : 'No results found'}</p>
+                <span>${history.length === 0 ? 'Generated invoices will appear here' : 'Try a different search term'}</span>
+            </div>`;
+        return;
+    }
+
+    const payBadgeClass = { momo: 'pay-badge-momo', cash: 'pay-badge-cash', bank: 'pay-badge-bank' };
+    const payBadgeText  = { momo: '📲 MoMo', cash: '💵 Cash', bank: '🏦 Bank' };
+
+    listEl.innerHTML = filtered.map((h, i) => {
+        const initials = h.name.split(' ').map(n => n[0]).join('').slice(0,2).toUpperCase();
+        const badgeCls = payBadgeClass[h.payment] || 'pay-badge-momo';
+        const badgeTxt = payBadgeText[h.payment]  || h.payment;
+        return `
+        <div class="history-item" id="hitem-${h.id}" style="animation-delay:${i * 0.04}s">
+            <div class="history-item-avatar">${initials}</div>
+            <div class="history-item-body">
+                <div class="history-item-num">${h.invNum}</div>
+                <div class="history-item-name">${h.name}</div>
+                <div class="history-item-meta">
+                    ${h.room   ? `<span><i class="fas fa-bed"></i> Room ${h.room}</span>` : ''}
+                    ${h.nights ? `<span><i class="fas fa-moon"></i> ${h.nights} night${h.nights !== 1 ? 's' : ''}</span>` : ''}
+                    <span><i class="fas fa-clock"></i> ${h.generatedAt}</span>
+                    <span class="history-pay-badge ${badgeCls}">${badgeTxt}</span>
+                </div>
+            </div>
+            <div style="text-align:right;flex-shrink:0;">
+                <div class="history-item-amount">GHS ${h.subtotal.toFixed(2)}</div>
+            </div>
+            <div class="history-item-actions" style="position:relative;">
+                <button class="hist-view-btn" onclick="viewHistoryInvoice('${h.id}')">
+                    <i class="fas fa-eye"></i> View
+                </button>
+                <button class="hist-del-btn" onclick="toggleDeleteConfirm('${h.id}', this)">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+// Cache for Firestore-loaded invoices
+let _firestoreInvoices = [];
+
+async function loadHistoryFromFirestore() {
+    const listEl = document.getElementById('historyList');
+    listEl.innerHTML = `<div style="text-align:center;padding:40px;color:#94a3b8;"><i class="fas fa-spinner fa-spin" style="font-size:24px;"></i><p style="margin-top:12px;">Loading invoices...</p></div>`;
+
+    try {
+        const snapshot = await db.collection('invoices').get();
+        _firestoreInvoices = [];
+        snapshot.forEach(doc => {
+            const d = doc.data();
+            // Skip #PENDING- placeholders
+            if ((d.invoiceNumber || '').startsWith('#PENDING-')) return;
+            const methodMap = {
+                momo: { pill: '📲 MTN MoMo', pillCls: 'paid', icon: '📲', label: 'MTN Mobile Money' },
+                cash: { pill: '💵 Cash',      pillCls: 'paid', icon: '💵', label: 'Cash (Physical Payment)' },
+                bank: { pill: '🏦 Bank Transfer (GTEC)', pillCls: 'partial', icon: '🏦', label: 'Bank Transfer — GTEC Account' }
+            };
+            const chosen = methodMap[d.paymentMethod] || { pill: d.paymentMethod || '—', pillCls: 'paid', icon: '💳', label: d.paymentMethod || '—' };
+            const fmt    = dt => dt ? new Date(dt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+            const fmtDay = dt => dt ? new Date(dt).toLocaleDateString('en-GB', { weekday: 'long' }) : '—';
+            const ci = d.checkinDate  ? new Date(d.checkinDate  + 'T00:00:00Z') : null;
+            const co = d.checkoutDate ? new Date(d.checkoutDate + 'T00:00:00Z') : null;
+            const createdMs = d.createdAt?.toDate?.()?.getTime() || 0;
+
+            _firestoreInvoices.push({
+                id:            doc.id,
+                invNum:        d.invoiceNumber || '—',
+                name:          d.guestName     || '—',
+                phone:         d.guestPhone    || '',
+                email:         d.guestEmail    || '',
+                room:          d.room          || '',
+                guests:        d.guestsCount   || 1,
+                checkin:       fmt(ci),
+                checkinDay:    fmtDay(ci),
+                checkout:      fmt(co),
+                checkoutDay:   fmtDay(co),
+                nights:        d.nights        || 0,
+                guestId:       d.guestId       || '',
+                notes:         d.notes         || '',
+                chargeItems:   d.chargeItems   || [],
+                subtotal:      d.subtotal      || 0,
+                payment:       d.paymentMethod || 'momo',
+                paymentIcon:   chosen.icon,
+                paymentLabel:  chosen.label,
+                paymentPill:   chosen.pill,
+                paymentPillCls: chosen.pillCls,
+                generatedAt:   d.createdAt?.toDate?.().toLocaleString() || '—',
+                issuedDate:    `Issued: ${fmt(d.createdAt?.toDate?.() || new Date())}`,
+                paymentStatus: d.paymentStatus || 'unpaid',
+                generatedBy:   d.generatedBy   || '',
+                createdMs
+            });
+        });
+
+        // Sort newest first
+        _firestoreInvoices.sort((a, b) => b.createdMs - a.createdMs);
+
+        // Update badge with real count
+        document.getElementById('historyCountBadge').textContent = _firestoreInvoices.length;
+
+        renderHistoryList();
+
+    } catch (err) {
+        console.error('Firestore history load error:', err);
+        listEl.innerHTML = `<div style="text-align:center;padding:40px;color:#dc2626;"><i class="fas fa-exclamation-circle" style="font-size:24px;"></i><p style="margin-top:12px;">Failed to load invoices. Check your connection.</p></div>`;
+    }
+}
+
+function filterHistory() {
+    renderHistoryList(document.getElementById('historySearchInput').value);
+}
+
+async function viewHistoryInvoice(id) {
+    // First try localStorage (instant)
+    let entry = loadHistory().find(h => h.id === id);
+ 
+    // Fallback: fetch from Firestore if not in localStorage
+    if (!entry) {
+        try {
+            showToast('Loading invoice…', 'success');
+            const doc = await db.collection('invoices').doc(id).get();
+            if (doc.exists) {
+                const d = doc.data();
+                const fmt    = dt => dt ? new Date(dt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+                const fmtDay = dt => dt ? new Date(dt).toLocaleDateString('en-GB', { weekday: 'long' }) : '—';
+                const methodMap = {
+                    momo: { pill: '📲 MTN MoMo',            pillCls: 'paid',    icon: '📲', label: 'MTN Mobile Money' },
+                    cash: { pill: '💵 Cash',                 pillCls: 'paid',    icon: '💵', label: 'Cash (Physical Payment)' },
+                    bank: { pill: '🏦 Bank Transfer (GTEC)', pillCls: 'partial', icon: '🏦', label: 'Bank Transfer — GTEC Account' }
+                };
+                const chosen = methodMap[d.paymentMethod] || { pill: d.paymentMethod, pillCls: 'paid', icon: '💳', label: d.paymentMethod };
+                const ci = d.checkinDate  ? new Date(d.checkinDate  + 'T00:00:00Z') : null;
+                const co = d.checkoutDate ? new Date(d.checkoutDate + 'T00:00:00Z') : null;
+ 
+                entry = {
+                    id,
+                    invNum:        d.invoiceNumber,
+                    name:          d.guestName,
+                    phone:         d.guestPhone   || '',
+                    email:         d.guestEmail   || '',
+                    room:          d.room         || '',
+                    guests:        d.guestsCount  || 1,
+                    checkin:       fmt(ci),
+                    checkinDay:    fmtDay(ci),
+                    checkout:      fmt(co),
+                    checkoutDay:   fmtDay(co),
+                    nights:        d.nights       || 0,
+                    guestId:       d.guestId      || '',
+                    notes:         d.notes        || '',
+                    chargeItems:   d.chargeItems  || [],
+                    subtotal:      d.subtotal     || 0,
+                    payment:       d.paymentMethod,
+                    paymentIcon:   chosen.icon,
+                    paymentLabel:  chosen.label,
+                    paymentPill:   chosen.pill,
+                    paymentPillCls: chosen.pillCls,
+                    generatedAt:   d.createdAt?.toDate?.().toLocaleString() || '—',
+                    issuedDate:    `Issued: ${fmt(d.createdAt?.toDate?.() || new Date())}`,
+                    paymentStatus: d.paymentStatus || 'paid',
+                    generatedBy:   d.generatedBy  || '',
+                };
+            }
+        } catch (err) {
+            console.error('Firestore fetch error:', err);
+        }
+    }
+ 
+    if (!entry) {
+        showToast('Invoice not found', 'error');
+        return;
+    }
+ 
+    renderInvoiceDoc(entry);
+    document.getElementById('emptyState').style.display = 'none';
+    const docEl = document.getElementById('invoiceDoc');
+    docEl.style.display = 'block';
+    docEl.classList.remove('fade-in');
+    void docEl.offsetWidth;
+    docEl.classList.add('fade-in');
+ 
+    closeHistoryModal();
+    setTimeout(() => docEl.scrollIntoView({ behavior: 'smooth', block: 'start' }), 350);
+    showToast(`Viewing ${entry.invNum} — ${entry.name}`, 'success');
+}
+
+
+function toggleDeleteConfirm(id, btn) {
+    document.querySelectorAll('.del-confirm').forEach(el => el.remove());
+    const wrap   = btn.parentElement;
+    const dialog = document.createElement('div');
+    dialog.className = 'del-confirm';
+    dialog.innerHTML = `
+        <p>Delete this invoice?</p>
+        <div class="del-confirm-btns">
+            <button class="del-no"  onclick="this.closest('.del-confirm').remove()">Cancel</button>
+            <button class="del-yes" onclick="deleteHistoryEntry('${id}')">Delete</button>
+        </div>`;
+    wrap.appendChild(dialog);
+    setTimeout(() => {
+        document.addEventListener('click', function dismissConfirm(e) {
+            if (!dialog.contains(e.target) && e.target !== btn) {
+                dialog.remove();
+                document.removeEventListener('click', dismissConfirm);
+            }
+        });
+    }, 10);
+}
+
+function deleteHistoryEntry(id) {
+    document.querySelectorAll('.del-confirm').forEach(el => el.remove());
+    saveHistory(loadHistory().filter(h => h.id !== id));
+    updateBadge();
+    renderHistoryList(document.getElementById('historySearchInput').value);
+    const el = document.getElementById(`hitem-${id}`);
+    if (el) {
+        el.style.transition = 'all 0.25s ease';
+        el.style.opacity    = '0';
+        el.style.transform  = 'translateX(20px)';
+        setTimeout(() => el.remove(), 250);
+    }
+    showToast('Invoice deleted', 'success');
+}
+
+function confirmClearAll() {
+    const history = loadHistory();
+    if (!history.length) { showToast('No invoices to clear', 'error'); return; }
+    if (confirm(`Delete all ${history.length} invoice${history.length !== 1 ? 's' : ''}? This cannot be undone.`)) {
+        saveHistory([]);
+        updateBadge();
+        renderHistoryList();
+        showToast('All invoices cleared', 'success');
+    }
+}
+
+// ── Filename ──────────────────────────────────────────────────────────
+function buildFilename() {
+    const namePart = currentGuestName.trim().toLowerCase()
+        .replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+    return `GTEC_Invoice_${currentInvNumber}_${namePart}`;
+}
+
+// ── Print ─────────────────────────────────────────────────────────────
+function printInvoice() {
+    if (document.getElementById('invoiceDoc').style.display === 'none') {
+        showToast('Generate or view an invoice first', 'error'); return;
+    }
+    const prev = document.title;
+    document.title = buildFilename();
+    window.print();
+    document.title = prev;
+}
+
+// ── Download PDF ──────────────────────────────────────────────────────
+function downloadPDF() {
+    if (document.getElementById('invoiceDoc').style.display === 'none') {
+        showToast('Generate or view an invoice first', 'error'); return;
+    }
+    showToast('Set destination to "Save as PDF" in the print dialog', 'success');
+    const prev = document.title;
+    document.title = buildFilename();
+    setTimeout(() => { window.print(); document.title = prev; }, 600);
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────
+function showToast(msg, type = 'success') {
+    const t = document.getElementById('toast');
+    t.className = `toast ${type}`;
+    t.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'}"></i> ${msg}`;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 3500);
+}
+    </script>
+
+
+<!-- Google Drive Upload Toast (initially hidden) -->
+<div id="drive-toast">
+    <div id="drive-toast-icon-wrap">
+        <svg width="20" height="20" viewBox="0 0 87.3 78" xmlns="http://www.w3.org/2000/svg" id="drive-toast-icon">
+            <path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/>
+            <path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0 -1.2 4.5h27.5z" fill="#00ac47"/>
+            <path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.502l5.852 11.5z" fill="#ea4335"/>
+            <path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d"/>
+            <path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc"/>
+            <path d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 27h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/>
+        </svg>
+    </div>
+    <div style="flex:1;min-width:0;">
+        <div id="drive-toast-title">Saving to Google Drive</div>
+        <div id="drive-toast-sub">Uploading invoice PDF…</div>
+        <div id="drive-toast-progress"><div id="drive-toast-bar"></div></div>
+    </div>
+    <button id="drive-toast-close" onclick="hideDriveToast()">✕</button>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,2321 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat Room — GTEC Guest Lodge</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap"
+        rel="stylesheet">
+    <link rel="icon" type="image/jpg" href="img/logo1.jpg">
+
+
+    <style>
+        .sidebar-menu {
+            visibility: hidden;
+        }
+
+        /* ── Nav badge (same style as chat.html) ── */
+        .nav-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: #ef4444;
+            color: white;
+            font-size: 10px;
+            font-weight: 700;
+            min-width: 18px;
+            height: 18px;
+            border-radius: 10px;
+            padding: 0 5px;
+            margin-left: auto;
+            line-height: 1;
+        }
+
+        :root {
+            --ink: #0f1923;
+            --navy: #1f3b57;
+            --navy-lt: #2a5180;
+            --gold: #c9a84c;
+            --gold-lt: #e8d08a;
+            --cream: #faf8f3;
+            --white: #ffffff;
+            --muted: #64748b;
+            --border: #e2e8f0;
+            --primary: #4361ee;
+            --danger: #ef4444;
+            --success: #22c55e;
+            --shadow: 0 20px 60px rgba(0, 0, 0, 0.08);
+            --sidebar-width: 260px;
+        }
+
+        .chatroom-wrap {
+            display: flex;
+            height: calc(100vh - 130px);
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            background: var(--white);
+        }
+
+        /* ── Left Sidebar ── */
+        .cr-sidebar {
+            width: 240px;
+            flex-shrink: 0;
+            background: var(--navy);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .cr-sidebar-top {
+            padding: 20px 16px 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .cr-workspace {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        .cr-workspace-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            overflow: hidden;
+            flex-shrink: 0;
+            border: 1.5px solid rgba(201, 168, 76, 0.4);
+        }
+
+        .cr-workspace-icon img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .cr-workspace-name {
+            font-family: 'Playfair Display', serif;
+            font-size: 14px;
+            font-weight: 700;
+            color: white;
+            line-height: 1.2;
+        }
+
+        .cr-workspace-sub {
+            font-size: 10px;
+            color: rgba(255, 255, 255, 0.4);
+            letter-spacing: 0.5px;
+        }
+
+        .cr-search {
+            display: flex;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 8px;
+            padding: 7px 10px;
+            gap: 8px;
+        }
+
+        .cr-search i {
+            color: rgba(255, 255, 255, 0.35);
+            font-size: 12px;
+        }
+
+        .cr-search input {
+            background: none;
+            border: none;
+            outline: none;
+            color: white;
+            font-size: 12px;
+            font-family: 'DM Sans', sans-serif;
+            width: 100%;
+        }
+
+        .cr-search input::placeholder {
+            color: rgba(255, 255, 255, 0.35);
+        }
+
+        .cr-section-label {
+            padding: 14px 16px 6px;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.35);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .cr-section-label button {
+            background: none;
+            border: none;
+            color: rgba(255, 255, 255, 0.4);
+            cursor: pointer;
+            font-size: 13px;
+            padding: 2px;
+            border-radius: 4px;
+            transition: color 0.15s, background 0.15s;
+        }
+
+        .cr-section-label button:hover {
+            color: white;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .cr-channel {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 7px 14px;
+            cursor: pointer;
+            border-radius: 6px;
+            margin: 1px 6px;
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.6);
+            transition: all 0.15s;
+            position: relative;
+        }
+
+        .cr-channel:hover {
+            background: rgba(255, 255, 255, 0.08);
+            color: white;
+        }
+
+        .cr-channel.active {
+            background: rgba(255, 255, 255, 0.15);
+            color: white;
+            font-weight: 600;
+        }
+
+        .cr-channel .cr-hash {
+            font-size: 15px;
+            opacity: 0.5;
+            font-weight: 300;
+        }
+
+        .cr-channel.active .cr-hash {
+            opacity: 0.8;
+        }
+
+        .cr-channel .cr-badge {
+            margin-left: auto;
+            background: var(--danger);
+            color: white;
+            font-size: 9px;
+            font-weight: 700;
+            padding: 1px 5px;
+            border-radius: 10px;
+            min-width: 16px;
+            text-align: center;
+            display: none;
+        }
+        .cr-channel .cr-badge.has-unread {
+            display: inline-block;
+        }
+
+        .cr-members {
+            flex: 1;
+            overflow-y: auto;
+            padding-bottom: 8px;
+        }
+
+        .cr-members::-webkit-scrollbar { width: 4px; }
+        .cr-members::-webkit-scrollbar-track { background: transparent; }
+        .cr-members::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 4px; }
+
+        .cr-member {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            padding: 6px 14px;
+            margin: 1px 6px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+
+        .cr-member:hover {
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .cr-member-avatar {
+            width: 28px;
+            height: 28px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 700;
+            color: white;
+            flex-shrink: 0;
+            position: relative;
+        }
+
+        .cr-member-avatar::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            right: -1px;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            border: 2px solid var(--navy);
+        }
+
+        .cr-member-avatar.online::after { background: var(--success); }
+        .cr-member-avatar.away::after { background: #f59e0b; }
+        .cr-member-avatar.offline::after { background: #94a3b8; }
+
+        .cr-member-name {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.65);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .cr-member-role {
+            font-size: 10px;
+            color: rgba(255, 255, 255, 0.3);
+            margin-left: auto;
+            flex-shrink: 0;
+        }
+
+        .cr-self-bar {
+            padding: 12px 14px;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            background: rgba(0, 0, 0, 0.15);
+        }
+
+        .cr-self-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 15px;
+            color: white;
+            background: var(--gold);
+            flex-shrink: 0;
+        }
+
+        .cr-self-name { font-size: 12px; font-weight: 600; color: white; }
+        .cr-self-status { font-size: 10px; color: rgba(255, 255, 255, 0.4); }
+
+        .cr-self-actions {
+            margin-left: auto;
+            display: flex;
+            gap: 4px;
+        }
+
+        .cr-self-actions button {
+            background: none;
+            border: none;
+            color: rgba(255, 255, 255, 0.4);
+            cursor: pointer;
+            font-size: 13px;
+            padding: 4px 5px;
+            border-radius: 5px;
+            transition: all 0.15s;
+        }
+
+        .cr-self-actions button:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+
+        /* ── Main Chat Area ── */
+        .cr-main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            background: var(--white);
+        }
+
+        .cr-main-header {
+            padding: 0 20px;
+            height: 56px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-shrink: 0;
+            background: var(--white);
+        }
+
+        .cr-main-header .cr-hash-lg { font-size: 20px; color: var(--muted); font-weight: 300; }
+        .cr-main-header-title { font-size: 15px; font-weight: 700; color: var(--ink); }
+        .cr-main-header-desc {
+            font-size: 12px;
+            color: var(--muted);
+            border-left: 1px solid var(--border);
+            padding-left: 12px;
+            margin-left: 4px;
+        }
+
+        .cr-main-header-actions {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .cr-icon-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--muted);
+            font-size: 15px;
+            padding: 7px 8px;
+            border-radius: 7px;
+            transition: all 0.15s;
+        }
+
+        .cr-icon-btn:hover {
+            background: #f1f5f9;
+            color: var(--ink);
+        }
+
+        /* Messages */
+        .cr-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px 20px 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            background: var(--white);
+            scroll-behavior: smooth;
+        }
+
+        .cr-messages::-webkit-scrollbar { width: 6px; }
+        .cr-messages::-webkit-scrollbar-track { background: transparent; }
+        .cr-messages::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 6px; }
+        .cr-messages::-webkit-scrollbar-thumb:hover { background: #cbd5e1; }
+
+        .cr-date-divider {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 16px 0 8px;
+        }
+
+        .cr-date-divider span {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--muted);
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+        }
+
+        .cr-date-divider::before,
+        .cr-date-divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border);
+        }
+
+        .cr-msg {
+            display: flex;
+            gap: 10px;
+            padding: 4px 4px;
+            border-radius: 8px;
+            transition: background 0.1s;
+            position: relative;
+        }
+
+        .cr-msg:hover { background: #f8fafc; }
+        .cr-msg:hover .cr-msg-actions { opacity: 1; }
+
+        .cr-msg-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 15px;
+            color: white;
+            margin-top: 2px;
+        }
+
+        .cr-msg-body { flex: 1; min-width: 0; }
+
+        .cr-msg-header {
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+            margin-bottom: 3px;
+        }
+
+        .cr-msg-name { font-size: 13px; font-weight: 700; color: var(--ink); }
+
+        .cr-msg-role-tag {
+            font-size: 9px;
+            font-weight: 700;
+            padding: 1px 5px;
+            border-radius: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .cr-msg-time { font-size: 11px; color: #94a3b8; }
+
+        .cr-msg-text {
+            font-size: 14px;
+            color: #334155;
+            line-height: 1.55;
+            word-break: break-word;
+        }
+
+        .cr-msg-text a { color: var(--primary); text-decoration: underline; }
+
+        .cr-reactions {
+            display: flex;
+            gap: 4px;
+            flex-wrap: wrap;
+            margin-top: 5px;
+        }
+
+        .cr-reaction {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: #f1f5f9;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 3px 8px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.15s;
+            color: var(--ink);
+            font-weight: 500;
+            position: relative;
+        }
+
+        .cr-reaction:hover { background: #e0e7ff; border-color: var(--primary); }
+        .cr-reaction.mine { background: #eff6ff; border-color: #93c5fd; }
+        .cr-reaction span { font-size: 11px; }
+
+        .cr-reaction-tooltip {
+            display: none;
+            position: absolute;
+            bottom: calc(100% + 8px);
+            left: 50%;
+            transform: translateX(-50%);
+            background: #1e293b;
+            color: white;
+            font-size: 11px;
+            padding: 6px 10px;
+            border-radius: 7px;
+            white-space: nowrap;
+            z-index: 200;
+            pointer-events: none;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+            max-width: 220px;
+            white-space: normal;
+            text-align: center;
+        }
+        .cr-reaction-tooltip::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 5px solid transparent;
+            border-top-color: #1e293b;
+        }
+        .cr-reaction:hover .cr-reaction-tooltip { display: block; }
+
+        /* Hover action bar */
+        .cr-msg-actions {
+            position: absolute;
+            right: 8px;
+            top: -14px;
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            display: flex;
+            gap: 0;
+            opacity: 0;
+            transition: opacity 0.15s;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            z-index: 10;
+        }
+
+        .cr-msg-action-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 6px 8px;
+            color: var(--muted);
+            font-size: 13px;
+            transition: all 0.15s;
+            border-radius: 7px;
+        }
+
+        .cr-msg-action-btn:hover { background: #f1f5f9; color: var(--ink); }
+        .cr-msg-action-btn.del:hover { background: #fef2f2; color: var(--danger); }
+
+        /* Typing indicator */
+        .cr-typing {
+            padding: 6px 20px 10px;
+            font-size: 12px;
+            color: var(--muted);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-height: 30px;
+        }
+
+        .cr-typing-dots { display: flex; gap: 3px; }
+        .cr-typing-dots span {
+            width: 5px; height: 5px;
+            background: var(--muted);
+            border-radius: 50%;
+            animation: typingBounce 1.2s infinite ease-in-out;
+        }
+        .cr-typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+        .cr-typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes typingBounce {
+            0%,60%,100% { transform:translateY(0); opacity:0.4; }
+            30% { transform:translateY(-4px); opacity:1; }
+        }
+
+        /* Input Bar */
+        .cr-input-area {
+            padding: 0 16px 16px;
+            flex-shrink: 0;
+            position: relative;
+        }
+
+        .cr-input-box {
+            border: 1.5px solid var(--border);
+            border-radius: 12px;
+            background: white;
+            overflow: visible;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .cr-input-box:focus-within {
+            border-color: var(--navy);
+            box-shadow: 0 0 0 3px rgba(31, 59, 87, 0.08);
+        }
+
+        .cr-input-row {
+            display: flex;
+            align-items: flex-end;
+            gap: 0;
+            padding: 8px 8px 8px 14px;
+        }
+
+        #cr-message-input {
+            flex: 1;
+            border: none;
+            outline: none;
+            font-size: 14px;
+            font-family: 'DM Sans', sans-serif;
+            color: var(--ink);
+            resize: none;
+            max-height: 120px;
+            min-height: 22px;
+            line-height: 1.5;
+            padding: 0 10px 0 0;
+            background: transparent;
+        }
+
+        #cr-message-input::placeholder { color: #94a3b8; }
+
+        .cr-input-right-btns {
+            display: flex;
+            gap: 2px;
+            flex-shrink: 0;
+            align-self: flex-end;
+            padding-bottom: 2px;
+        }
+
+        .cr-send-btn {
+            background: var(--navy);
+            border: none;
+            color: white;
+            border-radius: 8px;
+            width: 34px;
+            height: 34px;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+
+        .cr-send-btn:hover { background: var(--navy-lt); transform: scale(1.05); }
+        .cr-send-btn:active { transform: scale(0.97); }
+        .cr-send-btn:disabled { background: #e2e8f0; color: #94a3b8; cursor: not-allowed; transform: none; }
+
+        .cr-emoji-picker {
+            display: none;
+            position: absolute;
+            bottom: 72px;
+            right: 20px;
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+            z-index: 200;
+            width: 272px;
+        }
+
+        .cr-emoji-picker.open { display: block; }
+
+        .cr-emoji-grid {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 2px;
+            width: 100%;
+        }
+
+        .cr-emoji-btn {
+            font-size: 20px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            border-radius: 6px;
+            text-align: center;
+            transition: background 0.1s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 32px;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        .cr-emoji-btn:hover { background: #f1f5f9; }
+
+        /* Right Panel */
+        .cr-right-panel {
+            width: 260px;
+            flex-shrink: 0;
+            border-left: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            background: #f8fafc;
+            transition: width 0.25s ease;
+            overflow: hidden;
+        }
+
+        .cr-right-panel.collapsed { width: 0; border: none; }
+
+        .cr-rp-header {
+            padding: 0 16px;
+            height: 56px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--ink);
+            flex-shrink: 0;
+            background: white;
+        }
+
+        .cr-rp-body { flex: 1; overflow-y: auto; padding: 16px; }
+        .cr-rp-section { margin-bottom: 20px; }
+        .cr-rp-section-title {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 1.2px;
+            text-transform: uppercase;
+            color: var(--muted);
+            margin-bottom: 10px;
+        }
+
+        .cr-pinned-msg {
+            background: white;
+            border: 1px solid var(--border);
+            border-left: 3px solid var(--gold);
+            border-radius: 8px;
+            padding: 10px 12px;
+            font-size: 12px;
+            color: #334155;
+            line-height: 1.5;
+            margin-bottom: 8px;
+        }
+
+        .cr-pinned-msg .cr-pinned-who { font-size: 11px; font-weight: 700; color: var(--ink); margin-bottom: 4px; }
+
+        .cr-online-list-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 0;
+            border-bottom: 1px solid var(--border);
+        }
+        .cr-online-list-item:last-child { border: none; }
+        .cr-online-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+        .cr-online-list-name { font-size: 12px; color: var(--ink); font-weight: 500; }
+        .cr-online-list-role { font-size: 11px; color: var(--muted); margin-left: auto; }
+
+        /* Unread banner */
+        .cr-unread-banner {
+            display: none;
+            position: absolute;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--navy);
+            color: white;
+            font-size: 12px;
+            font-weight: 600;
+            padding: 6px 14px;
+            border-radius: 20px;
+            cursor: pointer;
+            z-index: 50;
+            box-shadow: 0 4px 16px rgba(31, 59, 87, 0.3);
+            transition: all 0.2s;
+        }
+        .cr-unread-banner:hover { background: var(--navy-lt); }
+        .cr-unread-banner.show { display: block; }
+
+        /* Toast */
+        .cr-toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: var(--ink);
+            color: white;
+            padding: 12px 18px;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 500;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+            z-index: 9999;
+            opacity: 0;
+            transform: translateY(8px);
+            transition: all 0.25s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            pointer-events: none;
+        }
+        .cr-toast.show { opacity: 1; transform: translateY(0); }
+        .cr-toast.success { border-left: 4px solid var(--success); }
+        .cr-toast.error { border-left: 4px solid var(--danger); }
+
+        /* Empty state */
+        .cr-empty-msgs {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            color: var(--muted);
+            padding: 40px;
+            text-align: center;
+        }
+        .cr-empty-msgs i { font-size: 48px; color: #e2e8f0; }
+        .cr-empty-msgs h3 { font-size: 16px; font-weight: 700; color: #94a3b8; margin: 0; }
+        .cr-empty-msgs p { font-size: 13px; margin: 0; }
+
+        /* Role-based avatar colours */
+        .role-superadmin   { background: #1e40af !important; }
+        .role-manager      { background: #15803d !important; }
+        .role-receptionist { background: #92400e !important; }
+        .role-observer     { background: #6b21a8 !important; }
+        .role-staff        { background: #0891b2 !important; }
+
+        /* Role tag colours */
+        .tag-superadmin   { background: #dbeafe; color: #1e40af; }
+        .tag-manager      { background: #dcfce7; color: #15803d; }
+        .tag-receptionist { background: #fef3c7; color: #92400e; }
+        .tag-observer     { background: #f3e8ff; color: #6b21a8; }
+        .tag-staff        { background: #e0f2fe; color: #0369a1; }
+
+        /* Modals */
+        .cr-modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(15,23,42,0.55);
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(4px);
+        }
+        .cr-modal-overlay.active { display: flex; }
+        .cr-modal-box {
+            background: white;
+            border-radius: 14px;
+            box-shadow: 0 24px 64px rgba(0,0,0,0.2);
+            width: 90%;
+            max-width: 400px;
+            overflow: hidden;
+            animation: modalPop 0.22s cubic-bezier(0.34,1.56,0.64,1) both;
+        }
+        @keyframes modalPop {
+            from { opacity:0; transform:scale(0.92) translateY(12px); }
+            to   { opacity:1; transform:scale(1) translateY(0); }
+        }
+        .cr-modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 18px 20px 14px;
+            border-bottom: 1px solid var(--border);
+            background: #f8fafc;
+        }
+        .cr-modal-title { font-size: 15px; font-weight: 700; color: var(--ink); margin: 0; }
+        .cr-modal-close {
+            background: none; border: none; cursor: pointer;
+            color: #94a3b8; font-size: 15px; padding: 4px 8px;
+            border-radius: 6px; transition: all 0.15s;
+        }
+        .cr-modal-close:hover { background: #fee2e2; color: var(--danger); }
+        .cr-modal-body { padding: 20px; }
+        .cr-modal-body label {
+            display: block; font-size: 12px; font-weight: 600;
+            color: #374151; margin-bottom: 6px;
+        }
+        .cr-modal-body input[type=text] {
+            width: 100%; padding: 10px 12px;
+            border: 1.5px solid var(--border); border-radius: 8px;
+            font-size: 14px; color: var(--ink); background: #f8fafc;
+            box-sizing: border-box; outline: none;
+            font-family: 'DM Sans', sans-serif;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .cr-modal-body input[type=text]:focus {
+            border-color: var(--navy);
+            box-shadow: 0 0 0 3px rgba(31,59,87,0.08);
+            background: white;
+        }
+        .cr-modal-footer {
+            display: flex; gap: 10px;
+            justify-content: flex-end; margin-top: 18px;
+        }
+        .cr-btn-outline {
+            padding: 9px 18px; border: 1.5px solid var(--border);
+            background: white; border-radius: 8px;
+            font-size: 13px; font-weight: 600; cursor: pointer;
+            color: var(--muted); transition: all 0.15s;
+            font-family: 'DM Sans', sans-serif;
+        }
+        .cr-btn-outline:hover { border-color: var(--muted); color: var(--ink); }
+        .cr-btn-primary {
+            padding: 9px 18px; border: none;
+            background: var(--navy); border-radius: 8px;
+            font-size: 13px; font-weight: 600; cursor: pointer;
+            color: white; transition: all 0.15s;
+            font-family: 'DM Sans', sans-serif;
+        }
+        .cr-btn-primary:hover { background: var(--navy-lt); }
+
+        /* Settings toggles */
+        .cr-settings-item {
+            display: flex; align-items: center;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border);
+        }
+        .cr-settings-item:last-child { border: none; }
+        .cr-settings-label { font-size: 13px; font-weight: 600; color: var(--ink); }
+        .cr-settings-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+        .cr-toggle { position: relative; width: 40px; height: 22px; flex-shrink: 0; }
+        .cr-toggle input { opacity: 0; width: 0; height: 0; }
+        .cr-toggle-slider {
+            position: absolute; inset: 0;
+            background: #e2e8f0; border-radius: 22px;
+            cursor: pointer; transition: background 0.2s;
+        }
+        .cr-toggle-slider::before {
+            content: ''; position: absolute;
+            width: 16px; height: 16px;
+            left: 3px; top: 3px;
+            background: white; border-radius: 50%;
+            transition: transform 0.2s;
+        }
+        .cr-toggle input:checked + .cr-toggle-slider { background: var(--navy); }
+        .cr-toggle input:checked + .cr-toggle-slider::before { transform: translateX(18px); }
+
+        /* ── Compact view mode ── */
+        .cr-compact-mode .cr-msg { padding: 1px 4px; }
+        .cr-compact-mode .cr-msg-avatar { width: 24px; height: 24px; font-size: 11px; border-radius: 6px; }
+        .cr-compact-mode .cr-msg-body { font-size: 13px; }
+        .cr-compact-mode .cr-msg-text { font-size: 13px; line-height: 1.4; }
+        .cr-compact-mode .cr-date-divider { margin: 8px 0 4px; }
+        .cr-compact-mode .cr-reactions { margin-top: 2px; }
+
+        @media (max-width: 900px) {
+            .cr-right-panel { display: none; }
+            .cr-main-header-desc { display: none; }
+        }
+
+        @media (max-width: 640px) {
+            .cr-sidebar { width: 56px; }
+            .cr-sidebar .cr-workspace-name,
+            .cr-sidebar .cr-workspace-sub,
+            .cr-search,
+            .cr-section-label,
+            .cr-member-name,
+            .cr-member-role,
+            .cr-self-name,
+            .cr-self-status,
+            .cr-channel span:not(.cr-hash),
+            .cr-channel .cr-badge { display: none; }
+            .cr-channel { justify-content: center; padding: 8px; }
+            .cr-member { justify-content: center; padding: 6px; }
+            .cr-self-bar { justify-content: center; padding: 10px; }
+            .cr-self-actions { display: none; }
+            .chatroom-wrap { height: calc(100vh - 110px); }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="app-container">
+
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">
+                    <img src="img/logo1.jpg" alt="Logo" style="width:40px;height:40px;border-radius:8px;"> Guest Lodge
+                </div>
+            </div>
+            <div class="sidebar-menu" id="sidebarMenu" style="visibility:hidden;">
+                <div class="menu-label">Main Menu</div>
+                <a href="dashboard.html" class="menu-item"><i class="fas fa-chart-pie"></i> Dashboard</a>
+                <a href="rooms.html" class="menu-item"><i class="fas fa-bed"></i> Rooms</a>
+                <div class="menu-label" style="margin-top:20px;">Guest Activity</div>
+                <a href="checkin.html" class="menu-item"><i class="fas fa-sign-in-alt"></i> Check-In</a>
+                <a href="checkout.html" class="menu-item"><i class="fas fa-sign-out-alt"></i> Check-Out</a>
+                <a href="guests.html" class="menu-item"><i class="fas fa-users"></i> Guests</a>
+                <!-- ✅ Chat Room nav item with unread badge -->
+                <a href="chatroom.html" class="menu-item active"><i class="fas fa-comments"></i> Chat Room <span class="nav-badge" id="nav-chatroom-count" style="display:none;">0</span></a>
+                <a href="logs.html" class="menu-item"><i class="fas fa-clipboard-list"></i> Logs</a>
+                <a href="chat.html" class="menu-item"><i class="fas fa-comment"></i> Client Messages</a>
+                <a href="verification.html" class="menu-item"><i class="fas fa-user-check"></i> Verification</a>
+                <a href="invoice.html" class="menu-item"><i class="fas fa-file-invoice"></i> Invoice</a>
+                <a href="payments.html"     class="menu-item active"><i class="fas fa-credit-card"></i> Payments</a>
+                <a href="calendar.html" class="menu-item"><i class="fas fa-calendar-alt"></i> Calendar</a>
+                <a href="filelibrary.html" class="menu-item"><i class="fas fa-folder-open"></i> File Library</a>
+
+                <div class="menu-label" style="margin-top:20px;">Analysis</div>
+                <a href="reports.html" class="menu-item"><i class="fas fa-chart-bar"></i> Reports</a>
+
+                <div class="menu-label" style="margin-top:20px;">Administration</div>
+            <a href="profile.html" class="menu-item"><i class="fas fa-circle-user"></i> My Profile</a>
+                <a href="roles.html" class="menu-item"><i class="fas fa-user-shield"></i> Roles</a>
+            </div>
+            <div class="sidebar-footer">
+                <a href="#" id="logout-btn" class="menu-item" style="color:var(--status-occupied);padding-left:0;">
+                    <i class="fas fa-power-off"></i> Logout
+                </a>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="header">
+                <div class="toggle-sidebar" id="toggle-sidebar"><i class="fas fa-bars"></i></div>
+                <div class="header-right" style="margin-left:auto;">
+                    <a href="index.html" style="color:var(--text-light);font-size:14px;font-weight:500;">🏠 Home</a>
+                    <div class="user-profile" style="cursor:pointer;" onclick="window.location.href='profile.html'" title="View Profile">
+    <div class="user-avatar"><i class="fas fa-user"></i></div>
+    <span id="user-email-display" style="font-weight:500;">Admin</span>
+</div>
+                </div>
+            </header>
+
+            <div class="content-area" style="padding:20px 24px 0;">
+                <div class="chatroom-wrap" style="position:relative;">
+
+                    <!-- LEFT: channels + members -->
+                    <div class="cr-sidebar">
+                        <div class="cr-sidebar-top">
+                            <div class="cr-workspace">
+                                <div class="cr-workspace-icon">
+                                    <img src="img/logo1.jpg" alt="GTEC" onerror="this.parentElement.style.background='#c9a84c'">
+                                </div>
+                                <div>
+                                    <div class="cr-workspace-name">GTEC Staff</div>
+                                    <div class="cr-workspace-sub">Internal workspace</div>
+                                </div>
+                            </div>
+                            <div class="cr-search">
+                                <i class="fas fa-search"></i>
+                                <input type="text" id="cr-search-input" placeholder="Search messages…">
+                            </div>
+                        </div>
+
+                        <div style="overflow-y:auto;flex:1;display:flex;flex-direction:column;">
+                            <div class="cr-section-label">
+                                Channels
+                                <button title="Add channel" onclick="showAddChannelModal()"><i class="fas fa-plus"></i></button>
+                            </div>
+                            <div id="cr-channel-list">
+                                <div class="cr-channel active" data-channel="general"
+                                    onclick="switchChannel(this,'general','General discussion for all staff')">
+                                    <span class="cr-hash">#</span><span>general</span>
+                                    <span class="cr-badge" id="badge-general"></span>
+                                </div>
+                                <div class="cr-channel" data-channel="announcements"
+                                    onclick="switchChannel(this,'announcements','Official announcements only')">
+                                    <span class="cr-hash">#</span><span>announcements</span>
+                                    <span class="cr-badge" id="badge-announcements"></span>
+                                </div>
+                                <div class="cr-channel" data-channel="housekeeping"
+                                    onclick="switchChannel(this,'housekeeping','Housekeeping team updates')">
+                                    <span class="cr-hash">#</span><span>housekeeping</span>
+                                    <span class="cr-badge" id="badge-housekeeping"></span>
+                                </div>
+                                <div class="cr-channel" data-channel="front-desk"
+                                    onclick="switchChannel(this,'front-desk','Front desk coordination')">
+                                    <span class="cr-hash">#</span><span>front-desk</span>
+                                    <span class="cr-badge" id="badge-front-desk"></span>
+                                </div>
+                            </div>
+
+                            <div class="cr-section-label" style="margin-top:8px;">
+                                Online
+                                <span id="online-count" style="color:var(--success);margin-left:4px;font-size:10px;"></span>
+                            </div>
+                            <div id="cr-member-list" class="cr-members"></div>
+                        </div>
+
+                        <!-- Self bar -->
+                        <div class="cr-self-bar">
+                            <div class="cr-self-avatar" id="cr-self-avatar"><i class="fas fa-user"></i></div>
+                            <div>
+                                <div class="cr-self-name" id="cr-self-name">You</div>
+                                <div class="cr-self-status">● Online</div>
+                            </div>
+                            <div class="cr-self-actions">
+                                <button title="Mute" id="btn-mute" onclick="toggleMute()">
+                                    <i class="fas fa-microphone"></i>
+                                </button>
+                                <button title="Settings" onclick="showSettingsModal()"><i class="fas fa-cog"></i></button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- CENTRE: messages -->
+                    <div class="cr-main">
+                        <div class="cr-main-header">
+                            <span class="cr-hash-lg">#</span>
+                            <span class="cr-main-header-title" id="cr-channel-name">general</span>
+                            <span class="cr-main-header-desc" id="cr-channel-desc">General discussion for all staff</span>
+                            <div class="cr-main-header-actions">
+                                <button class="cr-icon-btn" title="Search in channel" onclick="focusSearch()">
+                                    <i class="fas fa-search"></i>
+                                </button>
+                                <button class="cr-icon-btn" title="Pinned messages" onclick="showPins()">
+                                    <i class="fas fa-thumbtack"></i>
+                                </button>
+                                <button class="cr-icon-btn" title="Toggle members panel" onclick="toggleRightPanel()">
+                                    <i class="fas fa-users"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="cr-messages" id="cr-messages-container">
+                            <div class="cr-empty-msgs">
+                                <i class="fas fa-comments"></i>
+                                <h3>Welcome to #general</h3>
+                                <p>This is the beginning of the conversation. Say hello! 👋</p>
+                            </div>
+                        </div>
+
+                        <div class="cr-typing" id="cr-typing-indicator" style="display:none;">
+                            <div class="cr-typing-dots"><span></span><span></span><span></span></div>
+                            <span id="cr-typing-text">Someone is typing…</span>
+                        </div>
+
+                        <div class="cr-input-area">
+                            <div class="cr-emoji-picker" id="cr-emoji-picker">
+                                <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:8px;">Quick reactions</div>
+                                <div class="cr-emoji-grid" id="cr-emoji-grid"></div>
+                            </div>
+
+<div class="cr-upload-progress" id="cr-upload-progress">
+                                <i class="fas fa-cloud-upload-alt" style="color:var(--navy);"></i>
+                                <div class="cr-upload-bar-track">
+                                    <div class="cr-upload-bar-fill" id="cr-upload-bar-fill"></div>
+                                </div>
+                                <span id="cr-upload-label">Uploading…</span>
+                            </div>
+
+                            <div class="cr-input-box">
+
+
+                        <div class="cr-input-row">
+                        <textarea id="cr-message-input" placeholder="Message #general" rows="1"
+                            oninput="autoResize(this); handleTyping();" onkeydown="handleInputKey(event)"></textarea>
+                        <div class="cr-input-right-btns">
+                            <!-- NEW: attachment button -->
+                            <button class="cr-attach-btn" id="cr-attach-btn" title="Attach file" onclick="triggerFileAttach()">
+                                <i class="fas fa-paperclip"></i>
+                            </button>
+                            <button class="cr-icon-btn" title="Emoji" onclick="toggleEmoji()">
+                                <i class="fas fa-smile"></i>
+                            </button>
+                            <button class="cr-send-btn" id="cr-send-btn" title="Send" onclick="sendMessage()" disabled>
+                                <i class="fas fa-paper-plane"></i>
+                            </button>
+                        </div>
+                    </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- RIGHT: info panel -->
+                    <div class="cr-right-panel" id="cr-right-panel">
+                        <div class="cr-rp-header">
+                            <span><i class="fas fa-info-circle" style="margin-right:6px;color:var(--muted);"></i>Channel Info</span>
+                            <button class="cr-icon-btn" onclick="toggleRightPanel()"><i class="fas fa-times"></i></button>
+                        </div>
+                        <div class="cr-rp-body">
+                            <div class="cr-rp-section">
+                                <div class="cr-rp-section-title">📌 Pinned Messages</div>
+                                <div id="cr-pinned-list"><p style="font-size:12px;color:var(--muted);">No pinned messages.</p></div>
+                            </div>
+                            <div class="cr-rp-section">
+                                <div class="cr-rp-section-title">🟢 Online Members</div>
+                                <div id="cr-online-list"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="cr-unread-banner" id="cr-unread-banner" onclick="scrollToBottom()">↓ New messages</div>
+
+                    <!-- Hidden file input for attachments -->
+                <input type="file" id="cr-file-input" style="display:none"
+                    accept="*/*"
+                    onchange="handleFileSelected(this.files[0])">
+
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="cr-toast" class="cr-toast"></div>
+
+    <!-- ✅ Custom Delete Confirmation Modal -->
+    <div class="cr-modal-overlay" id="cr-delete-modal">
+        <div class="cr-modal-box" style="max-width:360px;">
+            <div class="cr-modal-header" style="background:#fff5f5;">
+                <h3 class="cr-modal-title" style="color:#b91c1c;">
+                    <i class="fas fa-trash" style="margin-right:8px;color:#ef4444;"></i>Delete Message
+                </h3>
+                <button class="cr-modal-close" onclick="closeDeleteModal()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="cr-modal-body">
+                <p style="font-size:14px;color:#475569;margin:0 0 6px;">Are you sure you want to delete this message?</p>
+                <p style="font-size:12px;color:#94a3b8;margin:0;">This action cannot be undone.</p>
+                <div class="cr-modal-footer">
+                    <button class="cr-btn-outline" onclick="closeDeleteModal()">Cancel</button>
+                    <button id="cr-delete-confirm-btn" class="cr-btn-primary"
+                        style="background:#ef4444;"
+                        onmouseover="this.style.background='#dc2626'"
+                        onmouseout="this.style.background='#ef4444'">
+                        <i class="fas fa-trash" style="margin-right:5px;"></i>Delete
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Channel Modal -->
+    <div class="cr-modal-overlay" id="cr-add-channel-modal">
+        <div class="cr-modal-box">
+            <div class="cr-modal-header">
+                <h3 class="cr-modal-title"><i class="fas fa-hashtag" style="margin-right:8px;color:var(--navy);"></i>Create New Channel</h3>
+                <button class="cr-modal-close" onclick="closeAddChannelModal()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="cr-modal-body">
+                <label>Channel name <span style="color:var(--muted);font-weight:400;">(lowercase, hyphens only)</span></label>
+                <input type="text" id="cr-new-channel-input" placeholder="e.g. maintenance"
+                    maxlength="30"
+                    oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9-]/g,'')"
+                    onkeydown="if(event.key==='Enter')confirmAddChannel()">
+                <div class="cr-modal-footer">
+                    <button class="cr-btn-outline" onclick="closeAddChannelModal()">Cancel</button>
+                    <button class="cr-btn-primary" onclick="confirmAddChannel()"><i class="fas fa-plus" style="margin-right:5px;"></i>Create</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div class="cr-modal-overlay" id="cr-settings-modal">
+        <div class="cr-modal-box">
+            <div class="cr-modal-header">
+                <h3 class="cr-modal-title"><i class="fas fa-cog" style="margin-right:8px;color:var(--navy);"></i>Settings</h3>
+                <button class="cr-modal-close" onclick="closeSettingsModal()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="cr-modal-body">
+                <div class="cr-settings-item">
+                    <div>
+                        <div class="cr-settings-label">Message Notifications</div>
+                        <div class="cr-settings-sub">Play sound on new message</div>
+                    </div>
+                    <label class="cr-toggle">
+                        <input type="checkbox" id="setting-notifications" checked onchange="saveSetting('notifications',this.checked)">
+                        <span class="cr-toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="cr-settings-item">
+                    <div>
+                        <div class="cr-settings-label">Desktop Alerts</div>
+                        <div class="cr-settings-sub">Show browser notifications</div>
+                    </div>
+                    <label class="cr-toggle">
+                        <input type="checkbox" id="setting-desktop" onchange="saveSetting('desktop',this.checked)">
+                        <span class="cr-toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="cr-settings-item">
+                    <div>
+                        <div class="cr-settings-label">Show Online Status</div>
+                        <div class="cr-settings-sub">Let others see when you're active</div>
+                    </div>
+                    <label class="cr-toggle">
+                        <input type="checkbox" id="setting-presence" checked onchange="saveSetting('presence',this.checked)">
+                        <span class="cr-toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="cr-settings-item">
+                    <div>
+                        <div class="cr-settings-label">Compact View</div>
+                        <div class="cr-settings-sub">Reduce message spacing</div>
+                    </div>
+                    <label class="cr-toggle">
+                        <input type="checkbox" id="setting-compact" onchange="saveSetting('compact',this.checked)">
+                        <span class="cr-toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="cr-modal-footer">
+                    <button class="cr-btn-primary" onclick="closeSettingsModal()">Done</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+    <script src="js/firebase.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/sidebar.js"></script>
+
+    <script>
+      const EMOJIS = ['👍','❤️','😂','🎉','🔥','👀','✅','⚡','😊','🙏','💯','👏','😮','🤔','🚀','⭐'];
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxcJLWeemy7PRYliGDHeSYa7BCIlOUsVzuAHFCvQIKQ8U_R2QkxneVQqNV6b_EgFj5k/exec";
+const MAX_FILE_MB = 20;
+
+const ROLE_ICONS = {
+    superadmin:   'fa-crown',
+    manager:      'fa-user-shield',
+    receptionist: 'fa-user-tie',
+    observer:     'fa-eye',
+    staff:        'fa-user'
+};
+
+function roleIcon(role) {
+    const icon = ROLE_ICONS[role] || ROLE_ICONS.staff;
+    return `<i class="fas ${icon}"></i>`;
+}
+
+// ── File helpers ──────────────────────────────────────────
+function getFileStyle(mimeType, name) {
+    const ext = (name.split('.').pop() || '').toLowerCase();
+    if (mimeType.startsWith('image/'))
+        return { icon: 'fa-image',           bg: '#eff6ff', color: '#1d4ed8' };
+    if (mimeType === 'application/pdf' || ext === 'pdf')
+        return { icon: 'fa-file-pdf',        bg: '#fff1f2', color: '#be123c' };
+    if (['doc','docx'].includes(ext))
+        return { icon: 'fa-file-word',       bg: '#eff6ff', color: '#1d4ed8' };
+    if (['xls','xlsx'].includes(ext))
+        return { icon: 'fa-file-excel',      bg: '#f0fdf4', color: '#15803d' };
+    if (['ppt','pptx'].includes(ext))
+        return { icon: 'fa-file-powerpoint', bg: '#fff7ed', color: '#c2410c' };
+    if (['zip','rar','7z','tar','gz'].includes(ext))
+        return { icon: 'fa-file-archive',    bg: '#faf5ff', color: '#7e22ce' };
+    if (['mp4','mov','avi','mkv'].includes(ext))
+        return { icon: 'fa-file-video',      bg: '#fff1f2', color: '#be123c' };
+    if (['mp3','wav','ogg','m4a'].includes(ext))
+        return { icon: 'fa-file-audio',      bg: '#fffbeb', color: '#92400e' };
+    return { icon: 'fa-file-alt',            bg: '#f8fafc', color: '#475569' };
+}
+
+function formatFileSize(bytes) {
+    if (bytes < 1024)        return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+// ── Attachment UI ─────────────────────────────────────────
+let _pendingAttachment = null;
+
+function triggerFileAttach() {
+    document.getElementById('cr-file-input').click();
+}
+
+async function handleFileSelected(file) {
+    await new Promise(resolve => setTimeout(resolve, 300));
+    document.getElementById('cr-file-input').value = '';
+    if (!file) return;
+    if (file.size > MAX_FILE_MB * 1024 * 1024) {
+        showToast(`File too large. Max ${MAX_FILE_MB} MB allowed.`, 'error');
+        return;
+    }
+    _pendingAttachment = file;
+    showAttachmentPreview(file);
+    document.getElementById('cr-send-btn').disabled = false;
+}
+
+function showAttachmentPreview(file) {
+    removeAttachmentPreview();
+    const style = getFileStyle(file.type, file.name);
+    const preview = document.createElement('div');
+    preview.id = 'cr-attachment-preview';
+    preview.style.cssText = `
+        display:flex; align-items:center; gap:8px;
+        padding:6px 12px; margin-bottom:6px;
+        background:#f0f7ff; border:1px solid #bfdbfe;
+        border-radius:8px; font-size:12px; color:#1e40af;`;
+    preview.innerHTML = `
+        <i class="fas ${style.icon}" style="color:${style.color};font-size:13px;"></i>
+        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:260px;">${file.name}</span>
+        <span style="color:#64748b;font-size:11px;">${formatFileSize(file.size)}</span>
+        <button onclick="cancelAttachment()" style="
+            background:none;border:none;cursor:pointer;
+            color:#94a3b8;font-size:13px;padding:0 2px;line-height:1;" title="Remove attachment">
+            <i class="fas fa-times"></i>
+        </button>`;
+    const inputBox = document.querySelector('.cr-input-box');
+    inputBox.parentNode.insertBefore(preview, inputBox);
+}
+
+function removeAttachmentPreview() {
+    const existing = document.getElementById('cr-attachment-preview');
+    if (existing) existing.remove();
+}
+
+function cancelAttachment() {
+    _pendingAttachment = null;
+    removeAttachmentPreview();
+    const input = document.getElementById('cr-message-input');
+    document.getElementById('cr-send-btn').disabled = input.value.trim() === '';
+}
+
+// ── Upload progress ───────────────────────────────────────
+function showUploadProgress(pct, label) {
+    const bar  = document.getElementById('cr-upload-progress');
+    const fill = document.getElementById('cr-upload-bar-fill');
+    const lbl  = document.getElementById('cr-upload-label');
+    bar.classList.add('show');
+    fill.style.width = pct + '%';
+    lbl.textContent  = label;
+}
+function hideUploadProgress() {
+    document.getElementById('cr-upload-progress').classList.remove('show');
+    document.getElementById('cr-upload-bar-fill').style.width = '0%';
+}
+
+// ── Helpers ───────────────────────────────────────────────
+function fmtTime(ts) {
+    if (!ts) return '';
+    const d = ts.toDate ? ts.toDate() : new Date(ts);
+    return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+}
+
+function fmtDateLabel(ts) {
+    if (!ts) return 'Today';
+    const d = ts.toDate ? ts.toDate() : new Date(ts);
+    const today = new Date(); today.setHours(0,0,0,0);
+    const msgDay = new Date(d); msgDay.setHours(0,0,0,0);
+    const diff = (today - msgDay) / 864e5;
+    if (diff === 0) return 'Today';
+    if (diff === 1) return 'Yesterday';
+    return d.toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long' });
+}
+
+function capitalize(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : ''; }
+
+// ── Role display labels (must match roles.js) ──────────────────────────────
+const ROLE_LABELS = {
+    superadmin:   'Superadmin',
+    manager:      'Admin',        // ← "manager" in Firebase → show "Admin"
+    receptionist: 'Receptionist',
+    observer:     'Observer',
+    staff:        'Staff',
+};
+function roleLabel(role) {
+    return ROLE_LABELS[role] || capitalize(role);
+}
+
+function linkify(text) {
+    const escaped = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    return escaped.replace(/(https?:\/\/[^\s]+)/g,'<a href="$1" target="_blank" rel="noopener">$1</a>');
+}
+
+// ── State ─────────────────────────────────────────────────
+let currentUser    = null;
+let currentChannel = 'general';
+let channelDesc    = 'General discussion for all staff';
+let isMuted        = false;
+let messagesUnsub  = null;
+let typingUnsub    = null;
+let typingTimeout  = null;
+let rightPanelOpen = true;
+let pinnedMessages = [];
+const ALL_CHANNELS = ['general','announcements','housekeeping','front-desk'];
+let channelLastSeen = {};
+
+// ── Boot ──────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+    buildEmojiGrid();
+
+    firebase.auth().onAuthStateChanged(async user => {
+        if (!user) { window.location.href = 'admin.html'; return; }
+
+        let name = user.displayName || user.email?.split('@')[0] || 'Staff';
+        let role = 'staff';
+
+        try {
+            const snap = await db.collection('users').doc(user.uid).get();
+            if (snap.exists) {
+                name = snap.data().name || name;
+                role = snap.data().role || 'staff';
+            }
+        } catch (e) { console.warn('Profile load error:', e); }
+
+        currentUser = { uid: user.uid, name, role, email: user.email };
+
+        const selfAvatar = document.getElementById('cr-self-avatar');
+        selfAvatar.innerHTML = roleIcon(role);
+        selfAvatar.className = `cr-self-avatar role-${role}`;
+        document.getElementById('cr-self-name').textContent = name;
+        document.getElementById('user-email-display').textContent = name;
+
+       markPresence(true);
+        window.addEventListener('beforeunload', () => markPresence(false));
+        // Heartbeat: refresh presence every 60s so stale entries don't persist
+        setInterval(() => markPresence(true), 60000);
+        // Sync other users' presence from logs
+        syncPresenceFromLogs();
+
+        applyStoredSettings();
+        loadMembers();
+        subscribeChannel('general');
+        startUnreadListeners();
+
+        setTimeout(() => {
+            const sm = document.getElementById('sidebarMenu');
+            if (sm) sm.style.visibility = 'visible';
+        }, 100);
+    });
+});
+
+
+// ── Presence ──────────────────────────────────────────
+async function markPresence(online) {
+    if (!currentUser) return;
+    try {
+        await db.collection('chatPresence').doc(currentUser.uid).set({
+            name: currentUser.name, role: currentUser.role,
+            online, lastSeen: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+    } catch (e) { console.warn('Presence error:', e); }
+}
+
+// ── Sync presence from logs (real login/logout state) ─
+function syncPresenceFromLogs() {
+    // For each user in chatPresence, cross-check their latest log entry
+    db.collection('chatPresence').onSnapshot(async presenceSnap => {
+        const updates = [];
+        presenceSnap.forEach(doc => {
+            updates.push({ uid: doc.id, ...doc.data() });
+        });
+
+        for (const user of updates) {
+            // Skip current user — their presence is managed live
+            if (currentUser && user.uid === currentUser.uid) continue;
+
+            try {
+                // Get the most recent log entry for this user by email
+                // Logs store email in the 'user' field
+                // We match by name since logs don't store uid
+                const logSnap = await db.collection('logs')
+                    .orderBy('time', 'desc')
+                    .limit(50)
+                    .get();
+
+                let latestAction = null;
+                let latestTime   = 0;
+
+                logSnap.forEach(logDoc => {
+                    const d = logDoc.data();
+                    const logName = (d.user || '').toLowerCase();
+                    const presName = (user.name || '').toLowerCase();
+                    // Match by name prefix (log stores email, presence stores display name)
+                    if (logName.startsWith(presName) || presName.startsWith(logName.split('@')[0])) {
+                        const t = d.time?.seconds ? d.time.seconds * 1000 : 0;
+                        if (t > latestTime) {
+                            latestTime   = t;
+                            latestAction = (d.action || '').toLowerCase();
+                        }
+                    }
+                });
+
+                if (latestAction !== null) {
+                    const isOnline = latestAction.includes('logged in') &&
+                                     !latestAction.includes('logged out') &&
+                                     !latestAction.includes('auto logged out');
+                    // Only update if it disagrees with current presence
+                    if (user.online !== isOnline) {
+                        await db.collection('chatPresence').doc(user.uid).update({ online: isOnline });
+                    }
+                }
+            } catch (e) { /* non-fatal */ }
+        }
+    });
+}
+
+// ── Members ───────────────────────────────────────────────
+function loadMembers() {
+    db.collection('chatPresence').onSnapshot(snap => {
+        const sidebarList = document.getElementById('cr-member-list');
+        const onlineList  = document.getElementById('cr-online-list');
+        const onlineCount = document.getElementById('online-count');
+
+        sidebarList.innerHTML = '';
+        onlineList.innerHTML  = '';
+
+        let count = 0;
+        const members = [];
+        snap.forEach(doc => { const d = doc.data(); members.push({uid:doc.id,...d}); if(d.online) count++; });
+
+        onlineCount.textContent = `(${count})`;
+        members.sort((a,b) => (b.online?1:0) - (a.online?1:0));
+
+        members.forEach(m => {
+            const status = m.online ? 'online' : 'offline';
+            const roleLbl = roleLabel(m.role || 'staff');
+
+            const div = document.createElement('div');
+            div.className = 'cr-member';
+            div.innerHTML = `
+                <div class="cr-member-avatar role-${m.role||'staff'} ${status}">${roleIcon(m.role)}</div>
+                <div class="cr-member-name">${m.name}</div>
+                <div class="cr-member-role">${roleLbl}</div>`;
+            sidebarList.appendChild(div);
+
+            if (m.online) {
+                const li = document.createElement('div');
+                li.className = 'cr-online-list-item';
+                li.innerHTML = `
+                    <div class="cr-online-dot" style="background:var(--success);"></div>
+                    <span class="cr-online-list-name">${m.name}</span>
+                    <span class="cr-online-list-role">${roleLbl}</span>`;
+                onlineList.appendChild(li);
+            }
+        });
+    });
+}
+
+// ── Nav badge ─────────────────────────────────────────────
+function updateNavBadge() {
+    let total = 0;
+    ALL_CHANNELS.forEach(ch => {
+        const badge = document.getElementById(`badge-${ch}`);
+        if (badge && badge.classList.contains('has-unread'))
+            total += parseInt(badge.textContent) || 0;
+    });
+    const navBadge = document.getElementById('nav-chatroom-count');
+    if (navBadge) {
+        navBadge.textContent = total;
+        navBadge.style.display = total > 0 ? 'inline-flex' : 'none';
+    }
+}
+
+// ── Unread badge listeners ────────────────────────────────
+function startUnreadListeners() {
+    ALL_CHANNELS.forEach(ch => {
+        channelLastSeen[ch] = Date.now();
+        db.collection('chatrooms').doc(ch).collection('messages')
+            .orderBy('time','desc').limit(1)
+            .onSnapshot(snap => {
+                if (ch === currentChannel) return;
+                snap.forEach(doc => {
+                    const data = doc.data();
+                    const msgTime = data.time ? (data.time.toMillis ? data.time.toMillis() : 0) : 0;
+                    if (msgTime > (channelLastSeen[ch] || 0)) {
+                        incrementBadge(ch);
+                        channelLastSeen[ch] = msgTime;
+                    }
+                });
+            });
+    });
+}
+
+function incrementBadge(channel) {
+    const badge = document.getElementById(`badge-${channel}`);
+    if (!badge) return;
+    badge.textContent = (parseInt(badge.textContent) || 0) + 1;
+    badge.classList.add('has-unread');
+    updateNavBadge();
+}
+
+function clearBadge(channel) {
+    const badge = document.getElementById(`badge-${channel}`);
+    if (!badge) return;
+    badge.textContent = '';
+    badge.classList.remove('has-unread');
+    channelLastSeen[channel] = Date.now();
+    updateNavBadge();
+}
+
+// ── Channel switching ─────────────────────────────────────
+function switchChannel(el, channel, desc) {
+    document.querySelectorAll('.cr-channel').forEach(c => c.classList.remove('active'));
+    el.classList.add('active');
+    currentChannel = channel;
+    channelDesc = desc;
+    document.getElementById('cr-channel-name').textContent = channel;
+    document.getElementById('cr-channel-desc').textContent = desc;
+    document.getElementById('cr-message-input').placeholder = `Message #${channel}`;
+    document.getElementById('cr-messages-container').innerHTML = '';
+    clearBadge(channel);
+    subscribeChannel(channel);
+    stopTyping();
+}
+
+// ── Subscribe to messages ─────────────────────────────────
+let _lastMessageCount = 0;
+
+function subscribeChannel(channel) {
+    if (messagesUnsub) messagesUnsub();
+    _lastMessageCount = 0;
+    const container = document.getElementById('cr-messages-container');
+
+    messagesUnsub = db.collection('chatrooms').doc(channel).collection('messages')
+        .orderBy('time','asc')
+        .onSnapshot(snap => {
+            container.innerHTML = '';
+            pinnedMessages = [];
+
+            if (snap.empty) {
+                container.innerHTML = `
+                    <div class="cr-empty-msgs">
+                        <i class="fas fa-comments"></i>
+                        <h3>Welcome to #${channel}</h3>
+                        <p>${channelDesc}</p>
+                    </div>`;
+                return;
+            }
+
+            let lastDateLabel = '';
+            snap.forEach(doc => {
+                const data = { id: doc.id, ...doc.data() };
+                if (data.pinned) pinnedMessages.push(data);
+
+                const label = fmtDateLabel(data.time);
+                if (label !== lastDateLabel) {
+                    lastDateLabel = label;
+                    const divider = document.createElement('div');
+                    divider.className = 'cr-date-divider';
+                    divider.innerHTML = `<span>${label}</span>`;
+                    container.appendChild(divider);
+                }
+                container.appendChild(buildMessageEl(data));
+            });
+
+            updatePinnedPanel();
+            // Re-apply compact mode after messages re-render
+            applyCompactView(localStorage.getItem('cr-compact') === 'true');
+
+            const newCount = snap.size;
+            if (_lastMessageCount > 0 && newCount > _lastMessageCount) {
+                const lastData = snap.docs[snap.docs.length - 1].data();
+                if (!currentUser || lastData.uid !== currentUser.uid) {
+                    playNotificationSound();
+                    sendDesktopNotification(lastData.senderName, lastData.text || '');
+                }
+            }
+            _lastMessageCount = newCount;
+            scrollToBottom();
+
+        }, err => {
+            console.error('Firestore error:', err);
+            showToast('Could not load messages. Check Firestore rules.', 'error');
+        });
+}
+
+// ── Build message element ─────────────────────────────────
+function buildMessageEl(data) {
+    const isMe = currentUser && data.uid === currentUser.uid;
+    const role = data.role || 'staff';
+    const roleLbl = roleLabel(role);
+
+    const div = document.createElement('div');
+    div.className = 'cr-msg';
+    div.id = `msg-${data.id}`;
+
+    let reactHTML = '';
+    if (data.reactions && Object.keys(data.reactions).length) {
+        reactHTML = '<div class="cr-reactions">';
+        Object.entries(data.reactions).forEach(([emoji, users]) => {
+            const mine = currentUser && users.some(u => (typeof u === 'string' ? u : '').startsWith(currentUser.uid));
+            const names = users.map(u => {
+                if (typeof u !== 'string') return String(u);
+                const parts = u.split('|');
+                return parts.length > 1 ? parts[1] : parts[0];
+            }).join(', ');
+            reactHTML += `
+                <button class="cr-reaction${mine?' mine':''}"
+                    onclick="toggleReaction('${data.id}','${emoji}')">
+                    ${emoji} <span>${users.length}</span>
+                    <div class="cr-reaction-tooltip">${emoji} <strong>${names || 'No one yet'}</strong></div>
+                </button>`;
+        });
+        reactHTML += '</div>';
+    }
+
+    const pinIcon = data.pinned
+        ? `<i class="fas fa-thumbtack" style="color:var(--gold);font-size:10px;margin-right:4px;" title="Pinned"></i>`
+        : '';
+
+    div.innerHTML = `
+        <div class="cr-msg-avatar role-${role}">${roleIcon(role)}</div>
+        <div class="cr-msg-body">
+            <div class="cr-msg-header">
+                <span class="cr-msg-name">${data.senderName}</span>
+                <span class="cr-msg-role-tag tag-${role}">${roleLbl}</span>
+                <span class="cr-msg-time">${fmtTime(data.time)}</span>
+                ${pinIcon}
+            </div>
+            ${data.text ? `<div class="cr-msg-text">${linkify(data.text)}</div>` : ''}
+            ${data.attachment ? buildAttachmentHTML(data.attachment) : ''}
+            ${reactHTML}
+        </div>
+        <div class="cr-msg-actions">
+            ${EMOJIS.slice(0,4).map(e =>
+                `<button class="cr-msg-action-btn" onclick="toggleReaction('${data.id}','${e}')" title="React ${e}">${e}</button>`
+            ).join('')}
+            <button class="cr-msg-action-btn" onclick="toggleEmoji()" title="More reactions">
+                <i class="fas fa-smile"></i>
+            </button>
+            ${isMe ? `<button class="cr-msg-action-btn del" onclick="deleteMessage('${data.id}')" title="Delete"><i class="fas fa-trash"></i></button>` : ''}
+            <button class="cr-msg-action-btn" onclick="pinMessage('${data.id}',${!data.pinned})" title="${data.pinned?'Unpin':'Pin'}">
+                <i class="fas fa-thumbtack"></i>
+            </button>
+        </div>`;
+
+    return div;
+}
+
+
+// ── Send message ──────────────────────────────────────────
+async function sendMessage() {
+    const input = document.getElementById('cr-message-input');
+    const text  = input.value.trim();
+    if (!text && !_pendingAttachment) return;
+    if (!currentUser) return;
+
+    const sendBtn = document.getElementById('cr-send-btn');
+    sendBtn.disabled = true;
+
+    try {
+        if (_pendingAttachment) {
+            const file = _pendingAttachment;
+            _pendingAttachment = null;
+            removeAttachmentPreview();
+
+            const attachBtn = document.getElementById('cr-attach-btn');
+            attachBtn.disabled = true;
+
+            try {
+                showUploadProgress(0, `Uploading ${file.name}…`);
+
+                const arrayBuffer = await file.arrayBuffer();
+                const uint8Array  = new Uint8Array(arrayBuffer);
+                let binary = '';
+                uint8Array.forEach(byte => binary += String.fromCharCode(byte));
+                const base64Data = btoa(binary);
+
+                showUploadProgress(40, `Uploading ${file.name}…`);
+
+                // Step 1 — post the message immediately with a "pending" attachment
+                // so the sender sees instant feedback while the upload happens in background
+                const msgRef = await db.collection('chatrooms').doc(currentChannel).collection('messages').add({
+                    text,
+                    senderName: currentUser.name,
+                    uid:        currentUser.uid,
+                    role:       currentUser.role,
+                    time:       firebase.firestore.FieldValue.serverTimestamp(),
+                    reactions:  {},
+                    pinned:     false,
+                    attachment: {
+                        name:     file.name,
+                        size:     file.size,
+                        mimeType: file.type,
+                        pending:  true,          // shown as "uploading…" in the UI
+                    }
+                });
+
+                showUploadProgress(40, `Uploading ${file.name}…`);
+
+                // Step 2 — upload to Drive via Apps Script (JSON body, no-cors)
+                try {
+                    const response = await fetch(APPS_SCRIPT_URL, {
+                        method:  'POST',
+                        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                        body:    JSON.stringify({
+                            pdf:      base64Data,
+                            fileName: file.name,
+                            mimeType: file.type || 'application/octet-stream',
+                            type:     'attachment',
+                            folder:   'attachment'
+                        })
+                    });
+                    const result = await response.json();
+                    if (!result.success) throw new Error(result.error || 'Upload failed');
+
+                    await msgRef.update({
+                        'attachment.pending':     false,
+                        'attachment.viewUrl':     result.viewUrl,
+                        'attachment.downloadUrl': result.downloadUrl,
+                        'attachment.previewUrl':  result.previewUrl || null,
+                        'attachment.provider':    'googledrive',
+                        'attachment.fileId':      result.fileId,
+                    });
+                    showUploadProgress(100, 'Done!');
+                    setTimeout(hideUploadProgress, 800);
+                    showToast(`📎 ${file.name} uploaded to Drive!`, 'success');
+                } catch (uploadErr) {
+                    // Network-level failure — mark the message as failed
+                    await msgRef.update({ 'attachment.pending': false, 'attachment.failed': true });
+                    hideUploadProgress();
+                    showToast('Upload failed: ' + uploadErr.message, 'error');
+                }
+
+                attachBtn.disabled = false;
+
+            } catch (e) {
+                console.error('Upload error:', e);
+                hideUploadProgress();
+                showToast('Upload failed: ' + e.message, 'error');
+                document.getElementById('cr-attach-btn').disabled = false;
+                sendBtn.disabled = false;
+                return;
+            }
+
+        } else {
+            await db.collection('chatrooms').doc(currentChannel).collection('messages').add({
+                text,
+                senderName: currentUser.name,
+                uid:        currentUser.uid,
+                role:       currentUser.role,
+                time:       firebase.firestore.FieldValue.serverTimestamp(),
+                reactions:  {},
+                pinned:     false,
+            });
+        }
+
+        input.value = '';
+        input.style.height = 'auto';
+        stopTyping();
+        scrollToBottom();
+
+    } catch (e) {
+        console.error('Send error:', e);
+        showToast('Failed to send message.', 'error');
+    }
+
+    sendBtn.disabled = input.value.trim() === '' && !_pendingAttachment;
+    input.focus();
+}
+
+function handleInputKey(e) {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+}
+
+function autoResize(el) {
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+    document.getElementById('cr-send-btn').disabled = el.value.trim() === '' && !_pendingAttachment;
+}
+
+// ── Typing ────────────────────────────────────────────────
+function handleTyping() {
+    if (!currentUser) return;
+    clearTimeout(typingTimeout);
+    db.collection('chatrooms').doc(currentChannel).collection('typing')
+        .doc(currentUser.uid)
+        .set({ name: currentUser.name, time: firebase.firestore.FieldValue.serverTimestamp() })
+        .catch(() => {});
+    typingTimeout = setTimeout(stopTyping, 2500);
+
+    if (typingUnsub) typingUnsub();
+    typingUnsub = db.collection('chatrooms').doc(currentChannel).collection('typing')
+        .onSnapshot(snap => {
+            const others = [];
+            snap.forEach(d => { if (d.id !== currentUser.uid) others.push(d.data().name); });
+            const indicator = document.getElementById('cr-typing-indicator');
+            const label     = document.getElementById('cr-typing-text');
+            if (others.length) {
+                label.textContent = others.length === 1
+                    ? `${others[0]} is typing…`
+                    : `${others.join(', ')} are typing…`;
+                indicator.style.display = 'flex';
+            } else {
+                indicator.style.display = 'none';
+            }
+        });
+}
+
+function stopTyping() {
+    if (!currentUser) return;
+    clearTimeout(typingTimeout);
+    db.collection('chatrooms').doc(currentChannel).collection('typing')
+        .doc(currentUser.uid).delete().catch(() => {});
+}
+
+// ── Reactions ─────────────────────────────────────────────
+async function toggleReaction(msgId, emoji) {
+    if (!currentUser) return;
+    const ref  = db.collection('chatrooms').doc(currentChannel).collection('messages').doc(msgId);
+    const snap = await ref.get();
+    if (!snap.exists) return;
+
+    const reactions = snap.data().reactions || {};
+    const users     = reactions[emoji] ? [...reactions[emoji]] : [];
+    const existingIdx = users.findIndex(u => typeof u === 'string' && u.startsWith(currentUser.uid));
+
+    if (existingIdx === -1) users.push(`${currentUser.uid}|${currentUser.name}`);
+    else users.splice(existingIdx, 1);
+
+    if (users.length === 0) delete reactions[emoji];
+    else reactions[emoji] = users;
+
+    await ref.update({ reactions });
+}
+
+// ── Delete / Pin ──────────────────────────────────────────
+let _pendingDeleteId = null;
+
+function deleteMessage(msgId) {
+    _pendingDeleteId = msgId;
+    document.getElementById('cr-delete-modal').classList.add('active');
+}
+
+function closeDeleteModal() {
+    _pendingDeleteId = null;
+    document.getElementById('cr-delete-modal').classList.remove('active');
+}
+
+document.getElementById('cr-delete-confirm-btn').addEventListener('click', async () => {
+    if (!_pendingDeleteId) return;
+    const id = _pendingDeleteId;
+    closeDeleteModal();
+    try {
+        await db.collection('chatrooms').doc(currentChannel).collection('messages').doc(id).delete();
+        showToast('Message deleted', 'success');
+    } catch (e) { showToast('Could not delete message', 'error'); }
+});
+
+async function pinMessage(msgId, shouldPin) {
+    try {
+        await db.collection('chatrooms').doc(currentChannel).collection('messages')
+            .doc(msgId).update({ pinned: !!shouldPin });
+        showToast(shouldPin ? '📌 Message pinned' : 'Message unpinned', 'success');
+    } catch (e) { showToast('Could not pin message', 'error'); }
+}
+
+function updatePinnedPanel() {
+    const el = document.getElementById('cr-pinned-list');
+    if (!pinnedMessages.length) {
+        el.innerHTML = '<p style="font-size:12px;color:var(--muted);">No pinned messages.</p>';
+        return;
+    }
+    el.innerHTML = pinnedMessages.map(m => `
+        <div class="cr-pinned-msg">
+            <div class="cr-pinned-who">${m.senderName}</div>
+            <div>${(m.text||'').slice(0,80)}${(m.text||'').length>80?'…':''}</div>
+        </div>`).join('');
+}
+
+// ── Emoji picker ──────────────────────────────────────────
+function buildEmojiGrid() {
+    const grid = document.getElementById('cr-emoji-grid');
+    EMOJIS.forEach(e => {
+        const btn = document.createElement('button');
+        btn.className = 'cr-emoji-btn';
+        btn.textContent = e;
+        btn.onclick = () => insertEmoji(e);
+        grid.appendChild(btn);
+    });
+}
+
+function toggleEmoji() { document.getElementById('cr-emoji-picker').classList.toggle('open'); }
+
+function insertEmoji(e) {
+    const input = document.getElementById('cr-message-input');
+    input.value += e;
+    input.focus();
+    autoResize(input);
+    document.getElementById('cr-emoji-picker').classList.remove('open');
+}
+
+document.addEventListener('click', e => {
+    if (!e.target.closest('#cr-emoji-picker') && !e.target.closest('.cr-icon-btn'))
+        document.getElementById('cr-emoji-picker').classList.remove('open');
+    if (e.target.classList.contains('cr-modal-overlay'))
+        e.target.classList.remove('active');
+});
+
+// ── Add Channel ───────────────────────────────────────────
+function showAddChannelModal() {
+    document.getElementById('cr-new-channel-input').value = '';
+    document.getElementById('cr-add-channel-modal').classList.add('active');
+    setTimeout(() => document.getElementById('cr-new-channel-input').focus(), 120);
+}
+function closeAddChannelModal() { document.getElementById('cr-add-channel-modal').classList.remove('active'); }
+function confirmAddChannel() {
+    const name = document.getElementById('cr-new-channel-input').value.trim();
+    if (!name) { showToast('Enter a channel name', 'error'); return; }
+    if (document.querySelector(`[data-channel="${name}"]`)) { showToast(`#${name} already exists`, 'error'); return; }
+
+    const list = document.getElementById('cr-channel-list');
+    const div  = document.createElement('div');
+    div.className = 'cr-channel';
+    div.dataset.channel = name;
+    div.innerHTML = `<span class="cr-hash">#</span><span>${name}</span><span class="cr-badge" id="badge-${name}"></span>`;
+    div.onclick = () => switchChannel(div, name, `#${name} channel`);
+    list.appendChild(div);
+    closeAddChannelModal();
+    switchChannel(div, name, `#${name} channel`);
+    showToast(`#${name} created`, 'success');
+}
+
+// ── Notification sound ────────────────────────────────────
+let _audioCtx = null;
+function playNotificationSound() {
+    if (isMuted || localStorage.getItem('cr-notifications') === 'false') return;
+    try {
+        if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc  = _audioCtx.createOscillator();
+        const gain = _audioCtx.createGain();
+        osc.connect(gain); gain.connect(_audioCtx.destination);
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(880, _audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(440, _audioCtx.currentTime + 0.15);
+        gain.gain.setValueAtTime(0.25, _audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, _audioCtx.currentTime + 0.4);
+        osc.start(_audioCtx.currentTime);
+        osc.stop(_audioCtx.currentTime + 0.4);
+    } catch(e) {}
+}
+
+// ── Desktop notifications ─────────────────────────────────
+function requestDesktopPermission(enabled) {
+    if (!enabled) return;
+    if (Notification.permission === 'default') {
+        Notification.requestPermission().then(p => {
+            if (p !== 'granted') {
+                document.getElementById('setting-desktop').checked = false;
+                localStorage.setItem('cr-desktop', 'false');
+                showToast('Browser notifications blocked', 'error');
+            }
+        });
+    }
+}
+
+function sendDesktopNotification(senderName, text) {
+    if (localStorage.getItem('cr-desktop') !== 'true') return;
+    if (Notification.permission !== 'granted') return;
+    if (document.hasFocus()) return;
+    new Notification(`${senderName} in #${currentChannel}`, {
+        body: text.slice(0, 80), icon: 'img/logo1.jpg'
+    });
+}
+
+// ── Settings ──────────────────────────────────────────────
+function applyCompactView(enabled) {
+    document.getElementById('cr-messages-container').classList.toggle('cr-compact-mode', enabled);
+}
+
+async function applyPresenceSetting(enabled) {
+    if (!currentUser) return;
+    try {
+        await db.collection('chatPresence').doc(currentUser.uid).set({ online: enabled }, { merge: true });
+    } catch(e) {}
+}
+
+function showSettingsModal() {
+    document.getElementById('setting-notifications').checked = localStorage.getItem('cr-notifications') !== 'false';
+    document.getElementById('setting-desktop').checked       = localStorage.getItem('cr-desktop') === 'true';
+    document.getElementById('setting-presence').checked      = localStorage.getItem('cr-presence') !== 'false';
+    document.getElementById('setting-compact').checked       = localStorage.getItem('cr-compact') === 'true';
+    document.getElementById('cr-settings-modal').classList.add('active');
+}
+
+function closeSettingsModal() {
+    document.getElementById('cr-settings-modal').classList.remove('active');
+    showToast('Settings saved', 'success');
+}
+
+function saveSetting(key, value) {
+    localStorage.setItem(`cr-${key}`, value);
+    if (key === 'notifications' && (value === true || value === 'true')) playNotificationSound();
+    if (key === 'desktop')   requestDesktopPermission(value === true || value === 'true');
+    if (key === 'compact')   applyCompactView(value === true || value === 'true');
+    if (key === 'presence')  applyPresenceSetting(value === true || value === 'true');
+}
+
+function applyStoredSettings() {
+    applyCompactView(localStorage.getItem('cr-compact') === 'true');
+}
+
+// ── Right panel ───────────────────────────────────────────
+function toggleRightPanel() {
+    rightPanelOpen = !rightPanelOpen;
+    document.getElementById('cr-right-panel').classList.toggle('collapsed', !rightPanelOpen);
+}
+
+// ── Scroll ────────────────────────────────────────────────
+function scrollToBottom() {
+    const c = document.getElementById('cr-messages-container');
+    c.scrollTop = c.scrollHeight;
+    document.getElementById('cr-unread-banner').classList.remove('show');
+}
+
+document.getElementById('cr-messages-container')?.addEventListener('scroll', function () {
+    const atBottom = this.scrollHeight - this.scrollTop - this.clientHeight < 100;
+    document.getElementById('cr-unread-banner').classList.toggle('show', !atBottom);
+});
+
+// ── Misc ──────────────────────────────────────────────────
+function focusSearch() { document.getElementById('cr-search-input').focus(); }
+function showPins()    { if (!rightPanelOpen) toggleRightPanel(); }
+
+function toggleMute() {
+    isMuted = !isMuted;
+    const btn = document.getElementById('btn-mute');
+    btn.innerHTML = isMuted ? '<i class="fas fa-microphone-slash"></i>' : '<i class="fas fa-microphone"></i>';
+    btn.style.color = isMuted ? '#ef4444' : '';
+    showToast(isMuted ? 'Notifications muted' : 'Notifications on', 'success');
+}
+
+document.getElementById('cr-search-input')?.addEventListener('input', function () {
+    const q = this.value.trim().toLowerCase();
+    document.querySelectorAll('.cr-msg').forEach(el => {
+        const text = el.querySelector('.cr-msg-text')?.textContent.toLowerCase() || '';
+        el.style.display = (!q || text.includes(q)) ? '' : 'none';
+    });
+});
+
+// ── Toast ─────────────────────────────────────────────────
+function showToast(msg, type = 'success') {
+    const t = document.getElementById('cr-toast');
+    t.className = `cr-toast ${type}`;
+    t.innerHTML = `<i class="fas fa-${type==='success'?'check-circle':'exclamation-circle'}"></i> ${msg}`;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+        // Render attachment preview inside a message bubble
+function buildAttachmentHTML(att) {
+    // Show a spinner while the background upload is in progress
+    if (att.pending) {
+        const style = getFileStyle(att.mimeType || '', att.name || '');
+        return `
+            <div class="cr-attachment" style="opacity:0.6;cursor:default;">
+                <div class="cr-attachment-icon" style="background:${style.bg};">
+                    <i class="fas fa-spinner fa-spin" style="color:${style.color};"></i>
+                </div>
+                <div class="cr-attachment-info">
+                    <span class="cr-attachment-name">${att.name}</span>
+                    <span class="cr-attachment-meta">Uploading to Drive…</span>
+                </div>
+            </div>`;
+    }
+
+    // Show an error state if the upload failed
+    if (att.failed) {
+        return `
+            <div class="cr-attachment" style="opacity:0.6;cursor:default;border-color:#fca5a5;">
+                <div class="cr-attachment-icon" style="background:#fff1f2;">
+                    <i class="fas fa-exclamation-circle" style="color:#ef4444;"></i>
+                </div>
+                <div class="cr-attachment-info">
+                    <span class="cr-attachment-name">${att.name}</span>
+                    <span class="cr-attachment-meta" style="color:#ef4444;">Upload failed</span>
+                </div>
+            </div>`;
+    }
+
+    const style = getFileStyle(att.mimeType || '', att.name || '');
+    const size  = formatFileSize(att.size || 0);
+
+    const namedDownloadUrl = att.downloadUrl || '';
+
+    if ((att.mimeType || '').startsWith('image/') && att.previewUrl) {
+        return `
+            <a href="${att.viewUrl}" target="_blank" rel="noopener" title="Open file">
+                <img class="cr-attachment-img"
+                     src="${att.previewUrl}"
+                     alt="${att.name}"
+                     loading="lazy"
+                     onerror="this.style.display='none'">
+            </a>
+            <a class="cr-attachment" href="${namedDownloadUrl}" target="_blank" rel="noopener">
+                <div class="cr-attachment-icon" style="background:${style.bg};">
+                    <i class="fas ${style.icon}" style="color:${style.color};"></i>
+                </div>
+                <div class="cr-attachment-info">
+                    <span class="cr-attachment-name">${att.name}</span>
+                    <span class="cr-attachment-meta">${size} · Click to download</span>
+                </div>
+            </a>`;
+    }
+
+    return `
+        <a class="cr-attachment" href="${namedDownloadUrl}" target="_blank" rel="noopener">
+            <div class="cr-attachment-icon" style="background:${style.bg};">
+                <i class="fas ${style.icon}" style="color:${style.color};"></i>
+            </div>
+            <div class="cr-attachment-info">
+                <span class="cr-attachment-name">${att.name}</span>
+                <span class="cr-attachment-meta">${size} · Click to download</span>
+            </div>
+        </a>`;
+}
+    </script>
+
+</body>
+</html>

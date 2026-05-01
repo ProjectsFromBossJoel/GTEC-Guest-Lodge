@@ -1,0 +1,505 @@
+<!-- verification.html -->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guest House Admin - Verification</title>
+
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <link rel="icon" type="image/png" href="img/favicon.png">
+
+    <style>
+        /* Hide sidebar menu instantly until role is confirmed — prevents FOUC */
+        .sidebar-menu {
+            visibility: hidden;
+        }
+    </style>
+
+</head>
+
+<body>
+
+    <div class="app-container">
+
+        <!-- Sidebar -->
+        <aside class="sidebar">
+
+            <div class="sidebar-header">
+                <div class="sidebar-logo">
+                    <img src="img/logo1.jpg" style="width:40px;height:40px;"> Guest Lodge
+                </div>
+            </div>
+
+            <div class="sidebar-menu">
+
+                <div class="menu-label">Main Menu</div>
+                <a href="dashboard.html" class="menu-item"><i class="fas fa-chart-pie"></i> Dashboard</a>
+                <a href="rooms.html" class="menu-item"><i class="fas fa-bed"></i> Rooms</a>
+
+                <div class="menu-label" style="margin-top:20px;">Guest Activity</div>
+                <a href="checkin.html" class="menu-item"><i class="fas fa-sign-in-alt"></i> Check-In</a>
+                <a href="checkout.html" class="menu-item"><i class="fas fa-sign-out-alt"></i> Check-Out</a>
+                <a href="guests.html" class="menu-item"><i class="fas fa-users"></i> Guests</a>
+                <a href="chatroom.html" class="menu-item"><i class="fas fa-comments"></i> Chat Room</a>
+                <a href="logs.html" class="menu-item"><i class="fas fa-clipboard-list"></i> Logs</a>
+                <a href="chat.html" class="menu-item"><i class="fas fa-comment"></i> Client Messages</a>
+                <a href="verification.html" class="menu-item active"><i class="fas fa-user-check"></i> Verification</a>
+                <a href="invoice.html" class="menu-item"><i class="fas fa-file-invoice"></i> Invoice</a>
+                <a href="payments.html"     class="menu-item active"><i class="fas fa-credit-card"></i> Payments</a>
+                <a href="calendar.html" class="menu-item"><i class="fas fa-calendar-alt"></i> Calendar</a>
+                <a href="filelibrary.html" class="menu-item"><i class="fas fa-folder-open"></i> File Library</a>
+
+                <div class="menu-label" style="margin-top:20px;">Analysis</div>
+                <a href="reports.html" class="menu-item"><i class="fas fa-chart-bar"></i> Reports</a>
+
+                <div class="menu-label" style="margin-top:20px;">Administration</div>
+                <a href="profile.html" class="menu-item"><i class="fas fa-circle-user"></i> My Profile</a>
+                <a href="roles.html" class="menu-item"><i class="fas fa-user-shield"></i> Roles</a>
+
+            </div>
+
+            <div class="sidebar-footer">
+                <a href="#" id="logout-btn" class="menu-item" style="color:var(--status-occupied);padding-left:0;">
+                    <i class="fas fa-power-off"></i> Logout
+                </a>
+            </div>
+
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+
+            <header class="header">
+                <div class="toggle-sidebar">
+                    <i class="fas fa-bars"></i>
+                </div>
+                <div class="header-right" style="margin-left:auto;">
+                    <a href="index.html">&#127968; Home</a>
+                    <div class="user-profile" style="cursor:pointer;" onclick="window.location.href='profile.html'" title="View Profile">
+    <div class="user-avatar"><i class="fas fa-user"></i></div>
+    <span id="user-email-display" style="font-weight:500;">Admin</span>
+</div>
+                </div>
+            </header>
+
+            <div class="content-area">
+
+                <style>
+                    .containerr {
+                        background: white;
+                        padding: 30px;
+                        border-radius: 10px;
+                        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+                        width: 100%;
+                        max-width: 480px;
+                        text-align: center;
+                        margin: 10% auto;
+                        padding: 20px;
+                    }
+
+                    input {
+                        width: 100%;
+                        padding: 10px;
+                        margin: 10px 0;
+                        border-radius: 5px;
+                        border: 1px solid #ccc;
+                    }
+
+                    button {
+                        padding: 10px 20px;
+                        border: none;
+                        border-radius: 5px;
+                        background: #1f3b57;
+                        color: white;
+                        cursor: pointer;
+                        margin-top: 10px;
+                    }
+
+                    #successMsg {
+                        color: green;
+                        margin-top: 15px;
+                        font-weight: bold;
+                        display: none;
+                        animation: fadeIn 1s ease forwards;
+                    }
+
+                    #checkinBtn {
+                        display: none;
+                        margin-top: 15px;
+                    }
+
+                    #qrScanner {
+                        width: 100%;
+                        margin: 10px auto;
+                    }
+
+                    @keyframes fadeIn {
+                        0% {
+                            opacity: 0;
+                            transform: scale(0.9);
+                        }
+
+                        100% {
+                            opacity: 1;
+                            transform: scale(1);
+                        }
+                    }
+
+                    /* ── Field groups: label sits flush above its input ── */
+                    .field-group {
+                        display: flex;
+                        flex-direction: column;
+                        align-items: flex-start;
+                        gap: 4px;
+                        margin-bottom: 12px;
+                        width: 100%;
+                        text-align: left;
+                    }
+
+                    .field-group label {
+                        font-size: 0.82rem;
+                        font-weight: 600;
+                        color: #1f3b57;
+                        letter-spacing: 0.3px;
+                    }
+
+                    .field-group input {
+                        margin: 0;
+                        width: 100%;
+                        box-sizing: border-box;
+                    }
+
+                    /* ── Card notification replacing plain statusBox ── */
+                    #statusBox {
+                        display: none;
+                        margin-top: 16px;
+                        border-radius: 8px;
+                        padding: 14px 16px;
+                        font-size: 0.9rem;
+                        font-weight: 500;
+                        text-align: left;
+                        animation: fadeIn 0.3s ease forwards;
+                        border-left: 4px solid transparent;
+                        line-height: 1.5;
+                    }
+
+                    #statusBox.card-loading {
+                        background: #f0f4f8;
+                        border-left-color: #1f3b57;
+                        color: #1f3b57;
+                        display: flex;
+                        align-items: center;
+                        gap: 10px;
+                    }
+
+                    #statusBox.card-success {
+                        background: #edfbf3;
+                        border-left-color: #22c55e;
+                        color: #166534;
+                    }
+
+                    #statusBox.card-warning {
+                        background: #fffbeb;
+                        border-left-color: #f59e0b;
+                        color: #92400e;
+                    }
+
+                    #statusBox.card-error {
+                        background: #fef2f2;
+                        border-left-color: #ef4444;
+                        color: #991b1b;
+                    }
+
+                    #statusBox .card-icon {
+                        font-size: 1.1rem;
+                        flex-shrink: 0;
+                    }
+
+                    #statusBox .card-body {
+                        display: flex;
+                        flex-direction: column;
+                        gap: 2px;
+                    }
+
+                    #statusBox .card-title {
+                        font-weight: 700;
+                        font-size: 0.92rem;
+                    }
+
+                    #statusBox .card-sub {
+                        font-weight: 400;
+                        font-size: 0.82rem;
+                        opacity: 0.85;
+                    }
+
+                    .loader {
+                        border: 3px solid rgba(31,59,87,0.2);
+                        border-top: 3px solid #1f3b57;
+                        border-radius: 50%;
+                        width: 18px;
+                        height: 18px;
+                        animation: spin 0.8s linear infinite;
+                        flex-shrink: 0;
+                    }
+
+                    @keyframes spin {
+                        0% { transform: rotate(0deg); }
+                        100% { transform: rotate(360deg); }
+                    }
+                </style>
+
+                <div class="containerr">
+                    <h2>Guest Verification</h2>
+                    <div id="qrScanner"></div>
+                    <p>Enter details below:</p>
+                    <div class="field-group">
+                        <label for="guestRoom">Room No.</label>
+                        <input type="text" id="guestRoom" placeholder="Guest Room Number">
+                    </div>
+                    <div class="field-group">
+                        <label for="guestID">Guest ID</label>
+                        <input type="text" id="guestID" placeholder="Guest ID">
+                    </div>
+                    <button id="verifyBtn">Verify Guest</button>
+                    <div id="statusBox"></div>
+                    <button id="checkinBtn">Check In Guest</button>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- ✅ Firebase & QR Libraries loaded BEFORE inline script so db/auth are ready -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+    <script src="https://unpkg.com/html5-qrcode/minified/html5-qrcode.min.js"></script>
+    <script src="js/firebase.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/logs.js"></script>
+    <script src="js/sidebar.js"></script>
+    <script src="js/chatnotify.js"></script>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+
+            const auth = window.auth;
+            const db = window.db;
+
+            let currentGuest = null;
+            let qrScanner = null;
+
+            const guestIDInput = document.getElementById("guestID");
+            const guestRoomInput = document.getElementById("guestRoom");
+            const statusBox = document.getElementById("statusBox");
+            const checkinBtn = document.getElementById("checkinBtn");
+            const verifyBtn = document.getElementById("verifyBtn");
+
+            // =====================
+            // CARD NOTIFICATION HELPER
+            // =====================
+            function showCard(type, title, sub = "") {
+                // type: "loading" | "success" | "warning" | "error"
+                const icons = { loading: "", success: "✅", warning: "⚠️", error: "❌" };
+                statusBox.className = `card-${type}`;
+                statusBox.style.display = type === "loading" ? "flex" : "block";
+                if (type === "loading") {
+                    statusBox.innerHTML = `<div class="loader"></div><div class="card-body"><span class="card-title">${title}</span>${sub ? `<span class="card-sub">${sub}</span>` : ""}</div>`;
+                } else {
+                    statusBox.innerHTML = `<div style="display:flex;align-items:flex-start;gap:10px;"><span class="card-icon">${icons[type]}</span><div class="card-body"><span class="card-title">${title}</span>${sub ? `<span class="card-sub">${sub}</span>` : ""}</div></div>`;
+                }
+            }
+
+            // =====================
+            // AUTO FILL FROM URL
+            // =====================
+            const params = new URLSearchParams(window.location.search);
+            const id = params.get("id");
+            const room = params.get("room");
+
+            if (id && guestIDInput) guestIDInput.value = id.toUpperCase();
+            if (room && guestRoomInput) guestRoomInput.value = room;
+
+            // =====================
+            // QR SCANNER
+            // =====================
+            if (document.getElementById("qrScanner") && typeof Html5Qrcode !== "undefined") {
+                qrScanner = new Html5Qrcode("qrScanner");
+                Html5Qrcode.getCameras()
+                    .then(cameras => {
+                        if (!cameras.length) return;
+                        qrScanner.start(
+                            cameras[0].id,
+                            { fps: 10, qrbox: 250 },
+                            (qrMessage) => {
+                                try {
+                                    if (!qrMessage.includes("?")) return;
+                                    const qrParams = new URLSearchParams(qrMessage.split("?")[1]);
+                                    guestIDInput.value = (qrParams.get("id") || "").toUpperCase();
+                                    guestRoomInput.value = qrParams.get("room") || "";
+                                } catch (err) {
+                                    console.warn("Invalid QR format");
+                                }
+                            }
+                        );
+                    })
+                    .catch(err => console.warn("Camera error:", err));
+            }
+
+            // =====================
+            // VERIFY GUEST
+            // =====================
+            if (verifyBtn) {
+                verifyBtn.addEventListener("click", async () => {
+
+                    const guestID = guestIDInput.value.trim().toUpperCase();
+                    const guestRoom = guestRoomInput.value.trim();
+
+                    if (!guestID || !guestRoom) {
+                        showCard("warning", "Missing Details", "Please enter both Guest ID and Room Number.");
+                        return;
+                    }
+
+                    if (!auth || !auth.currentUser) {
+                        showCard("warning", "Not Logged In", "Please login before verifying a guest.");
+                        return;
+                    }
+
+                    try {
+                        showCard("loading", "Verifying guest…");
+
+                        const snapshot = await db.collection("guests")
+                            .where("idNumber", "==", guestID)
+                            .get();
+
+                        if (snapshot.empty) {
+                            showCard("error", "Guest Not Found", "No guest record matches that ID.");
+                            return;
+                        }
+
+                        const guest = { id: snapshot.docs[0].id, ...snapshot.docs[0].data() };
+
+                        if ((guest.roomNumber || guest.room) !== guestRoom) {
+                            showCard("error", "Room Mismatch", "The room number does not match this Guest ID.");
+                            return;
+                        }
+
+                        // ✅ Check if already verified
+                        if (guest.verified === true) {
+                            showCard("warning", "Already Verified", `${guest.name} — Room ${guest.roomNumber || guest.room}`);
+                            checkinBtn.style.display = "inline-block";
+                            currentGuest = guest;
+                            return;
+                        }
+
+                        // ✅ Set verified: true immediately on Verify click
+                        await db.collection("guests")
+                            .doc(guest.id)
+                            .update({ verified: true });
+
+                        currentGuest = { ...guest, verified: true };
+                        showCard("success", `${guest.name} Verified`, `Room ${guest.roomNumber || guest.room}`);
+                        checkinBtn.style.display = "inline-block";
+
+                        if (qrScanner) qrScanner.stop().catch(() => { });
+
+                    } catch (err) {
+                        console.error(err);
+                        showCard("error", "Verification Failed", "An unexpected error occurred. Please try again.");
+                    }
+                });
+            }
+
+            // =====================
+            // CHECK-IN (sets verified: true)
+            // =====================
+            if (checkinBtn) {
+                checkinBtn.addEventListener("click", async () => {
+
+                    if (!currentGuest) {
+                        showCard("warning", "No Verified Guest", "Please verify a guest first.");
+                        return;
+                    }
+
+                    // ── Block if already checked in ───────────────────────────────────
+                    try {
+                        const freshSnap = await db.collection("guests").doc(currentGuest.id).get();
+                        if (freshSnap.exists && freshSnap.data().status === "Checked In") {
+                            showCard("warning", "Already Checked In", `${currentGuest.name} — Room ${currentGuest.roomNumber || currentGuest.room}`);
+                            checkinBtn.style.display = "none";
+                            return;
+                        }
+                    } catch (e) {
+                        console.warn("[Verification] Could not re-fetch guest status:", e);
+                    }
+
+                    try {
+                        showCard("loading", "Checking in…");
+
+                        // ✅ Update guest status to Checked In
+                        const actualCheckinNow = new Date();
+                        await db.collection("guests")
+                            .doc(currentGuest.id)
+                            .update({
+                                status: "Checked In",
+                                checkinTimestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                                checkinDate: firebase.firestore.Timestamp.fromDate(actualCheckinNow),
+                                checkinDateStr: actualCheckinNow.toISOString()
+                            });
+
+                        // ✅ Update room status to Occupied
+                        const roomId = currentGuest.roomId;
+                        if (roomId) {
+                            await db.collection("rooms")
+                                .doc(roomId)
+                                .update({ status: "Occupied" });
+                            console.log("[Verification] Room", roomId, "→ Occupied ✅");
+                        } else {
+                            const roomNumber = currentGuest.roomNumber || currentGuest.room;
+                            if (roomNumber) {
+                                const roomSnap = await db.collection("rooms")
+                                    .where("number", "==", roomNumber)
+                                    .get();
+                                if (!roomSnap.empty) {
+                                    await roomSnap.docs[0].ref.update({ status: "Occupied" });
+                                    console.log("[Verification] Room", roomNumber, "→ Occupied ✅ (via number lookup)");
+                                } else {
+                                    console.warn("[Verification] Room not found by number:", roomNumber);
+                                }
+                            }
+                        }
+
+                        // Log
+                        if (typeof addLog === "function") {
+                            await addLog(
+                                "Guest Verified & Checked In",
+                                `${currentGuest.name} - Room ${currentGuest.roomNumber || currentGuest.room}`
+                            );
+                        }
+
+                        showCard("success", "Check-In Successful!", `${currentGuest.name} has been checked into Room ${currentGuest.roomNumber || currentGuest.room}.`);
+
+                        guestIDInput.value = "";
+                        guestRoomInput.value = "";
+                        currentGuest = null;
+                        checkinBtn.style.display = "none";
+
+                    } catch (err) {
+                        console.error(err);
+                        showCard("error", "Check-In Failed", "An unexpected error occurred. Please try again.");
+                    }
+                });
+            }
+
+        });
+    </script>
+
+
+
+</body>
+
+</html>

@@ -1,0 +1,1782 @@
+<!-- verification.html -->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guest House Admin - Verification</title>
+
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        /* Hide sidebar menu instantly until role is confirmed — prevents FOUC */
+        .sidebar-menu {
+            visibility: hidden;
+        }
+    </style>
+
+</head>
+
+<body>
+
+    <div class="app-container">
+
+        <!-- Sidebar -->
+        <aside class="sidebar">
+
+            <div class="sidebar-header">
+                <div class="sidebar-logo">
+                    <img src="img/logo1.jpg" style="width:40px;height:40px;"> Guest Lodge
+                </div>
+            </div>
+
+            <div class="sidebar-menu">
+
+                <div class="menu-label">Main Menu</div>
+                <a href="dashboard.html" class="menu-item"><i class="fas fa-chart-pie"></i> Dashboard</a>
+                <a href="rooms.html" class="menu-item"><i class="fas fa-bed"></i> Rooms</a>
+
+                <div class="menu-label" style="margin-top:20px;">Guest Activity</div>
+                <a href="checkin.html" class="menu-item"><i class="fas fa-sign-in-alt"></i> Check-In</a>
+                <a href="checkout.html" class="menu-item"><i class="fas fa-sign-out-alt"></i> Check-Out</a>
+                <a href="guests.html" class="menu-item"><i class="fas fa-users"></i> Guests</a>
+                <a href="logs.html" class="menu-item"><i class="fas fa-clipboard-list"></i> Logs</a>
+                <a href="chat.html" class="menu-item"><i class="fas fa-comments"></i> Chat</a>
+                <a href="verification.html" class="menu-item active"><i class="fas fa-user-check"></i> Verification</a>
+
+                <div class="menu-label" style="margin-top:20px;">Analysis</div>
+                <a href="reports.html" class="menu-item"><i class="fas fa-chart-bar"></i> Reports</a>
+                <div class="menu-label" style="margin-top:20px;">Administration</div>
+            <a href="profile.html" class="menu-item"><i class="fas fa-circle-user"></i> My Profile</a>
+                <a href="roles.html" class="menu-item"><i class="fas fa-user-shield"></i> Roles</a>
+
+            </div>
+
+            <div class="sidebar-footer">
+                <a href="#" id="logout-btn" class="menu-item" style="color:red;">
+                    <i class="fas fa-power-off"></i> Logout
+                </a>
+            </div>
+
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+
+            <header class="header">
+                <div class="toggle-sidebar">
+                    <i class="fas fa-bars"></i>
+                </div>
+                <div class="header-right" style="margin-left:auto;">
+                    <a href="index.html">&#127968; Home</a>
+                    <div class="user-profile" style="cursor:pointer;" onclick="window.location.href='profile.html'" title="View Profile">
+    <div class="user-avatar"><i class="fas fa-user"></i></div>
+    <span id="user-email-display" style="font-weight:500;">Admin</span>
+</div>
+                </div>
+            </header>
+
+            <div class="content-area">
+
+                <style>
+                    .containerr {
+                        background: white;
+                        padding: 30px;
+                        border-radius: 10px;
+                        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+                        width: 100%;
+                        max-width: 480px;
+                        text-align: center;
+                        margin: 10% auto;
+                        padding: 20px;
+                    }
+
+                    input {
+                        width: 100%;
+                        padding: 10px;
+                        margin: 10px 0;
+                        border-radius: 5px;
+                        border: 1px solid #ccc;
+                    }
+
+                    button {
+                        padding: 10px 20px;
+                        border: none;
+                        border-radius: 5px;
+                        background: #1f3b57;
+                        color: white;
+                        cursor: pointer;
+                        margin-top: 10px;
+                    }
+
+                    #successMsg {
+                        color: green;
+                        margin-top: 15px;
+                        font-weight: bold;
+                        display: none;
+                        animation: fadeIn 1s ease forwards;
+                    }
+
+                    #checkinBtn {
+                        display: none;
+                        margin-top: 15px;
+                    }
+
+                    #qrScanner {
+                        width: 100%;
+                        margin: 10px auto;
+                    }
+
+                    @keyframes fadeIn {
+                        0% {
+                            opacity: 0;
+                            transform: scale(0.9);
+                        }
+
+                        100% {
+                            opacity: 1;
+                            transform: scale(1);
+                        }
+                    }
+
+                    #statusBox {
+                        margin-top: 15px;
+                        font-weight: bold;
+                        display: none;
+                    }
+
+                    .loader {
+                        border: 4px solid #f3f3f3;
+                        border-top: 4px solid #1f3b57;
+                        border-radius: 50%;
+                        width: 25px;
+                        height: 25px;
+                        animation: spin 1s linear infinite;
+                        margin: 10px auto;
+                    }
+
+                    @keyframes spin {
+                        0% {
+                            transform: rotate(0deg);
+                        }
+
+                        100% {
+                            transform: rotate(360deg);
+                        }
+                    }
+                </style>
+
+                <div class="containerr">
+                    <h2>Guest Verification</h2>
+                    <div id="qrScanner"></div>
+                    <p>Enter details below:</p>
+                    <input type="text" id="guestRoom" placeholder="Guest Room Number">
+                    <input type="text" id="guestID" placeholder="Guest ID">
+                    <button id="verifyBtn">Verify Guest</button>
+                    <div id="statusBox"></div>
+                    <button id="checkinBtn">Check In Guest</button>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- ✅ Firebase & QR Libraries loaded BEFORE inline script so db/auth are ready -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+    <script src="https://unpkg.com/html5-qrcode/minified/html5-qrcode.min.js"></script>
+    <script src="js/firebase.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/logs.js"></script>
+    <script src="js/sidebar.js"></script>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+
+            const auth = window.auth;
+            const db = window.db;
+
+            let currentGuest = null;
+            let qrScanner = null;
+
+            const guestIDInput = document.getElementById("guestID");
+            const guestRoomInput = document.getElementById("guestRoom");
+            const statusBox = document.getElementById("statusBox");
+            const checkinBtn = document.getElementById("checkinBtn");
+            const verifyBtn = document.getElementById("verifyBtn");
+
+            // =====================
+            // AUTO FILL FROM URL
+            // =====================
+            const params = new URLSearchParams(window.location.search);
+            const id = params.get("id");
+            const room = params.get("room");
+
+            if (id && guestIDInput) guestIDInput.value = id.toUpperCase();
+            if (room && guestRoomInput) guestRoomInput.value = room;
+
+            // =====================
+            // QR SCANNER
+            // =====================
+            if (document.getElementById("qrScanner") && typeof Html5Qrcode !== "undefined") {
+                qrScanner = new Html5Qrcode("qrScanner");
+                Html5Qrcode.getCameras()
+                    .then(cameras => {
+                        if (!cameras.length) return;
+                        qrScanner.start(
+                            cameras[0].id,
+                            { fps: 10, qrbox: 250 },
+                            (qrMessage) => {
+                                try {
+                                    if (!qrMessage.includes("?")) return;
+                                    const qrParams = new URLSearchParams(qrMessage.split("?")[1]);
+                                    guestIDInput.value = (qrParams.get("id") || "").toUpperCase();
+                                    guestRoomInput.value = qrParams.get("room") || "";
+                                } catch (err) {
+                                    console.warn("Invalid QR format");
+                                }
+                            }
+                        );
+                    })
+                    .catch(err => console.warn("Camera error:", err));
+            }
+
+            // =====================
+            // VERIFY GUEST
+            // =====================
+            if (verifyBtn) {
+                verifyBtn.addEventListener("click", async () => {
+
+                    const guestID = guestIDInput.value.trim().toUpperCase();
+                    const guestRoom = guestRoomInput.value.trim();
+
+                    if (!guestID || !guestRoom) {
+                        statusBox.style.display = "block";
+                        statusBox.innerHTML = "&#9888;&#65039; Enter Guest ID and Room Number";
+                        return;
+                    }
+
+                    if (!auth || !auth.currentUser) {
+                        statusBox.style.display = "block";
+                        statusBox.innerHTML = "&#9888;&#65039; Please login first";
+                        return;
+                    }
+
+                    try {
+                        statusBox.style.display = "block";
+                        statusBox.innerHTML = `<div class="loader"></div> Verifying guest...`;
+
+                        const snapshot = await db.collection("guests")
+                            .where("idNumber", "==", guestID)
+                            .get();
+
+                        if (snapshot.empty) {
+                            statusBox.innerHTML = "&#10060; Guest not found";
+                            return;
+                        }
+
+                        const guest = { id: snapshot.docs[0].id, ...snapshot.docs[0].data() };
+
+                        if ((guest.roomNumber || guest.room) !== guestRoom) {
+                            statusBox.innerHTML = "&#10060; Room does not match";
+                            return;
+                        }
+
+                        // ✅ Check if already verified
+                        if (guest.verified === true) {
+                            statusBox.innerHTML = `&#9888;&#65039; <span style="color:#b8972e;">Guest already verified — ${guest.name} (Room ${guest.roomNumber || guest.room})</span>`;
+                            checkinBtn.style.display = "inline-block";
+                            currentGuest = guest;
+                            return;
+                        }
+
+                        // ✅ Set verified: true immediately on Verify click
+                        await db.collection("guests")
+                            .doc(guest.id)
+                            .update({ verified: true });
+
+                        currentGuest = { ...guest, verified: true };
+                        statusBox.innerHTML = `&#9989; ${guest.name} Verified (Room ${guest.roomNumber || guest.room})`;
+                        checkinBtn.style.display = "inline-block";
+
+                        if (qrScanner) qrScanner.stop().catch(() => { });
+
+                    } catch (err) {
+                        console.error(err);
+                        statusBox.innerHTML = "&#10060; Error verifying guest";
+                    }
+                });
+            }
+
+            // =====================
+            // CHECK-IN (sets verified: true)
+            // =====================
+            if (checkinBtn) {
+                checkinBtn.addEventListener("click", async () => {
+
+                    if (!currentGuest) {
+                        statusBox.style.display = "block";
+                        statusBox.innerHTML = "&#9888;&#65039; No verified guest";
+                        return;
+                    }
+
+                    // ── Block if already checked in ───────────────────────────────────
+                    // Re-fetch the latest guest data from Firestore to get current status,
+                    // in case it changed since the page loaded.
+                    try {
+                        const freshSnap = await db.collection("guests").doc(currentGuest.id).get();
+                        if (freshSnap.exists && freshSnap.data().status === "Checked In") {
+                            statusBox.style.display = "block";
+                            statusBox.innerHTML = `⚠️ <span style="color:#b8972e;">
+                    ${currentGuest.name} is already checked in (Room ${currentGuest.roomNumber || currentGuest.room})
+                </span>`;
+                            checkinBtn.style.display = "none";
+                            return;
+                        }
+                    } catch (e) {
+                        console.warn("[Verification] Could not re-fetch guest status:", e);
+                    }
+
+                    try {
+                        statusBox.style.display = "block";
+                        statusBox.innerHTML = `<div class="loader"></div> Checking in...`;
+
+
+                        // ✅ Update guest status to Checked In
+                        // Also update checkinDateStr to NOW so reports count this as today's check-in
+                        const actualCheckinNow = new Date();
+                        await db.collection("guests")
+                            .doc(currentGuest.id)
+                            .update({
+                                status: "Checked In",
+                                checkinTimestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                                checkinDate: firebase.firestore.Timestamp.fromDate(actualCheckinNow),
+                                checkinDateStr: actualCheckinNow.toISOString()   // ← reports read this field
+                            });
+
+                        // ✅ Update room status to Occupied
+                        // Try roomId first, then fall back to querying by room number
+                        const roomId = currentGuest.roomId;
+                        if (roomId) {
+                            await db.collection("rooms")
+                                .doc(roomId)
+                                .update({ status: "Occupied" });
+                            console.log("[Verification] Room", roomId, "→ Occupied ✅");
+                        } else {
+                            // Fallback: find room by number
+                            const roomNumber = currentGuest.roomNumber || currentGuest.room;
+                            if (roomNumber) {
+                                const roomSnap = await db.collection("rooms")
+                                    .where("number", "==", roomNumber)
+                                    .get();
+                                if (!roomSnap.empty) {
+                                    await roomSnap.docs[0].ref.update({ status: "Occupied" });
+                                    console.log("[Verification] Room", roomNumber, "→ Occupied ✅ (via number lookup)");
+                                } else {
+                                    console.warn("[Verification] Room not found by number:", roomNumber);
+                                }
+                            }
+                        }
+
+                        // Log
+                        if (typeof addLog === "function") {
+                            await addLog(
+                                "Guest Verified & Checked In",
+                                `${currentGuest.name} - Room ${currentGuest.roomNumber || currentGuest.room}`
+                            );
+                        }
+
+                        statusBox.innerHTML = "&#9989; Guest Checked In Successfully!";
+
+                        guestIDInput.value = "";
+                        guestRoomInput.value = "";
+                        currentGuest = null;
+                        checkinBtn.style.display = "none";
+
+                    } catch (err) {
+                        console.error(err);
+                        statusBox.innerHTML = "&#10060; Check-in failed";
+                    }
+                });
+            }
+
+        });
+    </script>
+
+
+
+</body>
+
+</html>
+
+
+
+
+
+<!-- Card Verification -->
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GTEC Guest Lodge — Card Verification</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800;900&family=Nunito:wght@400;600;700;800;900&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --navy: #1a2942;
+            --blue: #3b82f6;
+            --green: #22c55e;
+            --red: #ef4444;
+            --amber: #f59e0b;
+            --light: #f0f4f8;
+            --white: #ffffff;
+            --text: #1e293b;
+            --muted: #94a3b8;
+            --border: #e2e8f0;
+        }
+
+        body {
+            font-family: 'Nunito', sans-serif;
+            background: var(--navy);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px 20px;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse 80% 60% at 20% 20%, rgba(59, 130, 246, 0.15) 0%, transparent 60%),
+                radial-gradient(ellipse 60% 80% at 80% 80%, rgba(34, 197, 94, 0.08) 0%, transparent 60%);
+            pointer-events: none;
+        }
+
+        .bg-circle {
+            position: fixed;
+            border-radius: 50%;
+            opacity: 0.04;
+            background: white;
+            pointer-events: none;
+            animation: floatUp 20s ease-in-out infinite;
+        }
+
+        .bg-circle:nth-child(1) {
+            width: 300px;
+            height: 300px;
+            top: -100px;
+            right: -80px;
+            animation-delay: 0s;
+        }
+
+        .bg-circle:nth-child(2) {
+            width: 200px;
+            height: 200px;
+            bottom: 10%;
+            left: -60px;
+            animation-delay: -7s;
+        }
+
+        .bg-circle:nth-child(3) {
+            width: 150px;
+            height: 150px;
+            top: 40%;
+            right: 5%;
+            animation-delay: -13s;
+        }
+
+        @keyframes floatUp {
+
+            0%,
+            100% {
+                transform: translateY(0) rotate(0deg);
+            }
+
+            50% {
+                transform: translateY(-30px) rotate(15deg);
+            }
+        }
+
+        /* ── Main card ── */
+        .card {
+            background: var(--white);
+            border-radius: 24px;
+            width: 100%;
+            max-width: 440px;
+            box-shadow: 0 40px 100px rgba(0, 0, 0, 0.35);
+            overflow: hidden;
+            position: relative;
+            animation: cardIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+        }
+
+        @keyframes cardIn {
+            from {
+                opacity: 0;
+                transform: translateY(40px) scale(0.95);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        /* ── Card header ── */
+        .card-header {
+            background: linear-gradient(135deg, var(--navy) 0%, #2d4a7a 100%);
+            padding: 32px 32px 28px;
+            text-align: center;
+            position: relative;
+        }
+
+        .card-header::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 0;
+            right: 0;
+            height: 20px;
+            background: white;
+            border-radius: 20px 20px 0 0;
+        }
+
+        .logo-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 4px;
+        }
+
+        .logo-img {
+            width: 44px;
+            height: 44px;
+            border-radius: 10px;
+            object-fit: cover;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .logo-fallback {
+            width: 44px;
+            height: 44px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Syne', sans-serif;
+            font-size: 16px;
+            font-weight: 900;
+            color: white;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .header-title {
+            font-family: 'Syne', sans-serif;
+            font-size: 20px;
+            font-weight: 800;
+            color: white;
+            letter-spacing: -0.3px;
+        }
+
+        .header-sub {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.55);
+            margin-top: 6px;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+
+        /* ── Sections ── */
+        .section {
+            padding: 28px 32px 32px;
+            display: none;
+        }
+
+        .section.active {
+            display: block;
+        }
+
+        .section-title {
+            font-family: 'Syne', sans-serif;
+            font-size: 16px;
+            font-weight: 800;
+            color: var(--navy);
+            margin-bottom: 4px;
+        }
+
+        .section-sub {
+            font-size: 12px;
+            color: var(--muted);
+            margin-bottom: 22px;
+            font-weight: 600;
+        }
+
+        /* ── Fields ── */
+        .field {
+            margin-bottom: 16px;
+        }
+
+        .field label {
+            display: block;
+            font-size: 11px;
+            font-weight: 800;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 6px;
+        }
+
+        .field-wrap {
+            position: relative;
+            display: flex;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        .field-wrap i {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--muted);
+            font-size: 14px;
+            pointer-events: none;
+        }
+
+        .field-wrap input {
+            width: 100%;
+            padding: 12px 14px 12px 40px;
+            border: 1.5px solid var(--border);
+            border-radius: 10px;
+            font-family: 'Nunito', sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text);
+            background: #f8fafc;
+            outline: none;
+            transition: all 0.2s;
+        }
+
+        .field-wrap input:focus {
+            border-color: var(--blue);
+            background: white;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+        }
+
+        .field-wrap input::placeholder {
+            color: #cbd5e1;
+            font-weight: 600;
+        }
+
+        .pw-toggle {
+            position: absolute;
+            right: 10px; /* ✅ keeps it inside */
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: var(--muted);
+            cursor: pointer;
+            font-size: 14px;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .pw-toggle:hover {
+            color: var(--navy);
+        }
+
+        /* ── Buttons ── */
+        .btn {
+            width: 100%;
+            padding: 13px;
+            border: none;
+            border-radius: 10px;
+            font-family: 'Nunito', sans-serif;
+            font-size: 14px;
+            font-weight: 800;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.2s;
+            letter-spacing: 0.3px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--navy), #2d4a7a);
+            color: white;
+            box-shadow: 0 4px 14px rgba(26, 41, 66, 0.35);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 8px 24px rgba(26, 41, 66, 0.4);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #16a34a, var(--green));
+            color: white;
+            box-shadow: 0 4px 14px rgba(34, 197, 94, 0.3);
+        }
+
+        .btn-success:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 8px 24px rgba(34, 197, 94, 0.4);
+        }
+
+        .btn-success:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-checkin {
+            background: linear-gradient(135deg, #0369a1, var(--blue));
+            color: white;
+            box-shadow: 0 4px 14px rgba(59, 130, 246, 0.35);
+        }
+
+        .btn-checkin:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 8px 24px rgba(59, 130, 246, 0.45);
+        }
+
+        .btn-checkin:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-ghost {
+            background: var(--light);
+            color: var(--navy);
+        }
+
+        .btn-ghost:hover {
+            background: #e2e8f0;
+        }
+
+        /* ── Messages ── */
+        .msg {
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            display: none;
+            align-items: center;
+            gap: 8px;
+            animation: msgIn 0.3s ease;
+        }
+
+        @keyframes msgIn {
+            from {
+                opacity: 0;
+                transform: translateY(-4px)
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0)
+            }
+        }
+
+        .msg.show {
+            display: flex;
+        }
+
+        .msg-error {
+            background: #fef2f2;
+            color: var(--red);
+            border: 1px solid #fecaca;
+        }
+
+        .msg-success {
+            background: #f0fdf4;
+            color: #16a34a;
+            border: 1px solid #bbf7d0;
+        }
+
+        .msg-info {
+            background: #eff6ff;
+            color: #1d4ed8;
+            border: 1px solid #bfdbfe;
+        }
+
+        .msg-amber {
+            background: #fffbeb;
+            color: #92400e;
+            border: 1px solid #fde68a;
+        }
+
+        /* ── Staff badge ── */
+        .staff-badge {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            border-radius: 10px;
+            padding: 10px 14px;
+            margin-bottom: 20px;
+        }
+
+        .staff-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--navy), var(--blue));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 800;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        .staff-info {
+            flex: 1;
+        }
+
+        .staff-email {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--navy);
+        }
+
+        .staff-role {
+            font-size: 11px;
+            color: var(--muted);
+            font-weight: 600;
+        }
+
+        .staff-status {
+            font-size: 11px;
+            font-weight: 800;
+            color: #16a34a;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .staff-dot {
+            width: 6px;
+            height: 6px;
+            background: #16a34a;
+            border-radius: 50%;
+            animation: pulse 1.5s ease infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+                transform: scale(1)
+            }
+
+            50% {
+                opacity: .5;
+                transform: scale(1.4)
+            }
+        }
+
+        /* ── Result section ── */
+        .result-wrap {
+            text-align: center;
+            animation: cardIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+        }
+
+        .result-icon-wrap {
+            width: 90px;
+            height: 90px;
+            margin: 0 auto 20px;
+        }
+
+        .result-icon-wrap svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .result-title {
+            font-family: 'Syne', sans-serif;
+            font-size: 22px;
+            font-weight: 900;
+            margin-bottom: 4px;
+        }
+
+        .result-title.success {
+            color: #16a34a;
+        }
+
+        .result-title.failed {
+            color: var(--red);
+        }
+
+        .result-title.already {
+            color: var(--amber);
+        }
+
+        .result-sub {
+            font-size: 13px;
+            color: var(--muted);
+            font-weight: 600;
+            margin-bottom: 24px;
+        }
+
+        /* Guest tile */
+        .guest-tile {
+            background: #f8fafc;
+            border-radius: 16px;
+            padding: 20px;
+            text-align: left;
+            margin-bottom: 20px;
+            border: 1px solid var(--border);
+        }
+
+        .guest-tile-top {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 14px;
+        }
+
+        .guest-avatar-lg {
+            width: 52px;
+            height: 52px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--navy), var(--blue));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: 900;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        .guest-tile-name {
+            font-size: 17px;
+            font-weight: 800;
+            color: var(--text);
+        }
+
+        .guest-tile-id {
+            font-size: 12px;
+            color: var(--muted);
+            font-weight: 600;
+        }
+
+        .guest-tiles-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .mini-tile {
+            background: white;
+            border-radius: 10px;
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+        }
+
+        .mini-tile-label {
+            font-size: 10px;
+            font-weight: 800;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            margin-bottom: 3px;
+        }
+
+        .mini-tile-value {
+            font-size: 13px;
+            font-weight: 800;
+            color: var(--text);
+        }
+
+        .mini-tile-value.blue {
+            color: #1d4ed8;
+        }
+
+        .mini-tile-value.green {
+            color: #16a34a;
+        }
+
+        .mini-tile-value.amber {
+            color: #b45309;
+        }
+
+        /* Stamps */
+        .stamp {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            font-weight: 800;
+            padding: 5px 14px;
+            border-radius: 20px;
+            margin-bottom: 20px;
+        }
+
+        .stamp-green {
+            background: #dcfce7;
+            color: #16a34a;
+            border: 1.5px solid #bbf7d0;
+        }
+
+        .stamp-amber {
+            background: #fef3c7;
+            color: #92400e;
+            border: 1.5px solid #fde68a;
+        }
+
+        /* Action buttons row at bottom of result */
+        .result-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 4px;
+        }
+
+        .result-actions-row {
+            display: flex;
+            gap: 10px;
+        }
+
+        .result-actions-row .btn {
+            flex: 1;
+        }
+
+        /* Spinner */
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .spin {
+            animation: spin 0.7s linear infinite;
+        }
+
+        /* Animated check/x */
+        @keyframes checkDraw {
+            to {
+                stroke-dashoffset: 0;
+            }
+        }
+
+        @keyframes circleDraw {
+            to {
+                stroke-dashoffset: 0;
+            }
+        }
+
+        /* Responsive */
+        @media(max-width: 480px) {
+            .section {
+                padding: 22px 20px 28px;
+            }
+
+            .card-header {
+                padding: 26px 20px 24px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="bg-circle"></div>
+    <div class="bg-circle"></div>
+    <div class="bg-circle"></div>
+
+    <div class="card" id="main-card">
+
+        <!-- Header -->
+        <div class="card-header">
+            <div class="logo-row">
+                <img src="img/logo1.jpg" class="logo-img" alt="GTEC"
+                    onerror="this.style.display='none';document.getElementById('logo-fallback').style.display='flex';">
+                <div class="logo-fallback" id="logo-fallback" style="display:none;">GH</div>
+                <div class="header-title">GTEC Guest Lodge</div>
+            </div>
+            <div class="header-sub">Card Verification Portal</div>
+        </div>
+
+        <!-- ══ SECTION 1: LOGIN ══ -->
+        <div class="section active" id="section-login">
+            <div class="section-title">Staff Sign In</div>
+            <div class="section-sub">Verify your identity to proceed</div>
+
+            <div class="msg msg-error" id="login-error">
+                <i class="fas fa-exclamation-circle"></i>
+                <span id="login-error-text">Invalid credentials</span>
+            </div>
+
+            <div class="field">
+                <label>Email Address</label>
+                <div class="field-wrap">
+                    <i class="fas fa-envelope"></i>
+                    <input type="email" id="login-email" placeholder="staff@gtec.com" autocomplete="email">
+                </div>
+            </div>
+
+            <div class="field">
+                <label>Password</label>
+                <div class="field-wrap">
+                    <i class="fas fa-lock"></i>
+                    <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password">
+                    <button class="pw-toggle" type="button" onclick="togglePw('login-password', this)" tabindex="-1">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                </div>
+            </div>
+
+            <button class="btn btn-primary" id="login-btn" onclick="doLogin()">
+                <i class="fas fa-sign-in-alt"></i> Sign In
+            </button>
+        </div>
+
+        <!-- ══ SECTION 2: VERIFY FORM ══ -->
+        <div class="section" id="section-verify">
+
+            <div class="staff-badge">
+                <div class="staff-avatar" id="staff-avatar">?</div>
+                <div class="staff-info">
+                    <div class="staff-email" id="staff-email-display">—</div>
+                    <div class="staff-role" id="staff-role-display">—</div>
+                </div>
+                <div class="staff-status">
+                    <span class="staff-dot"></span> Active
+                </div>
+            </div>
+
+            <div class="section-title">Verify Guest</div>
+            <div class="section-sub">Enter the guest ID and room number from the card</div>
+
+            <div class="msg msg-error" id="verify-error">
+                <i class="fas fa-times-circle"></i>
+                <span id="verify-error-text">Guest not found</span>
+            </div>
+            <div class="msg msg-info" id="verify-info">
+                <i class="fas fa-info-circle"></i>
+                <span id="verify-info-text"></span>
+            </div>
+
+            <div class="field">
+                <label>Guest ID</label>
+                <div class="field-wrap">
+                    <i class="fas fa-id-card"></i>
+                    <input type="text" id="verify-guestid" placeholder="e.g. GH-92577" style="text-transform:uppercase;"
+                        oninput="this.value=this.value.toUpperCase()">
+                </div>
+            </div>
+
+            <div class="field">
+                <label>Room Number</label>
+                <div class="field-wrap">
+                    <i class="fas fa-door-open"></i>
+                    <input type="text" id="verify-room" placeholder="e.g. 106">
+                </div>
+            </div>
+
+            <button class="btn btn-success" id="verify-btn" onclick="doVerify()">
+                <i class="fas fa-shield-alt"></i> Verify Guest
+            </button>
+
+            <button class="btn btn-ghost" onclick="doLogout()" style="margin-top:10px;">
+                <i class="fas fa-sign-out-alt"></i> Sign Out
+            </button>
+        </div>
+
+        <!-- ══ SECTION 3: RESULT ══ -->
+        <div class="section" id="section-result">
+            <div class="result-wrap" id="result-content"></div>
+        </div>
+
+    </div>
+
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+    <script src="js/firebase.js"></script>
+
+    <script>
+        // ─────────────────────────────────────────────────────────────────────────────
+        // HELPERS
+        // ─────────────────────────────────────────────────────────────────────────────
+        function showSection(id) {
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+        }
+
+        function showMsg(id, text, show = true) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            if (text) el.querySelector('span').textContent = text;
+            el.classList.toggle('show', show);
+        }
+        function hideMsg(id) { showMsg(id, null, false); }
+
+        function setLoading(btnId, loading, defaultHTML) {
+            const btn = document.getElementById(btnId);
+            if (!btn) return;
+            btn.disabled = loading;
+            btn.innerHTML = loading
+                ? '<i class="fas fa-spinner spin"></i> Please wait…'
+                : defaultHTML;
+        }
+
+        function togglePw(inputId, btn) {
+            const input = document.getElementById(inputId);
+            const isText = input.type === 'text';
+            input.type = isText ? 'password' : 'text';
+            btn.querySelector('i').className = isText ? 'fas fa-eye' : 'fas fa-eye-slash';
+        }
+
+        function getInitials(email) {
+            return (email || '?').split('@')[0].substring(0, 2).toUpperCase();
+        }
+
+        function formatDate(val) {
+            if (!val) return '—';
+            try {
+                const d = typeof val.toDate === 'function' ? val.toDate() : new Date(val);
+                return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+            } catch { return '—'; }
+        }
+
+        // ─────────────────────────────────────────────────────────────────────────────
+        // AUTH
+        // ─────────────────────────────────────────────────────────────────────────────
+        let _staffEmail = '';
+        let _staffRole = '';
+
+        function waitForFirebase(callback, attempts = 0) {
+            if (typeof firebase !== 'undefined' && typeof db !== 'undefined') {
+                callback();
+            } else if (attempts < 30) {
+                setTimeout(() => waitForFirebase(callback, attempts + 1), 200);
+            }
+        }
+
+        waitForFirebase(() => {
+            firebase.auth().onAuthStateChanged(async user => {
+                if (user) {
+                    const qrToken = new URLSearchParams(window.location.search).get('t');
+                    if (qrToken) {
+                        // ✅ QR scan detected — force re-authentication even if already logged in
+                        sessionStorage.setItem('qr_token', qrToken);
+                        await firebase.auth().signOut();
+                        showSection('section-login');
+                        return;
+                    }
+                    // ✅ Normal session (no QR) — proceed as logged in
+                    await loadStaffInfo(user);
+                    showSection('section-verify');
+                    applyQRToken(decodeQRToken());
+                } else {
+                    // ✅ Not logged in — save encoded token to sessionStorage
+                    showSection('section-login');
+                    const token = new URLSearchParams(window.location.search).get('t') || '';
+                    sessionStorage.setItem('qr_token', token);
+                }
+            });
+        });
+
+        async function loadStaffInfo(user) {
+            _staffEmail = user.email || '';
+            try {
+                const snap = await db.collection('users')
+                    .where('email', '==', _staffEmail)
+                    .limit(1).get();
+                _staffRole = !snap.empty ? (snap.docs[0].data().role || 'staff') : 'staff';
+            } catch (e) {
+                _staffRole = 'staff';
+            }
+
+            const allowed = ['superadmin', 'admin', 'manager', 'receptionist'];
+            if (!allowed.includes(_staffRole.toLowerCase())) {
+                await firebase.auth().signOut();
+                showSection('section-login');
+                showMsg('login-error', 'Access denied. Insufficient role.', true);
+                return;
+            }
+
+            document.getElementById('staff-avatar').textContent = getInitials(_staffEmail);
+            document.getElementById('staff-email-display').textContent = _staffEmail;
+            document.getElementById('staff-role-display').textContent =
+                _staffRole.charAt(0).toUpperCase() + _staffRole.slice(1);
+        }
+
+        // ─────────────────────────────────────────────────────────────────────────────
+        // LOGIN
+        // ─────────────────────────────────────────────────────────────────────────────
+        async function doLogin() {
+            hideMsg('login-error');
+            const email = document.getElementById('login-email').value.trim();
+            const password = document.getElementById('login-password').value;
+            if (!email || !password) { showMsg('login-error', 'Please enter your email and password.'); return; }
+
+            setLoading('login-btn', true);
+            try {
+                const cred = await firebase.auth().signInWithEmailAndPassword(email, password);
+                await loadStaffInfo(cred.user);
+
+                const allowed = ['superadmin', 'admin', 'manager', 'receptionist'];
+                if (!allowed.includes(_staffRole.toLowerCase())) {
+                    await firebase.auth().signOut();
+                    showMsg('login-error', 'Access denied. Only staff accounts can use this portal.');
+                    return;
+                }
+
+                showSection('section-verify');
+                const qrId = sessionStorage.getItem('qr_id') || '';
+                const qrRoom = sessionStorage.getItem('qr_room') || '';
+                if (qrId) document.getElementById('verify-guestid').value = qrId.toUpperCase();
+                if (qrRoom) document.getElementById('verify-room').value = qrRoom;
+                sessionStorage.removeItem('qr_id');
+                sessionStorage.removeItem('qr_room');
+
+            } catch (err) {
+                const msgs = {
+                    'auth/user-not-found': 'No account found with this email.',
+                    'auth/wrong-password': 'Incorrect password. Please try again.',
+                    'auth/invalid-email': 'Please enter a valid email address.',
+                    'auth/too-many-requests': 'Too many attempts. Please wait and try again.',
+                    'auth/invalid-credential': 'Invalid email or password.',
+                };
+                showMsg('login-error', msgs[err.code] || 'Login failed. Please try again.');
+            } finally {
+                setLoading('login-btn', false, '<i class="fas fa-sign-in-alt"></i> Sign In');
+            }
+        }
+
+        document.getElementById('login-email')?.addEventListener('keydown', e => e.key === 'Enter' && document.getElementById('login-password').focus());
+        document.getElementById('login-password')?.addEventListener('keydown', e => e.key === 'Enter' && doLogin());
+
+        // ─────────────────────────────────────────────────────────────────────────────
+        // LOGOUT
+        // ─────────────────────────────────────────────────────────────────────────────
+        async function doLogout() {
+            await firebase.auth().signOut();
+            document.getElementById('verify-guestid').value = '';
+            document.getElementById('verify-room').value = '';
+            hideMsg('verify-error');
+            hideMsg('verify-info');
+            showSection('section-login');
+        }
+
+        // ─────────────────────────────────────────────────────────────────────────────
+        // VERIFY GUEST
+        // ─────────────────────────────────────────────────────────────────────────────
+        async function doVerify() {
+            hideMsg('verify-error');
+            hideMsg('verify-info');
+
+            const guestId = document.getElementById('verify-guestid').value.trim().toUpperCase();
+            const roomNum = document.getElementById('verify-room').value.trim();
+
+            if (!guestId) { showMsg('verify-error', 'Please enter a Guest ID.'); return; }
+            if (!roomNum) { showMsg('verify-error', 'Please enter a Room Number.'); return; }
+
+            setLoading('verify-btn', true);
+            showMsg('verify-info', 'Searching for guest…', true);
+
+            try {
+                const snap = await db.collection('guests')
+                    .where('idNumber', '==', guestId)
+                    .limit(5).get();
+
+                if (snap.empty) {
+                    hideMsg('verify-info');
+                    showMsg('verify-error', `No guest found with ID "${guestId}".`);
+                    showResultFailed(guestId, roomNum, 'Guest ID not found in system.');
+                    return;
+                }
+
+                // Find matching room
+                let matchedDoc = null;
+                let matchedData = null;
+                snap.forEach(doc => {
+                    const d = doc.data();
+                    const r = String(d.roomNumber || d.room || '').trim();
+                    if (r === roomNum.trim()) { matchedDoc = doc; matchedData = d; }
+                });
+
+                if (!matchedDoc) {
+                    const firstData = snap.docs[0].data();
+                    hideMsg('verify-info');
+                    showResultFailed(guestId, roomNum,
+                        `Room mismatch — assigned to Room ${firstData.roomNumber || firstData.room || '?'}`);
+                    return;
+                }
+
+                // ── Check if guest was already verified ──────────────────────────
+                if (matchedData.verified === true) {
+                    hideMsg('verify-info');
+                    showResultAlreadyVerified(matchedData);
+                    return;
+                }
+
+                // ── Mark as verified ─────────────────────────────────────────────
+                await db.collection('guests').doc(matchedDoc.id).update({
+                    verified: true,
+                    verifiedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    verifiedBy: _staffEmail
+                });
+
+                hideMsg('verify-info');
+                showResultSuccess(matchedData);
+
+            } catch (err) {
+                console.error('Verify error:', err);
+                hideMsg('verify-info');
+                showMsg('verify-error', 'Verification failed: ' + err.message);
+            } finally {
+                setLoading('verify-btn', false, '<i class="fas fa-shield-alt"></i> Verify Guest');
+            }
+        }
+
+        document.getElementById('verify-guestid')?.addEventListener('keydown', e => e.key === 'Enter' && document.getElementById('verify-room').focus());
+        document.getElementById('verify-room')?.addEventListener('keydown', e => e.key === 'Enter' && doVerify());
+
+        // ─────────────────────────────────────────────────────────────────────────────
+        // CHECK IN GUEST (updates status to "Checked In")
+        // ─────────────────────────────────────────────────────────────────────────────
+        async function doCheckIn(guestId) {
+            const btn = document.getElementById('checkin-btn');
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner spin"></i> Checking In…';
+            }
+            try {
+                const snap = await db.collection('guests')
+                    .where('idNumber', '==', guestId)
+                    .limit(1).get();
+
+                if (snap.empty) throw new Error('Guest not found');
+
+                const guestData = snap.docs[0].data();
+
+                // ── FIX: Detect if already checked in ────────────────────────────
+                const currentStatus = (guestData.status || '').toLowerCase();
+                if (currentStatus === 'checked in') {
+                    if (btn) {
+                        btn.disabled = true;
+                        btn.innerHTML = '<i class="fas fa-info-circle"></i> Already Checked In';
+                        btn.style.background = 'linear-gradient(135deg,#475569,#64748b)';
+                        btn.style.cursor = 'default';
+                    }
+                    const statusTile = document.getElementById('status-tile-value');
+                    if (statusTile) {
+                        statusTile.textContent = '⚠ Already Checked In';
+                        statusTile.className = 'mini-tile-value amber';
+                    }
+                    return;
+                }
+
+                await db.collection('guests').doc(snap.docs[0].id).update({
+                    status: 'Checked In',
+                    checkedInAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    checkedInBy: _staffEmail
+                });
+
+                // Update the status mini-tile
+                const statusTile = document.getElementById('status-tile-value');
+                if (statusTile) {
+                    statusTile.textContent = '✓ Checked In';
+                    statusTile.className = 'mini-tile-value green';
+                }
+
+                if (btn) {
+                    btn.innerHTML = '<i class="fas fa-check"></i> Checked In!';
+                    btn.style.background = 'linear-gradient(135deg,#15803d,#16a34a)';
+                    btn.style.cursor = 'default';
+                }
+
+            } catch (err) {
+                console.error('Check-in error:', err);
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Check In Guest';
+                }
+                alert('Check-in failed: ' + err.message);
+            }
+        }
+
+        // ─────────────────────────────────────────────────────────────────────────────
+        // RESULT — SUCCESS (freshly verified)
+        // ─────────────────────────────────────────────────────────────────────────────
+        function showResultSuccess(g) {
+            const name = g.name || g.guestName || '—';
+            const room = g.roomNumber || g.room || '—';
+            const initials = name.split(' ').filter(Boolean).map(n => n[0]).join('').slice(0, 2).toUpperCase();
+            const checkin = formatDate(g.checkinDate || g.checkinDateStr);
+            const checkout = formatDate(g.checkoutDate || g.checkoutDateStr);
+            const now = new Date().toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' });
+            const guestId = g.idNumber || '';
+            const isCheckedIn = (g.status || '').toLowerCase() === 'checked in';
+
+            const checkinBtnHTML = isCheckedIn
+                ? `<button id="checkin-btn" class="btn btn-checkin" disabled
+               style="background:linear-gradient(135deg,#475569,#64748b);cursor:default;">
+               <i class="fas fa-info-circle"></i> Already Checked In
+           </button>`
+                : `<button id="checkin-btn" class="btn btn-checkin" onclick="doCheckIn('${guestId}')">
+               <i class="fas fa-sign-in-alt"></i> Check In Guest
+           </button>`;
+
+            const statusLabel = isCheckedIn
+                ? `<div class="mini-tile-value amber" id="status-tile-value">⚠ Already Checked In</div>`
+                : `<div class="mini-tile-value green" id="status-tile-value">✓ Verified</div>`;
+
+            document.getElementById('result-content').innerHTML = `
+        <div class="result-icon-wrap">
+            <svg viewBox="0 0 90 90" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="45" cy="45" r="42"
+                    fill="#dcfce7" stroke="#22c55e" stroke-width="3"
+                    stroke-dasharray="264" stroke-dashoffset="264"
+                    style="animation: circleDraw 0.5s ease 0.1s forwards;"/>
+                <path d="M26 45 L38 57 L64 31"
+                    stroke="#22c55e" stroke-width="5.5"
+                    stroke-linecap="round" stroke-linejoin="round"
+                    stroke-dasharray="58" stroke-dashoffset="58"
+                    style="animation: checkDraw 0.4s ease 0.5s forwards;"/>
+            </svg>
+        </div>
+
+        <div class="result-title success">Guest Verified!</div>
+        <div class="result-sub">Identity confirmed successfully</div>
+
+        <div class="stamp stamp-green">
+            <i class="fas fa-check-circle"></i> Verified at ${now}
+        </div>
+
+        <div class="guest-tile">
+            <div class="guest-tile-top">
+                <div class="guest-avatar-lg">${initials}</div>
+                <div>
+                    <div class="guest-tile-name">${name}</div>
+                    <div class="guest-tile-id">ID: ${guestId || '—'}</div>
+                </div>
+            </div>
+            <div class="guest-tiles-grid">
+                <div class="mini-tile">
+                    <div class="mini-tile-label">Room</div>
+                    <div class="mini-tile-value blue">Room ${room}</div>
+                </div>
+                <div class="mini-tile">
+                    <div class="mini-tile-label">Status</div>
+                    ${statusLabel}
+                </div>
+                <div class="mini-tile">
+                    <div class="mini-tile-label">Check-in</div>
+                    <div class="mini-tile-value">${checkin}</div>
+                </div>
+                <div class="mini-tile">
+                    <div class="mini-tile-label">Checkout</div>
+                    <div class="mini-tile-value">${checkout}</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="result-actions">
+            <div class="result-actions-row">
+                ${checkinBtnHTML}
+            </div>
+            <button class="btn btn-ghost" onclick="resetToVerify()">
+                <i class="fas fa-redo" style="margin-right:6px;"></i> Verify Another Guest
+            </button>
+        </div>
+    `;
+            showSection('section-result');
+        }
+
+        // ─────────────────────────────────────────────────────────────────────────────
+        // RESULT — ALREADY VERIFIED (FIX #2)
+        // ─────────────────────────────────────────────────────────────────────────────
+        function showResultAlreadyVerified(g) {
+            const name = g.name || g.guestName || '—';
+            const room = g.roomNumber || g.room || '—';
+            const initials = name.split(' ').filter(Boolean).map(n => n[0]).join('').slice(0, 2).toUpperCase();
+            const checkin = formatDate(g.checkinDate || g.checkinDateStr);
+            const checkout = formatDate(g.checkoutDate || g.checkoutDateStr);
+            const verifiedAt = g.verifiedAt ? formatDate(g.verifiedAt) + ' (previously)' : 'Previously verified';
+            const isCheckedIn = (g.status || '').toLowerCase() === 'checked in';
+
+            const checkinBtnHTML = isCheckedIn
+                ? `<button id="checkin-btn" class="btn btn-checkin" disabled
+               style="background:linear-gradient(135deg,#475569,#64748b);cursor:default;">
+               <i class="fas fa-info-circle"></i> Already Checked In
+           </button>`
+                : `<button id="checkin-btn" class="btn btn-checkin" onclick="doCheckIn('${g.idNumber || ''}')">
+               <i class="fas fa-sign-in-alt"></i> Check In Guest
+           </button>`;
+
+            const statusLabel = isCheckedIn
+                ? `<div class="mini-tile-value amber" id="status-tile-value">⚠ Already Checked In</div>`
+                : `<div class="mini-tile-value amber" id="status-tile-value">⚠ Re-verified</div>`;
+
+            document.getElementById('result-content').innerHTML = `
+        <div class="result-icon-wrap">
+            <svg viewBox="0 0 90 90" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="45" cy="45" r="42"
+                    fill="#fef3c7" stroke="#f59e0b" stroke-width="3"
+                    stroke-dasharray="264" stroke-dashoffset="264"
+                    style="animation: circleDraw 0.5s ease 0.1s forwards;"/>
+                <line x1="45" y1="38" x2="45" y2="58"
+                    stroke="#f59e0b" stroke-width="6" stroke-linecap="round"
+                    stroke-dasharray="24" stroke-dashoffset="24"
+                    style="animation: checkDraw 0.35s ease 0.45s forwards;"/>
+                <circle cx="45" cy="30" r="3.5" fill="#f59e0b"
+                    style="opacity:0;animation: checkDraw 0.01s ease 0.8s forwards;"/>
+            </svg>
+        </div>
+
+        <div class="result-title already">Already Verified</div>
+        <div class="result-sub">This guest has been verified before</div>
+
+        <div class="stamp stamp-amber">
+            <i class="fas fa-clock"></i> ${verifiedAt}
+        </div>
+
+        <div class="guest-tile" style="border-color:#fde68a;">
+            <div class="guest-tile-top">
+                <div class="guest-avatar-lg" style="background:linear-gradient(135deg,#92400e,#f59e0b);">${initials}</div>
+                <div>
+                    <div class="guest-tile-name">${name}</div>
+                    <div class="guest-tile-id">ID: ${g.idNumber || '—'}</div>
+                </div>
+            </div>
+            <div class="guest-tiles-grid">
+                <div class="mini-tile">
+                    <div class="mini-tile-label">Room</div>
+                    <div class="mini-tile-value blue">Room ${room}</div>
+                </div>
+                <div class="mini-tile">
+                    <div class="mini-tile-label">Status</div>
+                    ${statusLabel}
+                </div>
+                <div class="mini-tile">
+                    <div class="mini-tile-label">Check-in</div>
+                    <div class="mini-tile-value">${checkin}</div>
+                </div>
+                <div class="mini-tile">
+                    <div class="mini-tile-label">Checkout</div>
+                    <div class="mini-tile-value">${checkout}</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="result-actions">
+            <div class="result-actions-row">
+                ${checkinBtnHTML}
+            </div>
+            <button class="btn btn-ghost" onclick="resetToVerify()">
+                <i class="fas fa-redo" style="margin-right:6px;"></i> Verify Another Guest
+            </button>
+        </div>
+    `;
+            showSection('section-result');
+        }
+
+        // ─────────────────────────────────────────────────────────────────────────────
+        // RESULT — FAILED
+        // ─────────────────────────────────────────────────────────────────────────────
+        function showResultFailed(guestId, room, reason) {
+            document.getElementById('result-content').innerHTML = `
+        <div class="result-icon-wrap">
+            <svg viewBox="0 0 90 90" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="45" cy="45" r="42" fill="#fef2f2" stroke="#ef4444" stroke-width="3"
+                    stroke-dasharray="264" stroke-dashoffset="264"
+                    style="animation: circleDraw 0.5s ease 0.1s forwards;"/>
+                <path d="M31 31 L59 59 M59 31 L31 59"
+                    stroke="#ef4444" stroke-width="5.5" stroke-linecap="round"
+                    stroke-dasharray="40" stroke-dashoffset="40"
+                    style="animation: checkDraw 0.4s ease 0.5s forwards;"/>
+            </svg>
+        </div>
+
+        <div class="result-title failed">Verification Failed</div>
+        <div class="result-sub">${reason || 'Guest could not be verified'}</div>
+
+        <div class="guest-tile" style="border-color:#fecaca;background:#fef9f9;">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+                <div style="width:42px;height:42px;border-radius:50%;background:#fee2e2;display:flex;align-items:center;justify-content:center;">
+                    <i class="fas fa-user-times" style="color:#ef4444;font-size:18px;"></i>
+                </div>
+                <div>
+                    <div style="font-size:15px;font-weight:800;color:#1e293b;">Guest Not Verified</div>
+                    <div style="font-size:12px;color:#94a3b8;">ID: ${guestId} / Room: ${room}</div>
+                </div>
+            </div>
+            <div style="background:#fee2e2;border-radius:8px;padding:10px 12px;font-size:13px;color:#dc2626;font-weight:700;">
+                <i class="fas fa-exclamation-triangle" style="margin-right:6px;"></i>${reason}
+            </div>
+        </div>
+
+        <div class="result-actions">
+            <button class="btn btn-ghost" onclick="resetToVerify()">
+                <i class="fas fa-arrow-left" style="margin-right:6px;"></i> Try Again
+            </button>
+        </div>
+    `;
+            showSection('section-result');
+        }
+
+        // ─────────────────────────────────────────────────────────────────────────────
+        // RESET
+        // ─────────────────────────────────────────────────────────────────────────────
+        function resetToVerify() {
+            document.getElementById('verify-guestid').value = '';
+            document.getElementById('verify-room').value = '';
+            hideMsg('verify-error');
+            hideMsg('verify-info');
+            showSection('section-verify');
+        }
+    </script>
+</body>
+
+</html>

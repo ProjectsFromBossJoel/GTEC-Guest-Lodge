@@ -1,0 +1,28 @@
+# robots.txt — GTEC Guest Lodge
+# https://gtecguesthouse.web.app
+
+User-agent: *
+
+# Allow public pages only
+Allow: /index.html
+
+# Block all internal/admin pages from being indexed
+Disallow: /admin.html
+Disallow: /dashboard.html
+Disallow: /logs.html
+Disallow: /roles.html
+Disallow: /rooms.html
+Disallow: /reports.html
+Disallow: /guests.html
+Disallow: /checkout.html
+Disallow: /chat.html
+Disallow: /checkin.html
+Disallow: /verify.html
+Disallow: /verification.html
+Disallow: /reset-password.html
+Disallow: /admin.html/
+Disallow: /js/
+Disallow: /css/
+
+# Sitemap location
+Sitemap: https://gtecguesthouse.web.app/sitemap.xml

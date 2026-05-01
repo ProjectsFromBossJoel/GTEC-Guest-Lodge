@@ -1,0 +1,15 @@
+{
+  "projects": {
+    "default": "guesthousesystem-86fdc"
+  },
+  "targets": {
+    "guesthousesystem-86fdc": {
+      "hosting": {
+        "gtecguesthouse": [
+          "gtecguesthouse"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}

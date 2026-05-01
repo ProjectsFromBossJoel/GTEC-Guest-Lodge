@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Guest House Admin - Live Chat</title>
+
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link rel="icon" type="image/jpg" href="img/logo1.jpg">
+<style>
+    /* Hide sidebar menu instantly until role is confirmed — prevents FOUC */
+    .sidebar-menu { visibility: hidden; }
+</style>
+
+<style>
+.chat-container {
+    display: flex;
+    height: calc(100vh - 180px);
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    overflow: hidden;
+    margin-top: 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+/* ── Left: message list ── */
+.chat-list {
+    width: 300px;
+    flex-shrink: 0;
+    border-right: 1px solid #e2e8f0;
+    overflow-y: auto;
+    background: #f8fafc;
+    display: flex;
+    flex-direction: column;
+}
+
+.chat-list-header {
+    padding: 16px;
+    background: #1f3b57;
+    color: white;
+    font-weight: 700;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.chat-list-header .count {
+    background: rgba(255,255,255,0.2);
+    border-radius: 10px;
+    padding: 2px 8px;
+    font-size: 12px;
+}
+
+.chat-item {
+    padding: 14px 16px;
+    border-bottom: 1px solid #e2e8f0;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.chat-item:hover  { background: #eef2f7; }
+.chat-item.active { background: #dbeafe; border-left: 3px solid #1f3b57; }
+
+.chat-item-name {
+    font-weight: 700;
+    font-size: 13px;
+    color: #1e293b;
+    margin-bottom: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.chat-item-preview {
+    font-size: 12px;
+    color: #94a3b8;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.chat-item-time {
+    font-size: 11px;
+    color: #cbd5e1;
+    margin-top: 3px;
+}
+
+.chat-empty {
+    padding: 40px 20px;
+    text-align: center;
+    color: #94a3b8;
+    font-size: 13px;
+}
+
+/* ── Right: message view ── */
+.chat-view {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: white;
+    min-width: 0;
+}
+
+.chat-view-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid #e2e8f0;
+    background: #fafafa;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.chat-view-avatar {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #1f3b57, #3b82f6);
+    color: white;
+    font-size: 14px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.chat-view-name {
+    font-weight: 700;
+    font-size: 14px;
+    color: #1e293b;
+}
+
+.chat-view-sub {
+    font-size: 12px;
+    color: #94a3b8;
+    margin-top: 1px;
+}
+
+.chat-messages {
+    flex: 1;
+    padding: 24px;
+    overflow-y: auto;
+}
+
+/* Placeholder when nothing selected */
+.chat-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: #94a3b8;
+    font-size: 13px;
+    gap: 12px;
+}
+
+.chat-placeholder i {
+    font-size: 40px;
+    color: #cbd5e1;
+}
+
+/* Message bubble */
+.message-bubble {
+    background: #f1f5f9;
+    border-radius: 12px 12px 12px 0;
+    padding: 14px 18px;
+    max-width: 75%;
+    margin-bottom: 16px;
+}
+
+.message-text {
+    font-size: 14px;
+    color: #334155;
+    line-height: 1.6;
+    margin-bottom: 12px;
+}
+
+.message-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding-top: 12px;
+    border-top: 1px solid #e2e8f0;
+}
+
+.meta-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: #64748b;
+}
+
+.meta-row i {
+    width: 14px;
+    color: #94a3b8;
+    flex-shrink: 0;
+}
+
+.meta-row .meta-missing {
+    color: #cbd5e1;
+    font-style: italic;
+}
+
+.message-time {
+    font-size: 11px;
+    color: #94a3b8;
+    margin-top: 6px;
+    text-align: right;
+}
+
+/* Nav badge */
+.nav-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #ef4444;
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    min-width: 18px;
+    height: 18px;
+    border-radius: 10px;
+    padding: 0 5px;
+    margin-left: auto;
+    line-height: 1;
+}
+
+/* Delete button */
+.btn-delete {
+    margin-left: auto;
+    background: none;
+    border: 1px solid #fca5a5;
+    color: #ef4444;
+    border-radius: 6px;
+    padding: 5px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+.btn-delete:hover { background: #fef2f2; }
+</style>
+
+</head>
+
+<body>
+
+<div class="app-container">
+
+<!-- Sidebar -->
+<aside class="sidebar">
+<div class="sidebar-header">
+<div class="sidebar-logo">
+<img src="img/logo1.jpg" style="width:40px;height:40px;"> Guest Lodge
+</div>
+</div>
+
+<div class="sidebar-menu">
+<div class="menu-label">Main Menu</div>
+<a href="dashboard.html" class="menu-item"><i class="fas fa-chart-pie"></i> Dashboard</a>
+<a href="rooms.html"     class="menu-item"><i class="fas fa-bed"></i> Rooms</a>
+
+<div class="menu-label" style="margin-top:20px;">Guest Activity</div>
+<a href="checkin.html"      class="menu-item"><i class="fas fa-sign-in-alt"></i> Check-In</a>
+<a href="checkout.html"     class="menu-item"><i class="fas fa-sign-out-alt"></i> Check-Out</a>
+<a href="guests.html"       class="menu-item"><i class="fas fa-users"></i> Guests</a>
+<a href="chatroom.html"     class="menu-item"><i class="fas fa-comments"></i> Chat Room</a>
+<a href="logs.html"         class="menu-item"><i class="fas fa-clipboard-list"></i> Logs</a>
+<a href="chat.html"         class="menu-item active"><i class="fas fa-comment"></i> Client Messages
+    <span class="nav-badge" id="nav-chat-count" style="display:none;">0</span>
+</a>
+<a href="verification.html" class="menu-item"><i class="fas fa-user-check"></i> Verification</a>
+<a href="invoice.html"      class="menu-item"><i class="fas fa-file-invoice"></i> Invoice</a>
+<a href="payments.html"     class="menu-item"><i class="fas fa-credit-card"></i> Payments</a>
+<a href="calendar.html" class="menu-item"><i class="fas fa-calendar-alt"></i> Calendar</a>
+<a href="filelibrary.html" class="menu-item"><i class="fas fa-folder-open"></i> File Library</a>
+
+<div class="menu-label" style="margin-top:20px;">Analysis</div>
+<a href="reports.html" class="menu-item"><i class="fas fa-chart-bar"></i> Reports</a>
+<div class="menu-label" style="margin-top:20px;">Administration</div>
+            <a href="profile.html" class="menu-item"><i class="fas fa-circle-user"></i> My Profile</a>
+<a href="roles.html"   class="menu-item"><i class="fas fa-user-shield"></i> Roles</a>
+</div>
+
+<div class="sidebar-footer">
+<a href="#" id="logout-btn" class="menu-item" style="color:var(--status-occupied);padding-left:0;">
+                    <i class="fas fa-power-off"></i> Logout
+                </a>
+</div>
+</aside>
+
+<!-- Main Content -->
+<main class="main-content">
+
+<header class="header">
+<div class="toggle-sidebar"><i class="fas fa-bars"></i></div>
+<div class="header-right" style="margin-left:auto;">
+    <a href="index.html">🏠 Home</a>
+    <div class="user-profile" style="cursor:pointer;" onclick="window.location.href='profile.html'" title="View Profile">
+    <div class="user-avatar"><i class="fas fa-user"></i></div>
+    <span id="user-email-display" style="font-weight:500;">Admin</span>
+</div>
+</div>
+</header>
+
+<div class="content-area">
+
+<h1 class="page-title">Guest Live Chat</h1>
+
+<div class="chat-container">
+
+    <!-- LEFT: message list -->
+    <div class="chat-list">
+        <div class="chat-list-header">
+            <i class="fas fa-comments"></i>
+            Guest Messages
+            <!-- This counter shows UNREAD count only -->
+            <span class="count" id="msg-count" style="display:none;"></span>
+        </div>
+        <div id="chatList">
+            <div class="chat-empty">
+                <i class="fas fa-spinner fa-spin"></i><br>Loading messages...
+            </div>
+        </div>
+    </div>
+
+    <!-- RIGHT: message view -->
+    <div class="chat-view">
+
+        <div class="chat-view-header" id="chatViewHeader">
+            <div class="chat-placeholder" style="padding:0;flex-direction:row;height:auto;color:#94a3b8;font-size:13px;gap:8px;">
+                <i class="fas fa-hand-pointer" style="font-size:16px;color:#cbd5e1;"></i>
+                Select a message to view details
+            </div>
+        </div>
+
+        <div id="chatMessages" class="chat-messages">
+            <div class="chat-placeholder">
+                <i class="fas fa-comments"></i>
+                <span>Select a guest message from the left panel</span>
+            </div>
+        </div>
+
+    </div>
+
+</div>
+</div>
+</main>
+</div>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+<script src="js/firebase.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/sidebar.js"></script>
+<script src="js/logs.js"></script>
+
+<!--
+    chatnotify.js handles the red nav badge on ALL pages (including this one).
+    It queries adminRead == false and updates #nav-chat-count automatically.
+    Load it AFTER firebase.js so window.db is available.
+-->
+<script src="js/chatnotify.js"></script>
+
+<script>
+const chatList     = document.getElementById("chatList");
+const chatMessages = document.getElementById("chatMessages");
+const chatHeader   = document.getElementById("chatViewHeader");
+const msgCount     = document.getElementById("msg-count");
+
+let activeDocId = null;
+
+// ── Load ALL messages (for the list view), real-time ──────────────────────
+db.collection("liveChats")
+    .orderBy("time", "desc")
+    .onSnapshot(snapshot => {
+
+        // Count unread and total
+        let unreadCount = 0;
+        let totalCount = 0;
+        snapshot.forEach(doc => {
+            totalCount++;
+            if (doc.data().adminRead === false) unreadCount++;
+        });
+
+        // Show total count in the in-page pill always, with unread highlighted
+        if (totalCount > 0) {
+            msgCount.textContent = totalCount;
+            msgCount.style.display = "inline-flex";
+            msgCount.style.background = unreadCount > 0 ? "rgba(255,255,255,0.25)" : "rgba(255,255,255,0.15)";
+        } else {
+            msgCount.style.display = "none";
+        }
+
+        // Render the message list
+        chatList.innerHTML = "";
+        if (snapshot.empty) {
+            chatList.innerHTML = `<div class="chat-empty"><i class="fas fa-inbox"></i><br>No messages yet</div>`;
+            return;
+        }
+
+        snapshot.forEach(doc => {
+            const data    = doc.data();
+            const name    = data.name || "Unknown";
+            const preview = (data.message || "").substring(0, 45);
+            const time    = data.time?.toDate
+                ? data.time.toDate().toLocaleString("en-GB", { day:"numeric", month:"short", hour:"2-digit", minute:"2-digit" })
+                : "";
+
+            // "New" badge only shown when message is unread
+            const unreadBadge = (data.adminRead === false)
+                ? '<span style="background:#ef4444;color:white;border-radius:10px;padding:2px 8px;font-size:10px;margin-left:8px;">New</span>'
+                : '';
+
+            const div = document.createElement("div");
+            div.className = "chat-item" + (doc.id === activeDocId ? " active" : "");
+            div.dataset.id = doc.id;
+            div.innerHTML = `
+                <div class="chat-item-name">
+                    <span>${name}</span>
+                    ${unreadBadge}
+                </div>
+                <div class="chat-item-preview">${preview}${(data.message?.length > 45) ? '…' : ''}</div>
+                <div class="chat-item-time">${time}</div>
+            `;
+
+            div.onclick = () => openMessage(doc.id, data, div);
+            chatList.appendChild(div);
+        });
+    });
+
+// ── Open a message and mark as read ───────────────────────────────────────
+async function openMessage(docId, data, clickedEl) {
+    activeDocId = docId;
+
+    // Highlight active item
+    document.querySelectorAll(".chat-item").forEach(el => el.classList.remove("active"));
+    clickedEl.classList.add("active");
+
+    // Mark as read — chatnotify.js will pick up the change automatically
+    // and decrement the nav badge without any extra code here
+    if (data.adminRead === false) {
+        try {
+            await db.collection("liveChats").doc(docId).update({ adminRead: true });
+        } catch (err) {
+            console.warn("Failed to mark as read:", err);
+        }
+    }
+
+    const name    = data.name    || "Unknown";
+    const email   = data.email   || null;
+    const phone   = data.phone   || null;
+    const message = data.message || "";
+    const time    = data.time?.toDate
+        ? data.time.toDate().toLocaleString("en-GB", { dateStyle:"full", timeStyle:"short" })
+        : "Unknown time";
+
+    const initials = name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
+
+    // Update header
+    chatHeader.innerHTML = `
+        <div class="chat-view-avatar">${initials}</div>
+        <div>
+            <div class="chat-view-name">${name}</div>
+            <div class="chat-view-sub">${time}</div>
+        </div>
+        <button class="btn-delete" onclick="deleteMessage('${docId}')">
+            <i class="fas fa-trash"></i> Delete
+        </button>
+    `;
+
+    // Show message bubble
+    chatMessages.innerHTML = `
+        <div class="message-bubble">
+            <div class="message-text">${message}</div>
+            <div class="message-meta">
+                <div class="meta-row">
+                    <i class="fas fa-envelope"></i>
+                    ${email
+                        ? `<a href="mailto:${email}" style="color:#1f3b57;">${email}</a>`
+                        : `<span class="meta-missing">Email not provided</span>`}
+                </div>
+                <div class="meta-row">
+                    <i class="fas fa-phone"></i>
+                    ${phone
+                        ? `<a href="tel:${phone}" style="color:#1f3b57;">${phone}</a>`
+                        : `<span class="meta-missing">Phone not provided</span>`}
+                </div>
+            </div>
+            <div class="message-time">${time}</div>
+        </div>
+    `;
+}
+
+// ── Delete a message ──────────────────────────────────────────────────────
+async function deleteMessage(docId) {
+    if (!confirm("Delete this message?")) return;
+    try {
+        await db.collection("liveChats").doc(docId).delete();
+        chatMessages.innerHTML = `<div class="chat-placeholder"><i class="fas fa-comments"></i><span>Message deleted. Select another.</span></div>`;
+        chatHeader.innerHTML   = `<div class="chat-placeholder" style="padding:0;flex-direction:row;height:auto;color:#94a3b8;font-size:13px;gap:8px;"><i class="fas fa-hand-pointer" style="font-size:16px;color:#cbd5e1;"></i>Select a message to view details</div>`;
+        activeDocId = null;
+    } catch(e) {
+        console.error("Delete failed:", e);
+        alert("Failed to delete message.");
+    }
+}
+</script>
+
+</body>
+</html>

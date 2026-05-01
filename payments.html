@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payments – GTEC Guest Lodge</title>
+
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+    <script src="js/firebase.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/sidebar.js"></script>
+
+    <style>
+        body { background: #ffffff; }
+        .payments-container { max-width: 1400px; margin: 0 auto; }
+        .payment-filters { margin: 20px 0; display: flex; gap: 15px; flex-wrap: wrap; align-items: center; }
+        .filter-btn {
+            padding: 8px 18px; border-radius: 30px; border: 1px solid #e2e8f0;
+            background: white; font-weight: 600; cursor: pointer; transition: all 0.2s;
+        }
+        .filter-btn.active { background: #4361ee; color: white; border-color: #4361ee; }
+        .search-bar {
+            margin: 20px 0;
+            display: flex;
+            justify-content: flex-end;
+        }
+        .search-input {
+            padding: 10px 16px;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 30px;
+            width: 280px;
+            font-size: 14px;
+            font-family: 'DM Sans', sans-serif;
+            outline: none;
+            transition: all 0.2s;
+        }
+        .search-input:focus {
+            border-color: #4361ee;
+            box-shadow: 0 0 0 3px rgba(67,97,238,0.1);
+        }
+
+        /* TABLE: no fixed layout, no ellipsis — let content breathe */
+        .payment-table {
+            background: white;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+            width: 100%;
+            border-collapse: collapse;
+            /* Removed table-layout: fixed — was causing truncation */
+        }
+
+        .payment-table th, .payment-table td {
+            padding: 14px 16px;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+            vertical-align: middle;
+            /* Removed: overflow:hidden, text-overflow:ellipsis, white-space:nowrap */
+            /* These were cutting off Room numbers and email addresses */
+            word-break: break-word; /* gracefully wrap long emails instead of clipping */
+        }
+
+        .payment-table th { background: #f8fafc; font-weight: 700; color: #1e293b; white-space: nowrap; }
+        .payment-table tr:hover { background: #fef9e6; }
+
+        /* Give the Collected By column a sensible min-width so emails wrap, not clip */
+        .payment-table th:last-child,
+        .payment-table td:last-child {
+            min-width: 200px;
+        }
+
+        .status-badge {
+            display: inline-block; padding: 4px 12px; border-radius: 30px; font-size: 12px; font-weight: 700;
+        }
+        .status-paid { background: #dcfce7; color: #15803d; }
+        .status-unpaid { background: #fee2e2; color: #b91c1c; }
+
+        .collected-by {
+            font-size: 12px;
+            color: #4b5563;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .collected-by .collector-name {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-weight: 500;
+        }
+        .collected-by .collector-time {
+            font-size: 11px;
+            color: #94a3b8;
+        }
+
+        .empty-state { text-align: center; padding: 60px; background: white; border-radius: 20px; color: #64748b; }
+        .toast {
+            position: fixed; bottom: 24px; right: 24px; background: #0f172a; color: white;
+            padding: 12px 20px; border-radius: 12px; display: flex; align-items: center; gap: 10px;
+            z-index: 1000; opacity: 0; transform: translateY(10px); transition: all 0.3s;
+        }
+        .toast.show { opacity: 1; transform: translateY(0); }
+
+        /* ── PAGINATION ── */
+        .pagination-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 20px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .pagination-info {
+            font-size: 14px;
+            color: #64748b;
+            font-family: 'DM Sans', sans-serif;
+        }
+        .pagination-controls {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .page-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: 1.5px solid #e2e8f0;
+            background: white;
+            font-weight: 600;
+            font-size: 13px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            font-family: 'DM Sans', sans-serif;
+            color: #374151;
+        }
+        .page-btn:hover:not(:disabled) { background: #f0f4ff; border-color: #4361ee; color: #4361ee; }
+        .page-btn.active { background: #4361ee; color: white; border-color: #4361ee; }
+        .page-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+        .page-btn.nav { font-size: 15px; }
+    </style>
+</head>
+
+<body>
+
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-logo">
+                <img src="img/logo1.jpg" alt="Logo" style="width:40px;height:40px;border-radius:8px;"> Guest Lodge
+            </div>
+        </div>
+        <div class="sidebar-menu" id="sidebarMenu" style="visibility:hidden;">
+            <div class="menu-label">Main Menu</div>
+            <a href="dashboard.html" class="menu-item"><i class="fas fa-chart-pie"></i> Dashboard</a>
+            <a href="rooms.html"     class="menu-item"><i class="fas fa-bed"></i> Rooms</a>
+            <div class="menu-label" style="margin-top:20px;">Guest Activity</div>
+            <a href="checkin.html"      class="menu-item"><i class="fas fa-sign-in-alt"></i> Check-In</a>
+            <a href="checkout.html"     class="menu-item"><i class="fas fa-sign-out-alt"></i> Check-Out</a>
+            <a href="guests.html"       class="menu-item"><i class="fas fa-users"></i> Guests</a>
+            <a href="chatroom.html"     class="menu-item"><i class="fas fa-comments"></i> Chat Room</a>
+            <a href="logs.html"         class="menu-item"><i class="fas fa-clipboard-list"></i> Logs</a>
+            <a href="chat.html"         class="menu-item"><i class="fas fa-comment"></i> Client Messages</a>
+            <a href="verification.html" class="menu-item"><i class="fas fa-user-check"></i> Verification</a>
+            <a href="invoice.html"      class="menu-item"><i class="fas fa-file-invoice"></i> Invoice</a>
+            <a href="payments.html"     class="menu-item active"><i class="fas fa-credit-card"></i> Payments</a>
+            <a href="calendar.html"     class="menu-item"><i class="fas fa-calendar-alt"></i> Calendar</a>
+            <a href="filelibrary.html"  class="menu-item"><i class="fas fa-folder-open"></i> File Library</a>
+            <div class="menu-label" style="margin-top:20px;">Analysis</div>
+            <a href="reports.html" class="menu-item"><i class="fas fa-chart-bar"></i> Reports</a>
+            <div class="menu-label" style="margin-top:20px;">Administration</div>
+            <a href="profile.html" class="menu-item"><i class="fas fa-circle-user"></i> My Profile</a>
+            <a href="roles.html"   class="menu-item"><i class="fas fa-user-shield"></i> Roles</a>
+        </div>
+        <div class="sidebar-footer">
+            <a href="#" id="logout-btn" class="menu-item" style="color:var(--status-occupied);padding-left:0;">
+                <i class="fas fa-power-off"></i> Logout
+            </a>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <header class="header">
+            <div class="header-title">
+                <i class="fas fa-credit-card" style="color:var(--gold);margin-right:10px;"></i> Payment Management
+            </div>
+            <div class="header-right">
+                <a href="index.html" style="color:var(--muted);font-size:14px;font-weight:500;">🏠 Home</a>
+                <div class="user-profile" style="cursor:pointer;" onclick="window.location.href='profile.html'" title="View Profile">
+                    <div class="user-avatar"><i class="fas fa-user"></i></div>
+                    <span id="user-email-display" style="font-weight:500;">Admin</span>
+                </div>
+            </div>
+        </header>
+
+        <div class="content-area">
+            <div class="payments-container">
+                <div class="payment-filters">
+                    <button class="filter-btn active" data-filter="all">All Invoices</button>
+                </div>
+
+                <div class="search-bar">
+                    <input type="text" id="searchGuestName" class="search-input" placeholder="🔍 Search by guest name...">
+                </div>
+
+                <table class="payment-table" id="paymentTable">
+                    <thead>
+                        <tr>
+                            <th>Invoice #</th>
+                            <th>Guest Name</th>
+                            <th>Room</th>
+                            <th>Total (GHS)</th>
+                            <th>Payment Method</th>
+                            <th>Status</th>
+                            <th>Collected By</th>
+                        </tr>
+                    </thead>
+                    <tbody id="paymentTableBody">
+                        <tr><td colspan="7" class="empty-state">Loading invoices...</td></tr>
+                    </tbody>
+                </table>
+
+                <!-- Pagination bar -->
+                <div class="pagination-bar" id="paginationBar" style="display:none;">
+                    <div class="pagination-info" id="paginationInfo"></div>
+                    <div class="pagination-controls" id="paginationControls"></div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div id="toast" class="toast"></div>
+
+    <script src="js/chatnotify.js"></script>
+
+    <script>
+        let currentFilter = 'all';
+        let allInvoices   = [];
+        let searchTerm    = '';
+        let currentPage   = 1;
+        const PAGE_SIZE   = 10;
+
+        /* ── helpers ── */
+        function showToast(msg, type = 'success') {
+            const toast = document.getElementById('toast');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'}"></i> ${msg}`;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        function getPaymentMethodLabel(method) {
+            switch(method) {
+                case 'momo': return '📲 Mobile Money';
+                case 'cash': return '💵 Cash';
+                case 'bank': return '🏦 Bank Transfer';
+                default:     return method || '—';
+            }
+        }
+
+        const isPaid = inv => (inv.paymentStatus || '').toLowerCase() === 'paid';
+
+        /* ── load ── */
+        async function loadInvoices() {
+            const tbody = document.getElementById('paymentTableBody');
+            tbody.innerHTML = `<tr><td colspan="7" class="empty-state"><i class="fas fa-spinner fa-spin"></i> Loading invoices...</td></tr>`;
+            try {
+                const snapshot = await db.collection('invoices').get();
+                allInvoices = [];
+                snapshot.forEach(doc => allInvoices.push({ id: doc.id, ...doc.data() }));
+                allInvoices.sort((a, b) => {
+                    const tA = a.createdAt?.toDate?.()?.getTime() || 0;
+                    const tB = b.createdAt?.toDate?.()?.getTime() || 0;
+                    return tB - tA;
+                });
+                currentPage = 1;
+                renderTable();
+            } catch (err) {
+                console.error('Error loading invoices:', err);
+                tbody.innerHTML = `<tr><td colspan="7" class="empty-state">Failed to load invoices. Check console.</td></tr>`;
+            }
+        }
+
+        /* ── filter + paginate ── */
+        function getFiltered() {
+            let filtered = allInvoices.filter(inv => !(inv.invoiceNumber || '').startsWith('#PENDING-'));
+            if (currentFilter === 'paid') filtered = filtered.filter(isPaid);
+            if (searchTerm.trim()) {
+                const term = searchTerm.trim().toLowerCase();
+                filtered = filtered.filter(inv => (inv.guestName || '').toLowerCase().includes(term));
+            }
+            return filtered;
+        }
+
+        /* ── render ── */
+        function renderTable() {
+            const filtered   = getFiltered();
+            const totalItems = filtered.length;
+            const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
+
+            // clamp page
+            if (currentPage > totalPages) currentPage = totalPages;
+
+            const start  = (currentPage - 1) * PAGE_SIZE;
+            const end    = Math.min(start + PAGE_SIZE, totalItems);
+            const paged  = filtered.slice(start, end);
+
+            const tbody = document.getElementById('paymentTableBody');
+
+            if (!totalItems) {
+                tbody.innerHTML = `<tr><td colspan="7" class="empty-state">No invoices found.</td></tr>`;
+                document.getElementById('paginationBar').style.display = 'none';
+                return;
+            }
+
+            tbody.innerHTML = paged.map(inv => {
+                const total  = inv.subtotal || 0;
+                const method = inv.paymentMethod || 'momo';
+                const paid   = isPaid(inv);
+                const status      = paid ? 'Paid' : 'Unpaid';
+                const statusClass = paid ? 'status-paid' : 'status-unpaid';
+                const collectedBy = inv.generatedBy || '';
+
+                let collectedTime = '';
+                try {
+                    const src = inv.paidAt || inv.createdAt;
+                    if (src) {
+                        const d = src.toDate ? src.toDate() : new Date(src);
+                        collectedTime = d.toLocaleString();
+                    }
+                } catch(e) {}
+
+                const collectedByHtml = collectedBy
+                    ? `<div class="collected-by">
+                            <span class="collector-name"><i class="fas fa-user-check"></i> ${collectedBy}</span>
+                            ${collectedTime ? `<span class="collector-time">${collectedTime}</span>` : ''}
+                       </div>`
+                    : '—';
+
+                return `
+                    <tr>
+                        <td><strong>${inv.invoiceNumber || '—'}</strong></td>
+                        <td>${inv.guestName || '—'}</td>
+                        <td>${inv.room ? `Room ${inv.room}` : '—'}</td>
+                        <td>GHS ${total.toFixed(2)}</td>
+                        <td>${getPaymentMethodLabel(method)}</td>
+                        <td><span class="status-badge ${statusClass}">${status}</span></td>
+                        <td>${collectedByHtml}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            /* pagination info */
+            const bar  = document.getElementById('paginationBar');
+            const info = document.getElementById('paginationInfo');
+            const ctrl = document.getElementById('paginationControls');
+            bar.style.display = 'flex';
+            info.textContent  = `Showing ${start + 1}–${end} of ${totalItems} invoice${totalItems !== 1 ? 's' : ''}`;
+
+            /* build page buttons */
+            let btns = '';
+            btns += `<button class="page-btn nav" id="btnPrev" ${currentPage === 1 ? 'disabled' : ''}>&#8249;</button>`;
+
+            // show at most 5 page numbers centred around current
+            const delta = 2;
+            let pStart  = Math.max(1, currentPage - delta);
+            let pEnd    = Math.min(totalPages, currentPage + delta);
+            if (pEnd - pStart < delta * 2) {
+                pStart = Math.max(1, pEnd - delta * 2);
+                pEnd   = Math.min(totalPages, pStart + delta * 2);
+            }
+
+            if (pStart > 1)          btns += `<button class="page-btn" data-p="1">1</button>${pStart > 2 ? '<span style="padding:0 4px;color:#94a3b8;">…</span>' : ''}`;
+            for (let p = pStart; p <= pEnd; p++) {
+                btns += `<button class="page-btn${p === currentPage ? ' active' : ''}" data-p="${p}">${p}</button>`;
+            }
+            if (pEnd < totalPages)   btns += `${pEnd < totalPages - 1 ? '<span style="padding:0 4px;color:#94a3b8;">…</span>' : ''}<button class="page-btn" data-p="${totalPages}">${totalPages}</button>`;
+
+            btns += `<button class="page-btn nav" id="btnNext" ${currentPage === totalPages ? 'disabled' : ''}>&#8250;</button>`;
+            ctrl.innerHTML = btns;
+
+            /* wire up events */
+            ctrl.querySelector('#btnPrev')?.addEventListener('click', () => { currentPage--; renderTable(); });
+            ctrl.querySelector('#btnNext')?.addEventListener('click', () => { currentPage++; renderTable(); });
+            ctrl.querySelectorAll('.page-btn[data-p]').forEach(btn => {
+                btn.addEventListener('click', () => { currentPage = +btn.dataset.p; renderTable(); });
+            });
+        }
+
+        /* ── filter buttons ── */
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentFilter = btn.dataset.filter;
+                currentPage   = 1;
+                renderTable();
+            });
+        });
+
+        /* ── search ── */
+        document.getElementById('searchGuestName').addEventListener('input', e => {
+            searchTerm  = e.target.value;
+            currentPage = 1;
+            renderTable();
+        });
+
+        /* ── auth + load ── */
+        firebase.auth().onAuthStateChanged(user => {
+            if (user) {
+                document.getElementById('user-email-display').innerText = user.email;
+                loadInvoices();
+            } else {
+                document.getElementById('paymentTableBody').innerHTML =
+                    `<tr><td colspan="7" class="empty-state">Please log in to view payments.</td></tr>`;
+            }
+        });
+
+        setTimeout(() => {
+            const sm = document.getElementById('sidebarMenu');
+            if (sm) sm.style.visibility = 'visible';
+        }, 100);
+    </script>
+</body>
+</html>
