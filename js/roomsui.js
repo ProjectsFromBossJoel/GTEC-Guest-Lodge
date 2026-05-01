@@ -357,8 +357,8 @@ console.log("[Firestore] Placeholder invoice created ✅");
 
 
                         // ─────────── AUTOMATIC WHATSAPP NOTIFICATION (via Vercel API) ───────────
-            try {
-                let rawPhone = phone.replace(/\D/g, '');          // remove non‑digits
+                        try {
+                let rawPhone = phone.replace(/\D/g, '');
                 if (rawPhone.startsWith('0')) rawPhone = rawPhone.slice(1);
                 if (!rawPhone.startsWith('233')) rawPhone = '233' + rawPhone;
                 const whatsappNumber = rawPhone;
@@ -370,11 +370,11 @@ console.log("[Firestore] Placeholder invoice created ✅");
                     `Nights: ${nights}\n` +
                     `Guest: ${name}`;
 
-                await fetch('https://gtec-whatsapp-api.vercel.app/api/send-whatsapp', {
+                const response = await fetch('https://gtec-whatsapp-api.vercel.app/api/send-whatsapp', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'x-api-key': 'gtec-2026-wa-secret'      // must match Vercel's API_SECRET
+                        'x-api-key': 'gtec-2026-wa-secret'
                     },
                     body: JSON.stringify({
                         customerPhone: whatsappNumber,
@@ -382,7 +382,14 @@ console.log("[Firestore] Placeholder invoice created ✅");
                         bookingDetails: bookingDetails
                     })
                 });
-                console.log('[WhatsApp] ✅ Auto‑message sent to', whatsappNumber);
+
+                const data = await response.json();
+                if (response.ok) {
+                    console.log('[WhatsApp] ✅ Auto‑message sent to', whatsappNumber);
+                } else {
+                    // Show the detailed error from the WhatsApp API
+                    console.error('[WhatsApp] ❌ Server responded with error:', data);
+                }
             } catch (err) {
                 console.warn('[WhatsApp] ⚠️ Failed to send (non‑critical):', err.message);
             }
