@@ -1118,14 +1118,24 @@ const PDF_OPTIONS = {
     margin:      [6, 6, 6, 6],
     image:       { type: 'png' },
     html2canvas: {
-        scale:        3,
-        useCORS:      true,
-        logging:      false,
-        scrollX:      0,
-        scrollY:      0,
-        windowWidth:  794,
-        windowHeight: 1123,
-        backgroundColor: '#ffffff'
+        scale:           3,
+        useCORS:         true,
+        logging:         false,
+        scrollX:         0,
+        scrollY:         0,
+        backgroundColor: '#ffffff',
+        width:           794,
+        onclone:         (clonedDoc) => {
+            // Ensure the cloned invoice element is fully visible before capture
+            const el = clonedDoc.getElementById('invoiceDoc');
+            if (el) {
+                el.style.display    = 'block';
+                el.style.visibility = 'visible';
+                el.style.opacity    = '1';
+                el.style.width      = '794px';
+                el.style.maxWidth   = '794px';
+            }
+        }
     },
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
 };
@@ -1332,15 +1342,16 @@ function buildPrintClone() {
     const clone  = source.cloneNode(true);
     const wrapper = document.createElement('div');
     Object.assign(wrapper.style, {
-        position:       'fixed',
-        top:            '0',
-        left:           '0',
-        width:          '794px',
-        background:     '#ffffff',
-        zIndex:         '-9999',
-        overflow:       'visible',
-        opacity:        '0',
-        pointerEvents:  'none'
+        position:      'absolute',
+        top:           '0',
+        left:          '-9999px',
+        width:         '794px',
+        background:    '#ffffff',
+        zIndex:        '-9999',
+        overflow:      'visible',
+        opacity:       '0',
+        pointerEvents: 'none',
+        visibility:    'hidden'
     });
     Object.assign(clone.style, {
         display:      'block',
