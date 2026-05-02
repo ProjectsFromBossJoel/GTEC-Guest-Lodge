@@ -235,6 +235,12 @@
             border-radius: 10px; font-size: 14px; font-family: 'DM Sans', sans-serif;
             outline: none; transition: border 0.2s, box-shadow 0.2s;
             background: #f8fafc; color: var(--ink);
+            min-width: 0; box-sizing: border-box;
+        }
+
+        input[type="datetime-local"].field-input {
+            font-size: 12px;
+            padding: 10px 8px;
         }
 
         .field-input:focus {
@@ -242,7 +248,7 @@
             box-shadow: 0 0 0 3px rgba(67,97,238,0.1);
         }
 
-        .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; min-width: 0; overflow: hidden; }
 
         .charges-section { margin-bottom: 20px; }
 
@@ -865,12 +871,12 @@
                         </div>
                         <div class="field-row">
                             <div class="field-group">
-                                <label class="field-label">Check-in Date</label>
-                                <input type="date" id="fCheckin" class="field-input" onchange="updateNights()">
+                                <label class="field-label">Check-in Date & Time</label>
+                                <input type="datetime-local" id="fCheckin" class="field-input" onchange="updateNights()">
                             </div>
                             <div class="field-group">
-                                <label class="field-label">Check-out Date</label>
-                                <input type="date" id="fCheckout" class="field-input" onchange="updateNights()">
+                                <label class="field-label">Check-out Date & Time</label>
+                                <input type="datetime-local" id="fCheckout" class="field-input" onchange="updateNights()">
                             </div>
                         </div>
 
@@ -1105,6 +1111,56 @@
 
     <div id="toast" class="toast"></div>
 
+    <!-- ── Upload Guard Modal ── -->
+    <div id="uploadGuardModal" style="
+        display:none; position:fixed; inset:0; z-index:9998;
+        background:rgba(10,18,30,0.75); backdrop-filter:blur(6px);
+        align-items:center; justify-content:center; padding:20px;
+    ">
+        <div style="
+            background:white; border-radius:20px; padding:36px 32px 28px;
+            max-width:420px; width:100%; text-align:center;
+            box-shadow:0 32px 80px rgba(0,0,0,0.3);
+            animation: fadeIn 0.3s ease;
+        ">
+            <div style="
+                width:64px; height:64px; border-radius:16px;
+                background:#fff3cd; border:2px solid #fde68a;
+                display:flex; align-items:center; justify-content:center;
+                font-size:28px; margin:0 auto 20px;
+            ">⏳</div>
+            <h3 style="font-family:'Playfair Display',serif;font-size:20px;color:#0f1923;margin:0 0 10px;">
+                Upload in Progress
+            </h3>
+            <p style="font-size:14px;color:#64748b;line-height:1.6;margin:0 0 8px;">
+                Your invoice PDF is still being saved to <strong>Google Drive</strong>.
+            </p>
+            <p style="font-size:13px;color:#94a3b8;margin:0 0 28px;">
+                Leaving now will cancel the upload. The invoice data is already saved — only the Drive PDF will be lost.
+            </p>
+            <div style="display:flex;gap:12px;">
+                <button id="uploadGuardStay" style="
+                    flex:1; padding:12px; border-radius:12px;
+                    background:linear-gradient(135deg,#0f1923,#1e3a5f);
+                    color:white; border:none; font-size:14px; font-weight:700;
+                    cursor:pointer; font-family:'DM Sans',sans-serif;
+                    transition:all 0.2s;
+                " onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
+                    ⏳ Wait for Upload
+                </button>
+                <button id="uploadGuardLeave" style="
+                    flex:1; padding:12px; border-radius:12px;
+                    background:#fef2f2; color:#dc2626;
+                    border:1.5px solid #fecaca; font-size:14px; font-weight:700;
+                    cursor:pointer; font-family:'DM Sans',sans-serif;
+                    transition:all 0.2s;
+                " onmouseover="this.style.background='#fee2e2'" onmouseout="this.style.background='#fef2f2'">
+                    Leave Anyway
+                </button>
+            </div>
+        </div>
+    </div
+
     <script src="js/chatnotify.js" defer></script>
 
     <script>
@@ -1146,6 +1202,8 @@ let chargeCount    = 0;
 let invoiceCounter = Math.floor(Math.random() * 900) + 100;
 let currentInvNumber = '';
 let currentGuestName = '';
+let _uploadInProgress = false;
+let _pendingNavUrl    = null;
 
 // ── localStorage history ──────────────────────────────────────────────
 const STORAGE_KEY = 'gtec_invoice_history';
@@ -1185,8 +1243,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const today    = new Date();
     const tomorrow = new Date(today);
     tomorrow.setDate(today.getDate() + 1);
-    document.getElementById('fCheckin').value  = today.toISOString().split('T')[0];
-    document.getElementById('fCheckout').value = tomorrow.toISOString().split('T')[0];
+    // Default check-in to today at 12:00, check-out tomorrow at 11:00
+    const pad = n => String(n).padStart(2, '0');
+    document.getElementById('fCheckin').value  = `${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}T12:00`;
+    document.getElementById('fCheckout').value = `${tomorrow.getFullYear()}-${pad(tomorrow.getMonth()+1)}-${pad(tomorrow.getDate())}T11:00`;
     addCharge('Room Accommodation', '');
     updateNights();
     updateBadge();
@@ -1209,7 +1269,7 @@ function updateNights() {
     const badge     = document.getElementById('nightsBadge');
     const badgeText = document.getElementById('nightsBadgeText');
     if (!ci || !co) { badge.style.display = 'none'; return; }
-    const nights = Math.round((new Date(co + 'T00:00:00Z') - new Date(ci + 'T00:00:00Z')) / (1000 * 60 * 60 * 24));
+    const nights = Math.round((new Date(co) - new Date(ci)) / (1000 * 60 * 60 * 24));
     if (nights <= 0) {
         badge.style.display = 'flex'; badge.style.background = '#fef2f2'; badge.style.borderColor = '#fecaca';
         badgeText.style.color = '#dc2626'; badgeText.textContent = '⚠️ Check-out must be after check-in';
@@ -1264,8 +1324,16 @@ function selectGuest(g) {
     document.getElementById('fRoom').value    = g.roomNumber || g.room || '';
     document.getElementById('fGuests').value  = g.guestsCount || 1;
     document.getElementById('fGuestId').value = g.idNumber || '';
-    if (g.checkinDateStr)  document.getElementById('fCheckin').value  = new Date(g.checkinDateStr).toISOString().split('T')[0];
-    if (g.checkoutDateStr) document.getElementById('fCheckout').value = new Date(g.checkoutDateStr).toISOString().split('T')[0];
+    if (g.checkinDateStr) {
+        const ci = new Date(g.checkinDateStr);
+        const pad = n => String(n).padStart(2, '0');
+        document.getElementById('fCheckin').value = `${ci.getFullYear()}-${pad(ci.getMonth()+1)}-${pad(ci.getDate())}T${pad(ci.getHours())}:${pad(ci.getMinutes())}`;
+    }
+    if (g.checkoutDateStr) {
+        const co = new Date(g.checkoutDateStr);
+        const pad = n => String(n).padStart(2, '0');
+        document.getElementById('fCheckout').value = `${co.getFullYear()}-${pad(co.getMonth()+1)}-${pad(co.getDate())}T${pad(co.getHours())}:${pad(co.getMinutes())}`;
+    }
     updateNights();
     const initials = (g.name || '?').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
     document.getElementById('guestCardAvatar').textContent = initials;
@@ -1315,7 +1383,7 @@ function recalcRoomCharge(rateInput) {
     const ci  = document.getElementById('fCheckin').value;
     const co  = document.getElementById('fCheckout').value;
     const rate   = parseFloat(rateInput.value) || 0;
-    const nights = (ci && co) ? Math.max(0, Math.round((new Date(co + 'T00:00:00Z') - new Date(ci + 'T00:00:00Z')) / (1000 * 60 * 60 * 24))) : 0;
+    const nights = (ci && co) ? Math.max(0, Math.round((new Date(co) - new Date(ci)) / (1000 * 60 * 60 * 24))) : 0;
     const row        = rateInput.closest('.charge-item');
     const totalInput = row.querySelector('.charge-amount');
     const desc       = row.querySelector('.charge-desc');
@@ -1428,13 +1496,7 @@ function hideDriveToast() {
 async function uploadInvoiceToDriveAndGetUrl(fileName, invNum, guestName) {
     showDriveToast('uploading', 'Uploading invoice PDF…');
 
-    // Warn user if they try to leave while upload is in progress
-    const beforeUnloadHandler = (e) => {
-        e.preventDefault();
-        e.returnValue = 'Invoice is still uploading to Google Drive. If you leave, the PDF will not be saved. Are you sure?';
-        return e.returnValue;
-    };
-    window.addEventListener('beforeunload', beforeUnloadHandler);
+    _uploadInProgress = true;
 
     const { clone, cleanup } = buildPrintClone();
     try {
@@ -1494,8 +1556,12 @@ async function uploadInvoiceToDriveAndGetUrl(fileName, invNum, guestName) {
         return null;
     } finally {
         cleanup();
-        // Remove the navigation warning once upload is done (success or fail)
-        window.removeEventListener('beforeunload', beforeUnloadHandler);
+        _uploadInProgress = false;
+        // If user was waiting to navigate, send them now
+        if (_pendingNavUrl) {
+            window.location.href = _pendingNavUrl;
+            _pendingNavUrl = null;
+        }
     }
 }
 
@@ -1555,14 +1621,16 @@ async function generateInvoice() {
     const notes    = document.getElementById('fNotes').value.trim();
     const guestId  = document.getElementById('fGuestId').value.trim();
  
-    const ciDate = checkin  ? new Date(checkin  + 'T00:00:00Z') : null;
-    const coDate = checkout ? new Date(checkout + 'T00:00:00Z') : null;
+    const ciDate = checkin  ? new Date(checkin)  : null;
+    const coDate = checkout ? new Date(checkout) : null;
     const nights = ciDate && coDate
         ? Math.max(0, Math.round((coDate - ciDate) / (1000 * 60 * 60 * 24)))
         : 0;
  
-    const fmt    = d => d ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
-    const fmtDay = d => d ? new Date(d).toLocaleDateString('en-GB', { weekday: 'long' }) : '—';
+    const fmtDate = d => d ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+    const fmtTime = d => d ? new Date(d).toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true }) : '';
+    const fmt     = d => d ? fmtDate(d) : '—';
+    const fmtDay  = d => d ? new Date(d).toLocaleDateString('en-GB', { weekday: 'long' }) : '—';
  
     // Collect charge rows
     const chargeItems = [];
@@ -1617,8 +1685,10 @@ async function generateInvoice() {
             name, phone, email, room,
             guests:        parseInt(guests),
             checkin:       fmt(ciDate),
+            checkinTime:   fmtTime(ciDate),
             checkinDay:    fmtDay(ciDate),
             checkout:      fmt(coDate),
+            checkoutTime:  fmtTime(coDate),
             checkoutDay:   fmtDay(coDate),
             nights,
             guestId, notes, chargeItems, subtotal,
@@ -1689,9 +1759,9 @@ function renderInvoiceDoc(entry) {
     document.getElementById('invGuestEmail').textContent  = entry.email || '—';
     document.getElementById('invGuestId').textContent     = entry.guestId ? `Guest ID: ${entry.guestId}` : '';
     document.getElementById('invRoom').textContent        = entry.room ? `Room ${entry.room}` : '—';
-    document.getElementById('invCheckin').textContent     = entry.checkin;
+    document.getElementById('invCheckin').innerHTML      = entry.checkin + (entry.checkinTime  ? `<div style="font-size:12px;font-weight:500;color:#64748b;margin-top:2px;">${entry.checkinTime}</div>`  : '');
     document.getElementById('invCheckinDay').textContent  = entry.checkinDay;
-    document.getElementById('invCheckout').textContent    = entry.checkout;
+    document.getElementById('invCheckout').innerHTML     = entry.checkout + (entry.checkoutTime ? `<div style="font-size:12px;font-weight:500;color:#64748b;margin-top:2px;">${entry.checkoutTime}</div>` : '');
     document.getElementById('invCheckoutDay').textContent = entry.checkoutDay;
     document.getElementById('invDuration').textContent    = `${entry.nights} Night${entry.nights !== 1 ? 's' : ''}`;
     document.getElementById('invGuests').textContent      = `${entry.guests} Guest${entry.guests != 1 ? 's' : ''}`;
@@ -1825,10 +1895,10 @@ async function loadHistoryFromFirestore() {
                 bank: { pill: '🏦 Bank Transfer (GTEC)', pillCls: 'partial', icon: '🏦', label: 'Bank Transfer — GTEC Account' }
             };
             const chosen = methodMap[d.paymentMethod] || { pill: d.paymentMethod || '—', pillCls: 'paid', icon: '💳', label: d.paymentMethod || '—' };
-            const fmt    = dt => dt ? new Date(dt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+            const fmt    = dt => dt ? new Date(dt).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
             const fmtDay = dt => dt ? new Date(dt).toLocaleDateString('en-GB', { weekday: 'long' }) : '—';
-            const ci = d.checkinDate  ? new Date(d.checkinDate  + 'T00:00:00Z') : null;
-            const co = d.checkoutDate ? new Date(d.checkoutDate + 'T00:00:00Z') : null;
+            const ci = d.checkinDate  ? new Date(d.checkinDate) : null;
+            const co = d.checkoutDate ? new Date(d.checkoutDate) : null;
             const createdMs = d.createdAt?.toDate?.()?.getTime() || 0;
 
             _firestoreInvoices.push({
@@ -1890,7 +1960,7 @@ async function viewHistoryInvoice(id) {
             const doc = await db.collection('invoices').doc(id).get();
             if (doc.exists) {
                 const d = doc.data();
-                const fmt    = dt => dt ? new Date(dt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+                const fmt    = dt => dt ? new Date(dt).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
                 const fmtDay = dt => dt ? new Date(dt).toLocaleDateString('en-GB', { weekday: 'long' }) : '—';
                 const methodMap = {
                     momo: { pill: '📲 MTN MoMo',            pillCls: 'paid',    icon: '📲', label: 'MTN Mobile Money' },
@@ -2029,6 +2099,36 @@ function downloadPDF() {
     document.title = buildFilename();
     setTimeout(() => { window.print(); document.title = prev; }, 600);
 }
+
+// ── Upload Guard — intercept sidebar nav during upload ────────────────
+document.addEventListener('DOMContentLoaded', () => {
+    // Intercept ALL anchor clicks while upload is running
+    document.addEventListener('click', (e) => {
+        const link = e.target.closest('a[href]');
+        if (!link) return;
+        const href = link.getAttribute('href');
+        if (!href || href === '#') return;
+        if (!_uploadInProgress) return;
+
+        // Block navigation and show custom modal
+        e.preventDefault();
+        _pendingNavUrl = href;
+
+        const modal = document.getElementById('uploadGuardModal');
+        modal.style.display = 'flex';
+
+        document.getElementById('uploadGuardStay').onclick = () => {
+            modal.style.display = 'none';
+            _pendingNavUrl = null;
+        };
+        document.getElementById('uploadGuardLeave').onclick = () => {
+            _uploadInProgress = false;
+            modal.style.display = 'none';
+            window.location.href = _pendingNavUrl;
+            _pendingNavUrl = null;
+        };
+    });
+});
 
 // ── Toast ─────────────────────────────────────────────────────────────
 function showToast(msg, type = 'success') {
