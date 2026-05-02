@@ -1115,10 +1115,10 @@ const DRIVE_UPLOAD_URL = "https://script.google.com/macros/s/AKfycbxcJLWeemy7PRY
 
 
 const PDF_OPTIONS = {
-    margin:      [6, 6, 6, 6],
-    image:       { type: 'png' },
+    margin:      [4, 4, 4, 4],
+    image:       { type: 'jpeg', quality: 0.92 },
     html2canvas: {
-        scale:           3,
+        scale:           2,
         useCORS:         true,
         logging:         false,
         scrollX:         0,
@@ -1427,10 +1427,19 @@ function hideDriveToast() {
 // ── uploadInvoiceToDrive ──────────────────────────────────────────────
 async function uploadInvoiceToDriveAndGetUrl(fileName, invNum, guestName) {
     showDriveToast('uploading', 'Uploading invoice PDF…');
+
+    // Warn user if they try to leave while upload is in progress
+    const beforeUnloadHandler = (e) => {
+        e.preventDefault();
+        e.returnValue = 'Invoice is still uploading to Google Drive. If you leave, the PDF will not be saved. Are you sure?';
+        return e.returnValue;
+    };
+    window.addEventListener('beforeunload', beforeUnloadHandler);
+
     const { clone, cleanup } = buildPrintClone();
     try {
         // Give the clone time to render fonts/images fully
-        await new Promise(r => setTimeout(r, 1200));
+        await new Promise(r => setTimeout(r, 600));
 
         const pdfBlob = await html2pdf()
             .set({ ...PDF_OPTIONS, filename: fileName + '.pdf' })
@@ -1485,6 +1494,8 @@ async function uploadInvoiceToDriveAndGetUrl(fileName, invNum, guestName) {
         return null;
     } finally {
         cleanup();
+        // Remove the navigation warning once upload is done (success or fail)
+        window.removeEventListener('beforeunload', beforeUnloadHandler);
     }
 }
 
