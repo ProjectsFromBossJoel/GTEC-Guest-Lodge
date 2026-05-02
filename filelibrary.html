@@ -569,6 +569,8 @@
     let currentFilter = 'all';
     let currentView = 'list';
     let searchQuery = '';
+    let currentPage = 1;
+    const PAGE_SIZE = 10;
 
     function getFileStyle(mimeType, name) {
         const ext = (name || '').split('.').pop().toLowerCase();
@@ -661,6 +663,7 @@
 
     function setFilter(type, btn) {
         currentFilter = type;
+        currentPage = 1;
         document.querySelectorAll('.fl-filter-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         renderFiles();
@@ -675,6 +678,7 @@
 
     document.getElementById('fl-search').addEventListener('input', function () {
         searchQuery = this.value.trim().toLowerCase();
+        currentPage = 1;
         renderFiles();
     });
 
@@ -689,14 +693,117 @@
         });
     }
 
+    function renderPagination(total, container) {
+        const existing = document.getElementById('fl-pagination');
+        if (existing) existing.remove();
+
+        if (total === 0) return;
+
+        const totalPages = Math.ceil(total / PAGE_SIZE);
+        const start = (currentPage - 1) * PAGE_SIZE + 1;
+        const end   = Math.min(currentPage * PAGE_SIZE, total);
+
+        const bar = document.createElement('div');
+        bar.id = 'fl-pagination';
+        bar.style.cssText = `
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 16px;
+            padding: 14px 20px;
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            flex-wrap: wrap;
+            gap: 10px;
+        `;
+
+        // Info text
+        const info = document.createElement('div');
+        info.style.cssText = 'font-size:13px;color:var(--muted);font-weight:500;';
+        info.textContent = `Showing ${start}–${end} of ${total} ${total === 1 ? 'file' : 'files'}`;
+
+        // Controls
+        const controls = document.createElement('div');
+        controls.style.cssText = 'display:flex;align-items:center;gap:6px;';
+
+        function makeBtn(label, page, isActive, isDisabled) {
+            const btn = document.createElement('button');
+            btn.innerHTML = label;
+            btn.style.cssText = `
+                width: 34px; height: 34px;
+                border-radius: 8px;
+                border: 1.5px solid ${isActive ? 'var(--navy)' : 'var(--border)'};
+                background: ${isActive ? 'var(--navy)' : 'white'};
+                color: ${isActive ? 'white' : (isDisabled ? '#cbd5e1' : '#374151')};
+                font-size: 13px; font-weight: 600;
+                cursor: ${isDisabled ? 'not-allowed' : 'pointer'};
+                display: flex; align-items: center; justify-content: center;
+                transition: all 0.15s;
+                font-family: 'DM Sans', sans-serif;
+                opacity: ${isDisabled ? '0.4' : '1'};
+            `;
+            if (!isDisabled && !isActive) {
+                btn.onmouseover = () => { btn.style.background = 'var(--navy)'; btn.style.color = 'white'; btn.style.borderColor = 'var(--navy)'; };
+                btn.onmouseout  = () => { btn.style.background = 'white'; btn.style.color = '#374151'; btn.style.borderColor = 'var(--border)'; };
+            }
+            if (!isDisabled) {
+                btn.onclick = () => { currentPage = page; renderFiles(); };
+            }
+            return btn;
+        }
+
+        // Prev
+        controls.appendChild(makeBtn('&#8249;', currentPage - 1, false, currentPage === 1));
+
+        // Page numbers with ellipsis
+        function getPageRange(cur, total) {
+            if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+            const range = [1];
+            if (cur > 3) range.push('...');
+            for (let p = Math.max(2, cur - 1); p <= Math.min(total - 1, cur + 1); p++) range.push(p);
+            if (cur < total - 2) range.push('...');
+            range.push(total);
+            return range;
+        }
+
+        getPageRange(currentPage, totalPages).forEach(p => {
+            if (p === '...') {
+                const dots = document.createElement('span');
+                dots.textContent = '…';
+                dots.style.cssText = 'padding:0 4px;color:#94a3b8;font-size:13px;';
+                controls.appendChild(dots);
+            } else {
+                controls.appendChild(makeBtn(p, p, p === currentPage, false));
+            }
+        });
+
+        // Next
+        controls.appendChild(makeBtn('&#8250;', currentPage + 1, false, currentPage === totalPages));
+
+        bar.appendChild(info);
+        bar.appendChild(controls);
+        container.after(bar);
+    }
+
     function renderFiles() {
         const container = document.getElementById('fl-container');
         const shimmer = document.getElementById('fl-shimmer-grid');
         if (shimmer) shimmer.remove();
 
-        const files = getFilteredFiles();
+        // Remove old pagination
+        const oldPag = document.getElementById('fl-pagination');
+        if (oldPag) oldPag.remove();
 
-        if (files.length === 0) {
+        const files = getFilteredFiles();
+        const total = files.length;
+
+        // Clamp currentPage
+        const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+        if (currentPage > totalPages) currentPage = totalPages;
+        if (currentPage < 1) currentPage = 1;
+
+        if (total === 0) {
             container.innerHTML = `
                 <div class="fl-empty">
                     <i class="fas fa-folder-open"></i>
@@ -708,11 +815,17 @@
             return;
         }
 
+        // Slice to current page
+        const start = (currentPage - 1) * PAGE_SIZE;
+        const pageFiles = files.slice(start, start + PAGE_SIZE);
+
         if (currentView === 'grid') {
-            renderGrid(files, container);
+            renderGrid(pageFiles, container);
         } else {
-            renderList(files, container);
+            renderList(pageFiles, container);
         }
+
+        renderPagination(total, container);
     }
 
     function renderGrid(files, container) {
@@ -763,18 +876,22 @@
     function getViewUrl(f) {
         const url = f.viewUrl || '';
         const ext = (f.name || '').split('.').pop().toLowerCase();
-        const docExts = ['pdf','doc','docx','xls','xlsx','ppt','pptx'];
+        const docExts = ['doc','docx','xls','xlsx','ppt','pptx'];
 
         if (url.includes('drive.google.com')) {
             const fileIdMatch = url.match(/\/d\/([a-zA-Z0-9_-]+)\//);
             if (fileIdMatch) {
                 const fileId = fileIdMatch[1];
-                if (docExts.includes(ext) || f.mimeType === 'application/pdf') {
-                    return `https://docs.google.com/viewer?url=${encodeURIComponent(`https://drive.google.com/uc?export=view&id=${fileId}`)}&embedded=false`;
-                }
-                if ((f.mimeType || '').startsWith('image/')) {
+                // PDFs and images: open natively in Drive — shows correct filename in tab
+                if (f.mimeType === 'application/pdf' || ext === 'pdf') {
                     return `https://drive.google.com/file/d/${fileId}/view`;
                 }
+                // Office docs: use Google Docs Viewer for inline rendering
+                if (docExts.includes(ext)) {
+                    return `https://docs.google.com/viewer?url=${encodeURIComponent(`https://drive.google.com/uc?export=view&id=${fileId}`)}&embedded=false`;
+                }
+                // Images and everything else
+                return `https://drive.google.com/file/d/${fileId}/view`;
             }
         }
 
@@ -881,6 +998,7 @@
 
     function switchSource(source) {
         currentSource = source;
+        currentPage = 1;
         const chatBtn    = document.getElementById('tab-chat');
         const invoiceBtn = document.getElementById('tab-invoices');
 

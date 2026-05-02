@@ -1115,14 +1115,17 @@ const DRIVE_UPLOAD_URL = "https://script.google.com/macros/s/AKfycbxcJLWeemy7PRY
 
 
 const PDF_OPTIONS = {
-    margin:      [8, 8, 8, 8],
-    image:       { type: 'jpeg', quality: 0.97 },
+    margin:      [6, 6, 6, 6],
+    image:       { type: 'png' },
     html2canvas: {
-        scale:   2,
-        useCORS: true,
-        logging: false,
-        scrollX: 0,
-        scrollY: 0
+        scale:        3,
+        useCORS:      true,
+        logging:      false,
+        scrollX:      0,
+        scrollY:      0,
+        windowWidth:  794,
+        windowHeight: 1123,
+        backgroundColor: '#ffffff'
     },
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
 };
@@ -1339,22 +1342,45 @@ function buildPrintClone() {
     });
     Object.assign(clone.style, {
         display:      'block',
-        width:        '100%',
+        width:        '794px',
         maxWidth:     '794px',
         boxShadow:    'none',
         borderRadius: '0',
-        overflow:     'visible'
+        overflow:     'visible',
+        fontFamily:   "'DM Sans', sans-serif"
     });
-    ['inv-header', 'inv-grand-total'].forEach(cls => {
-        const el = clone.querySelector('.' + cls);
-        if (el) {
-            el.style.webkitPrintColorAdjust = 'exact';
-            el.style.printColorAdjust       = 'exact';
-        }
+
+    // Force all gradient/colour backgrounds to render exactly as-is
+    const colorEls = clone.querySelectorAll(
+        '.inv-header, .inv-grand-total, .inv-stay-item, .inv-totals-box, ' +
+        '.inv-footer, [style*="background"], [style*="gradient"]'
+    );
+    colorEls.forEach(el => {
+        el.style.webkitPrintColorAdjust = 'exact';
+        el.style.printColorAdjust       = 'exact';
+        el.style.colorAdjust            = 'exact';
     });
+
+    // Ensure the dark header gradient is explicit so html2canvas captures it
+    const header = clone.querySelector('.inv-header');
+    if (header) {
+        header.style.background = 'linear-gradient(135deg, #0f1923 0%, #1a3a5c 60%, #0f2d4a 100%)';
+        header.style.webkitPrintColorAdjust = 'exact';
+        header.style.printColorAdjust       = 'exact';
+    }
+
+    const grandTotal = clone.querySelector('.inv-grand-total');
+    if (grandTotal) {
+        grandTotal.style.background = 'linear-gradient(135deg, #0f1923, #1e3a5f)';
+        grandTotal.style.webkitPrintColorAdjust = 'exact';
+        grandTotal.style.printColorAdjust       = 'exact';
+    }
+
     wrapper.appendChild(clone);
     document.body.appendChild(wrapper);
-    clone.offsetHeight;
+    // Force layout recalc so styles fully apply before capture
+    void clone.offsetHeight;
+    void clone.getBoundingClientRect();
     return {
         clone,
         cleanup: () => { try { document.body.removeChild(wrapper); } catch (_) {} }
@@ -1390,8 +1416,8 @@ async function uploadInvoiceToDriveAndGetUrl(fileName, invNum, guestName) {
     showDriveToast('uploading', 'Uploading invoice PDF…');
     const { clone, cleanup } = buildPrintClone();
     try {
-        // Give the clone time to render fonts/images
-        await new Promise(r => setTimeout(r, 600));
+        // Give the clone time to render fonts/images fully
+        await new Promise(r => setTimeout(r, 1200));
 
         const pdfBlob = await html2pdf()
             .set({ ...PDF_OPTIONS, filename: fileName + '.pdf' })
