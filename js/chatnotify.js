@@ -361,37 +361,3 @@
 
 
 
-
-//new addition
-
-(function () {
-    // Wait for Firebase + db to be ready (firebase.js sets window.db)
-    function waitForDb(cb, attempts) {
-        attempts = attempts || 0;
-        if (window.db) return cb();
-        if (attempts > 40) return; // give up after ~2s
-        setTimeout(() => waitForDb(cb, attempts + 1), 50);
-    }
- 
-    waitForDb(function () {
-        window.db.collection("liveChats")
-            .where("adminRead", "==", false)
-            .onSnapshot(function (snapshot) {
-                var count = snapshot.size; // only unread docs
- 
-                // Update every nav badge with id="nav-chat-count"
-                // (there may be one on each page's sidebar)
-                var badge = document.getElementById("nav-chat-count");
-                if (!badge) return;
- 
-                if (count > 0) {
-                    badge.textContent = count > 99 ? "99+" : count;
-                    badge.style.display = "inline-flex";
-                } else {
-                    badge.style.display = "none";
-                }
-            }, function (err) {
-                console.warn("chatnotify: Firestore listen error", err);
-            });
-    });
-})();
