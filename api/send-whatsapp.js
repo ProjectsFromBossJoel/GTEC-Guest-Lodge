@@ -128,7 +128,7 @@ export default async function handler(req, res) {
               },
               body: new URLSearchParams({
                 From: twilioPhone,
-                To: customerPhone,
+                To: '+' + customerPhone,   // ✅ proper E.164 format
                 Body: smsMessage,
               })
             });
