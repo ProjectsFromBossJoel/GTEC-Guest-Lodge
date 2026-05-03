@@ -282,6 +282,7 @@ async function loadDashboardData() {
         setStat('stat-current-guests', guestsCount);
         setStat('stat-checkins', checkinsToday);
         setStat('stat-checkouts', checkoutsToday);
+        setStat('stat-all-guests', guestsCount + allHistory.length);
 
         renderRoomGrid(roomsList);
         renderWeekCalendar(allGuests, allHistory);

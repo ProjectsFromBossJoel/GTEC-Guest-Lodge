@@ -379,35 +379,87 @@
     if (!list) return;
     list.innerHTML = "";
     if (!rows.length) {
-        list.innerHTML = "<tr><td colspan='9' style='text-align:center;color:#94a3b8;padding:18px;'>No guests found.</td></tr>";
+        list.innerHTML = `<tr><td colspan='9'>
+            <div style="text-align:center;padding:48px 20px;">
+                <div style="font-size:40px;margin-bottom:12px;">🔍</div>
+                <p style="font-size:15px;font-weight:600;color:#94a3b8;margin:0;">No guests found</p>
+                <p style="font-size:13px;color:#cbd5e1;margin-top:4px;">Try a different search term</p>
+            </div>
+        </td></tr>`;
         return;
     }
-    rows.forEach(r => {
+    rows.forEach((r, idx) => {
         const row = document.createElement("tr");
-        // Status badge color
-        const statusColor =
-            r.status === "Checked In" ? "background:#dcfce7;color:#16a34a;" :
-            r.status === "Checked Out" ? "background:#f1f5f9;color:#64748b;" :
-            r.status === "Pending Verification" ? "background:#fef9c3;color:#a16207;" :
-            r.status === "Reserved" ? "background:#dbeafe;color:#1d4ed8;" :
-            "background:#f1f5f9;color:#64748b;";
-        
-        // Payment badge
-        const paymentStatus = (r.paymentStatus || '').toLowerCase() === 'paid' ? 'paid' : 'unpaid';
-        const paymentBadge = paymentStatus === 'paid'
-            ? '<span style="background:#dcfce7;color:#15803d;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;"><i class="fas fa-check-circle"></i> Paid</span>'
-            : '<span style="background:#fee2e2;color:#b91c1c;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;"></i> Unpaid</span>';
-        
+        row.style.cssText = `transition:background 0.15s;`;
+        row.onmouseover = () => row.style.background = '#f8fafc';
+        row.onmouseout  = () => row.style.background = '';
+
+        const statusConfig = {
+            "Checked In":           { bg:'#dcfce7', color:'#15803d', dot:'#22c55e' },
+            "Checked Out":          { bg:'#f1f5f9', color:'#64748b', dot:'#94a3b8' },
+            "Pending Verification": { bg:'#fef9c3', color:'#a16207', dot:'#eab308' },
+            "Reserved":             { bg:'#dbeafe', color:'#1d4ed8', dot:'#3b82f6' },
+        };
+        const sc = statusConfig[r.status] || { bg:'#f1f5f9', color:'#64748b', dot:'#94a3b8' };
+
+        const isPaid = (r.paymentStatus || '').toLowerCase() === 'paid';
+        const payBadge = isPaid
+            ? `<span style="display:inline-flex;align-items:center;gap:4px;background:#dcfce7;color:#15803d;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;">
+                <i class="fas fa-check-circle" style="font-size:10px;"></i> Paid
+               </span>`
+            : `<span style="display:inline-flex;align-items:center;gap:4px;background:#fee2e2;color:#b91c1c;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;">
+                <i class="fas fa-times-circle" style="font-size:10px;"></i> Unpaid
+               </span>`;
+
+        const initials = r.name.split(' ').filter(Boolean).map(n=>n[0]).join('').slice(0,2).toUpperCase();
+        const avatarColor = ['#3b82f6','#8b5cf6','#10b981','#f59e0b','#ef4444','#06b6d4'][idx % 6];
+
+        const notesShort = r.notes && r.notes !== '—' && r.notes.length > 30
+            ? r.notes.slice(0, 30) + '…' : (r.notes || '—');
+
         row.innerHTML = `
-            <td>${r.name}</td>
-            <td>${r.phone}</td>
-            <td>${r.room}</td>
-            <td>${r.ci}</td>
-            <td>${r.co}</td>
-            <td><span style="padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;${statusColor}">${r.status}</span></td>
-            <td>${paymentBadge}</td>
-            <td>${r.notes}</td>
-            <td><button onclick="generateIDCard('${r.docId}','${r.collection}')" style="padding:5px 10px;background:#1f3b57;color:white;border:none;border-radius:5px;cursor:pointer;">ID Card</button></td>
+            <td style="padding:14px 16px;">
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <div style="width:36px;height:36px;border-radius:50%;background:${avatarColor};
+                        color:white;display:flex;align-items:center;justify-content:center;
+                        font-weight:700;font-size:13px;flex-shrink:0;">${initials}</div>
+                    <div>
+                        <div style="font-weight:700;font-size:13px;color:#1e293b;">${r.name}</div>
+                        <div style="font-size:11px;color:#94a3b8;">${r.nights || '—'} nights</div>
+                    </div>
+                </div>
+            </td>
+            <td>
+                <div style="font-size:11px;color:#94a3b8;">${r.phone}</div>
+                </td>
+            <td style="padding:14px 16px;">
+                <span style="display:inline-block;background:#eff6ff;color:#1d4ed8;
+                    padding:4px 12px;border-radius:8px;font-size:12px;font-weight:700;">
+                    Room ${r.room}
+                </span>
+            </td>
+            <td style="padding:14px 16px;font-size:12px;color:#475569;">${r.ci}</td>
+            <td style="padding:14px 16px;font-size:12px;color:#475569;">${r.co}</td>
+            <td style="padding:14px 16px;">
+                <span style="display:inline-flex;align-items:center;gap:5px;
+                    background:${sc.bg};color:${sc.color};
+                    padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;">
+                    <span style="width:6px;height:6px;border-radius:50%;background:${sc.dot};flex-shrink:0;"></span>
+                    ${r.status}
+                </span>
+            </td>
+            <td style="padding:14px 16px;">${payBadge}</td>
+            <td style="padding:14px 16px;font-size:12px;color:#64748b;max-width:140px;" title="${r.notes}">${notesShort}</td>
+            <td style="padding:14px 16px;">
+                <button onclick="generateIDCard('${r.docId}','${r.collection}')"
+                    style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;
+                    background:#1f3b57;color:white;border:none;border-radius:8px;
+                    font-size:12px;font-weight:600;cursor:pointer;transition:all 0.15s;"
+                    onmouseover="this.style.background='#2d5480'"
+                    onmouseout="this.style.background='#1f3b57'">
+                    <i class="fas fa-id-card" style="font-size:11px;"></i> ID Card
+                </button>
+            </td>
         `;
         list.appendChild(row);
     });
@@ -461,6 +513,15 @@
                 const ci = g.checkinDate?.toDate?.() ? g.checkinDate.toDate().toLocaleDateString('en-GB') : (g.checkinDateStr ? new Date(g.checkinDateStr).toLocaleDateString('en-GB') : '—');
                 const co = g.checkoutDate?.toDate?.() ? g.checkoutDate.toDate().toLocaleDateString('en-GB') : (g.checkoutDateStr ? new Date(g.checkoutDateStr).toLocaleDateString('en-GB') : '—');
                 
+
+                    // 🆕 Calculate number of nights
+                const ciDate = g.checkinDate?.toDate?.() || (g.checkinDateStr ? new Date(g.checkinDateStr) : null);
+                const coDate = g.checkoutDate?.toDate?.() || (g.checkoutDateStr ? new Date(g.checkoutDateStr) : null);
+                const nights = ciDate && coDate 
+                    ? Math.max(0, Math.round((coDate - ciDate) / (1000 * 60 * 60 * 24))) 
+                    : null;
+
+
                 return {
                     docId: doc.id,
                     collection: doc.ref.parent.id,
@@ -470,6 +531,7 @@
                     ci,
                     co,
                     status,
+                    nights,
                     notes: g.notes || '—',
                     paymentStatus: g.paymentStatus || 'unpaid'   // ✅ changed line
                 };

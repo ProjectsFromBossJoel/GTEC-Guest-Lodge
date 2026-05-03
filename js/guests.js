@@ -541,6 +541,15 @@ async function executeDelete(id, collection) {
         if (typeof addLog === "function") {
             await addLog("Guest Deleted", `Guest ID: ${id} removed from ${collection}`);
         }
+
+        // ── Instantly remove from local cache and re-render ──
+        if (collection === 'history') {
+            allHistoryGuests = allHistoryGuests.filter(g => g.id !== id);
+            historyPage = Math.min(historyPage, Math.max(1, Math.ceil(allHistoryGuests.length / PAGE_SIZE)));
+            renderHistoryTable(allHistoryGuests);
+        }
+        // Active guests use a real-time listener so they vanish automatically
+
     } catch (err) {
         console.error("Delete error:", err);
         UI.showNotification("Delete failed", "error");
