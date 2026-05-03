@@ -290,10 +290,11 @@ console.log("[Firestore] Placeholder invoice created ✅");
             await db.collection("rooms").doc(roomId).update({ status: "Reserved" });
             console.log("[Firestore] Room → Reserved ✅");
 
-            const fmt = (d) => d.toLocaleString("en-GB", {
-                weekday: "short", year: "numeric", month: "short",
-                day: "numeric", hour: "2-digit", minute: "2-digit"
-            });
+                const fmt = (d) => d.toLocaleString("en-GB", {
+                 weekday: "short", year: "numeric", month: "short",
+                 day: "numeric", hour: "2-digit", minute: "2-digit",
+                 hour12: true   // ← forces 12‑hour with am/pm
+             });
             const formattedTime = fmt(new Date());
 
             const adminPayload = {
