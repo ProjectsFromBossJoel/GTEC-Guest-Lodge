@@ -112,7 +112,7 @@ export default async function handler(req, res) {
     const twilioPhone = process.env.TWILIO_PHONE_NUMBER;
 
     if (twilioSid && twilioToken && twilioPhone) {
-      const smsMessage = `GTEC Guest Lodge: Booking ${bookingId} confirmed. Room ${details.room}. Check-in ${details.checkIn}, Check-out ${details.checkOut}. Thank you!`;
+      const smsMessage = `GTEC Guest Lodge: Booking ${bookingId} confirmed. Room ${details.room}. Check-in ${details.checkIn}, Check-out ${details.checkOut}. Nights: ${details.nights}. Thank you!`;
 
       promises.push(
         (async () => {

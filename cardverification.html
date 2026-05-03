@@ -989,10 +989,19 @@
         // ─────────────────────────────────────────────────────────────────────────────
         // QR PARAMS — read ?id= and ?room= from URL
         // ─────────────────────────────────────────────────────────────────────────────
-        function getQRParams() {
-            const p = new URLSearchParams(window.location.search);
-            return { id: p.get('id') || '', room: p.get('room') || '' };
+            function getQRParams() {
+        const p = new URLSearchParams(window.location.search);
+        const token = p.get('t') || '';
+        if (!token) return { id: '', room: '' };
+        try {
+            const decoded = atob(token);   // decode base64
+            const parts = decoded.split('|');
+            return { id: parts[0] || '', room: parts[1] || '' };
+        } catch (e) {
+            console.warn('Invalid QR token');
+            return { id: '', room: '' };
         }
+    }
 
         function applyQRParams() {
             const { id, room } = getQRParams();
