@@ -4,7 +4,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Guest House Admin - Live Chat</title>
+<title>GTEC Guest Lodge - Live Chat</title>
 
 <link rel="stylesheet" href="css/style.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -247,6 +247,61 @@
     gap: 5px;
 }
 .btn-delete:hover { background: #fef2f2; }
+/* ── Custom "Mark all as read" modal ── */
+.modal-confirm-overlay {
+    display: none; position: fixed; inset: 0; z-index: 99999;
+    background: rgba(15,23,42,0.5); backdrop-filter: blur(4px);
+    align-items: center; justify-content: center;
+}
+.modal-confirm-overlay.open { display: flex; }
+
+.modal-confirm-card {
+    background: #fff; border-radius: 18px; padding: 32px 28px 24px;
+    width: 360px; max-width: 90vw;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+    text-align: center;
+    animation: confirmCardIn 0.25s cubic-bezier(.34,1.56,.64,1);
+}
+@keyframes confirmCardIn {
+    from { opacity: 0; transform: scale(0.9) translateY(20px); }
+    to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.modal-confirm-icon {
+    width: 56px; height: 56px; border-radius: 50%;
+    background: #fef3c7; display: flex; align-items: center;
+    justify-content: center; margin: 0 auto 16px;
+    font-size: 22px; color: #d97706;
+}
+
+.modal-confirm-title {
+    font-size: 18px; font-weight: 700; color: #1e293b; margin-bottom: 8px;
+}
+.modal-confirm-desc {
+    font-size: 13px; color: #64748b; line-height: 1.6; margin-bottom: 24px;
+}
+.modal-confirm-actions {
+    display: flex; gap: 10px; justify-content: center;
+}
+.modal-confirm-actions button {
+    flex: 1; padding: 10px 0; border-radius: 8px; border: none;
+    font-size: 13px; font-weight: 600; cursor: pointer;
+    transition: background 0.15s;
+}
+.btn-confirm-cancel {
+    background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0;
+}
+.btn-confirm-cancel:hover { background: #e2e8f0; }
+.btn-confirm-primary {
+    background: #1f3b57; color: white;
+}
+.btn-confirm-primary:hover { background: #2d4a6e; }
+
+.modal-confirm-status {
+    display: none; margin-top: 18px; font-size: 13px; font-weight: 600;
+}
+.modal-confirm-status.success { color: #16a34a; }
+.modal-confirm-status.error { color: #ef4444; }
 </style>
 
 </head>
@@ -335,12 +390,15 @@
     <!-- RIGHT: message view -->
     <div class="chat-view">
 
-        <div class="chat-view-header" id="chatViewHeader">
-            <div class="chat-placeholder" style="padding:0;flex-direction:row;height:auto;color:#94a3b8;font-size:13px;gap:8px;">
-                <i class="fas fa-hand-pointer" style="font-size:16px;color:#cbd5e1;"></i>
-                Select a message to view details
-            </div>
+            <div class="chat-view-header" id="chatViewHeader">
+        <div class="chat-placeholder" style="padding:0;flex-direction:row;height:auto;color:#94a3b8;font-size:13px;gap:8px;">
+            <i class="fas fa-hand-pointer" style="font-size:16px;color:#cbd5e1;"></i>
+            Select a message to view details
         </div>
+        <button onclick="markAllMessagesAsRead()" style="margin-left:auto; background:none; border:1px solid #e2e8f0; border-radius:6px; padding:5px 12px; font-size:12px; font-weight:600; cursor:pointer; color:#475569;">
+            <i class="fas fa-check-double"></i> Mark All as Read
+        </button>
+    </div>
 
         <div id="chatMessages" class="chat-messages">
             <div class="chat-placeholder">
@@ -392,6 +450,18 @@ db.collection("liveChats")
             totalCount++;
             if (doc.data().adminRead === false) unreadCount++;
         });
+
+
+        // Update sidebar badge
+        const navBadge = document.getElementById('nav-chat-count');
+        if (navBadge) {
+            if (unreadCount > 0) {
+                navBadge.textContent = unreadCount > 99 ? '99+' : unreadCount;
+                navBadge.style.display = 'inline-flex';
+            } else {
+                navBadge.style.display = 'none';
+            }
+        }
 
         // Show total count in the in-page pill always, with unread highlighted
         if (totalCount > 0) {
@@ -515,7 +585,72 @@ async function deleteMessage(docId) {
         alert("Failed to delete message.");
     }
 }
+async function markAllMessagesAsRead() {
+    // Show the custom modal
+    const overlay  = document.getElementById('markAllReadModal');
+    const cancelBtn = document.getElementById('modalMarkCancel');
+    const confirmBtn = document.getElementById('modalMarkConfirm');
+    const statusEl  = document.getElementById('modalMarkStatus');
+
+    overlay.classList.add('open');
+    statusEl.style.display = 'none';
+
+    return new Promise(resolve => {
+        // Cancel button
+        cancelBtn.onclick = () => {
+            overlay.classList.remove('open');
+            resolve(false);
+        };
+
+        // Confirm button
+        confirmBtn.onclick = async () => {
+            confirmBtn.disabled = true;
+            confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Marking...';
+            try {
+                const snapshot = await db.collection("liveChats")
+                    .where("adminRead", "==", false).get();
+                const batch = db.batch();
+                snapshot.forEach(doc => batch.update(doc.ref, { adminRead: true }));
+                await batch.commit();
+
+                // Show success inside the modal
+                statusEl.textContent = '✅ All messages marked as read.';
+                statusEl.className = 'modal-confirm-status success';
+                statusEl.style.display = 'block';
+
+                // Hide modal after 1.5s
+                setTimeout(() => overlay.classList.remove('open'), 1500);
+            } catch (err) {
+                console.error(err);
+                statusEl.textContent = '❌ Failed to mark messages. Please try again.';
+                statusEl.className = 'modal-confirm-status error';
+                statusEl.style.display = 'block';
+            } finally {
+                confirmBtn.disabled = false;
+                confirmBtn.innerHTML = 'Mark All as Read';
+            }
+            resolve(true);
+        };
+    });
+}
 </script>
+
+<!-- "Mark All as Read" confirmation modal -->
+<div class="modal-confirm-overlay" id="markAllReadModal">
+    <div class="modal-confirm-card">
+        <div class="modal-confirm-icon"><i class="fas fa-check-double"></i></div>
+        <div class="modal-confirm-title">Mark All as Read?</div>
+        <div class="modal-confirm-desc">
+            All current guest messages will be marked as read.<br>
+            This action cannot be undone.
+        </div>
+        <div class="modal-confirm-actions">
+            <button class="btn-confirm-cancel" id="modalMarkCancel">Cancel</button>
+            <button class="btn-confirm-primary" id="modalMarkConfirm">Mark All as Read</button>
+        </div>
+        <div class="modal-confirm-status" id="modalMarkStatus"></div>
+    </div>
+</div>
 
 </body>
 </html>
