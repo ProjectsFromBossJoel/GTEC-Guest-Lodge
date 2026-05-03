@@ -18,7 +18,7 @@
   ],
   "hosting": [
     {
-      "target": "gtecguesthouse",
+      "target": "gtecguestlodge",
       "public": ".",
       "ignore": [
         "firebase.json",
@@ -29,22 +29,10 @@
         {
           "source": "**",
           "headers": [
-            {
-              "key": "X-Frame-Options",
-              "value": "DENY"
-            },
-            {
-              "key": "X-Content-Type-Options",
-              "value": "nosniff"
-            },
-            {
-              "key": "Referrer-Policy",
-              "value": "strict-origin-when-cross-origin"
-            },
-            {
-              "key": "Permissions-Policy",
-              "value": "camera=(), microphone=(), geolocation=()"
-            },
+            { "key": "X-Frame-Options", "value": "DENY" },
+            { "key": "X-Content-Type-Options", "value": "nosniff" },
+            { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+            { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=()" },
             {
               "key": "Content-Security-Policy",
               "value": "default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://*.firebaseapp.com https://cdnjs.cloudflare.com https://apis.google.com https://accounts.google.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src 'self' https://cdnjs.cloudflare.com https://fonts.gstatic.com data:; img-src 'self' data: https:; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://www.gstatic.com https://script.google.com https://script.googleusercontent.com https://drive.google.com https://cdnjs.cloudflare.com https://apis.google.com https://accounts.google.com https://api.emailjs.com https://gtec-whatsapp-api.vercel.app; frame-src https://accounts.google.com https://*.firebaseapp.com https://drive.google.com https://docs.google.com; object-src 'none';"
@@ -53,28 +41,44 @@
         },
         {
           "source": "**/*.css",
-          "headers": [
-            {
-              "key": "Cache-Control",
-              "value": "no-cache, no-store, must-revalidate"
-            }
-          ]
+          "headers": [{ "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }]
         },
         {
           "source": "**/*.js",
-          "headers": [
-            {
-              "key": "Cache-Control",
-              "value": "no-cache, no-store, must-revalidate"
-            }
-          ]
+          "headers": [{ "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }]
         },
         {
           "source": "**/*.html",
+          "headers": [{ "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }]
+        }
+      ]
+    },
+    {
+      "target": "gtecguesthouse",
+      "public": ".",
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/node_modules/**"
+      ],
+      "redirects": [
+        {
+          "source": "/**",
+          "destination": "https://gtecguestlodge.web.app/:splat",
+          "type": 301
+        }
+      ],
+      "headers": [
+        {
+          "source": "**",
           "headers": [
+            { "key": "X-Frame-Options", "value": "DENY" },
+            { "key": "X-Content-Type-Options", "value": "nosniff" },
+            { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+            { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=()" },
             {
-              "key": "Cache-Control",
-              "value": "no-cache, no-store, must-revalidate"
+              "key": "Content-Security-Policy",
+              "value": "default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://*.firebaseapp.com https://cdnjs.cloudflare.com https://apis.google.com https://accounts.google.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src 'self' https://cdnjs.cloudflare.com https://fonts.gstatic.com data:; img-src 'self' data: https:; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://www.gstatic.com https://script.google.com https://script.googleusercontent.com https://drive.google.com https://cdnjs.cloudflare.com https://apis.google.com https://accounts.google.com https://api.emailjs.com https://gtec-whatsapp-api.vercel.app; frame-src https://accounts.google.com https://*.firebaseapp.com https://drive.google.com https://docs.google.com; object-src 'none';"
             }
           ]
         }
