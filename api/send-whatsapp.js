@@ -105,40 +105,43 @@ export default async function handler(req, res) {
     }
 
     // ────────────────────────────────
-    // 2. SMS via Twilio – always sends if configured
+    // 2. SMS via MNotify – always sends if configured
     // ────────────────────────────────
-    const twilioSid   = process.env.TWILIO_ACCOUNT_SID;
-    const twilioToken = process.env.TWILIO_AUTH_TOKEN;
-    const twilioPhone = process.env.TWILIO_PHONE_NUMBER;
+    const mnotifyKey = process.env.MNOTIFY_API_KEY;
+    const mnotifySender = process.env.MNOTIFY_SENDER_ID; // e.g., 'GTECLodge'
 
-    if (twilioSid && twilioToken && twilioPhone) {
+    if (mnotifyKey && mnotifySender) {
       const smsMessage = `GTEC Guest Lodge: Booking ${bookingId} confirmed. Room ${details.room}. Check-in ${details.checkIn}, Check-out ${details.checkOut}. Thank you!`;
+
+      // MNotify expects local format: 024XXXXXXX (without country code)
+      // Our customerPhone is already 233XXXXXXXXX
+      const localPhone = customerPhone.startsWith('233') 
+        ? '0' + customerPhone.slice(3) 
+        : customerPhone;
 
       promises.push(
         (async () => {
           try {
-            const url = `https://api.twilio.com/2010-04-01/Accounts/${twilioSid}/Messages.json`;
-            const auth = 'Basic ' + Buffer.from(`${twilioSid}:${twilioToken}`).toString('base64');
-
+            const url = `https://api.mnotify.com/api/sms/quick?key=${mnotifyKey}`;
+            
             const response = await fetch(url, {
               method: 'POST',
-              headers: {
-                'Authorization': auth,
-                'Content-Type': 'application/x-www-form-urlencoded',
-              },
-              body: new URLSearchParams({
-                From: twilioPhone,
-                To: '+' + customerPhone,   // ✅ proper E.164 format
-                Body: smsMessage,
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                recipient: [localPhone],
+                sender: mnotifySender,
+                message: smsMessage,
+                is_schedule: false,
+                schedule_date: ''
               })
             });
 
             const data = await response.json();
-            if (response.ok && data.status !== 'failed') {
-              console.log('[SMS] ✅ Twilio message sent, SID:', data.sid);
-              return { success: true, sid: data.sid };
+            if (response.ok && data.code === '2000') {
+              console.log('[SMS] ✅ MNotify message sent, campaign ID:', data.summary?._id);
+              return { success: true, campaignId: data.summary?._id };
             } else {
-              console.error('[SMS] ❌ Twilio error:', data);
+              console.error('[SMS] ❌ MNotify error:', data);
               return { success: false, error: data };
             }
           } catch (err) {
@@ -148,7 +151,7 @@ export default async function handler(req, res) {
         })()
       );
     } else {
-      console.log('[SMS] Twilio not configured – skipping');
+      console.log('[SMS] MNotify not configured – skipping');
     }
 
     const results = await Promise.allSettled(promises);
