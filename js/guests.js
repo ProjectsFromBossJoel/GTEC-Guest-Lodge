@@ -26,7 +26,7 @@ function formatDateTime(dateVal) {
     if (!d || isNaN(d)) return '—';
     const date = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
     const time = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-    return `<span style="font-weight:600;color:#1e293b;">${date}</span><br><small style="color:#94a3b8;font-size:11px;">${time}</small>`;
+    return `<span class="dt-date" style="font-weight:600;color:#1e293b;">${date}</span><br><span class="dt-time" style="color:#94a3b8;font-size:11px;">${time}</span>`;
 }
 
 // ── Shared pagination renderer ────────────────────────────────────────────
@@ -768,8 +768,16 @@ async function downloadGuestProfilePDF() {
         const email    = document.getElementById('profileEmail-view').textContent || '—';
         const room     = document.getElementById('profileRoom-view').textContent || '—';
         const status   = document.getElementById('profileStatus').textContent || '—';
-        const checkin  = document.getElementById('profileCheckin').textContent || '—';
-        const checkout = document.getElementById('profileCheckout').textContent || '—';
+        // Helper to get date + time with a line break
+            function getDateTimeWithBreak(element) {
+                const dateEl = element?.querySelector('.dt-date');
+                const timeEl = element?.querySelector('.dt-time');
+                const date = dateEl?.textContent || '—';
+                const time = timeEl?.textContent || '';
+                return time ? `${date}\n${time}` : date;
+            }
+            const checkin  = getDateTimeWithBreak(document.getElementById('profileCheckin'));
+            const checkout = getDateTimeWithBreak(document.getElementById('profileCheckout'));
         const notes    = document.getElementById('profileNotes-view').textContent || '—';
         const initials = name.split(' ').filter(Boolean).map(n => n[0]).join('').slice(0, 2).toUpperCase();
         const isCheckedIn = status === 'Checked In';
