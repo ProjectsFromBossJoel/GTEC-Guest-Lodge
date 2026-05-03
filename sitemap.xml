@@ -3,8 +3,8 @@
 
   <!-- Main booking/rooms page — highest priority -->
   <url>
-    <loc>https://gtecguesthouse.web.app/</loc>
-    <lastmod>2026-03-28</lastmod>
+    <loc>https://gtecguestlodge.web.app/</loc>
+    <lastmod>2026-05-03</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
