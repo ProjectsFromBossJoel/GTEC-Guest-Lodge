@@ -111,8 +111,14 @@ export default async function handler(req, res) {
     const mnotifySender = process.env.MNOTIFY_SENDER_ID; // e.g., 'GTECLodge'
 
     if (mnotifyKey && mnotifySender) {
-      const smsMessage = `GTEC Guest Lodge: Booking ${bookingId} confirmed. Room ${details.room}. Check-in ${details.checkIn}, Check-out ${details.checkOut}. Thank you!`;
-
+      const smsMessage = 
+      `Hello ${details.guestName}, your booking at GTEC Guest Lodge is confirmed!\n\n` +
+      `Booking ID: ${bookingId}\n` +
+      `Room: ${details.room}\n` +
+      `Check-in: ${details.checkIn}\n` +
+      `Check-out: ${details.checkOut}\n` +
+      `Nights: ${details.nights}\n\n` +
+      `Thank you for choosing GTEC Guest Lodge! 🙏`;
       // MNotify expects local format: 024XXXXXXX (without country code)
       // Our customerPhone is already 233XXXXXXXXX
       const localPhone = customerPhone.startsWith('233') 
