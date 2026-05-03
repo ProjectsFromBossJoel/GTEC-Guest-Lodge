@@ -61,6 +61,36 @@ ul {
     align-items: center;
     justify-content: center;
     padding: 20px;
+    background-color: #f0ede7;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Diagonal geometric shapes */
+.auth-container::before {
+    content: '';
+    position: absolute;
+    top: -120px;
+    left: -120px;
+    width: 500px;
+    height: 500px;
+    border-radius: 60px;
+    background: linear-gradient(135deg, rgba(67,97,238,0.08), rgba(67,97,238,0.03));
+    transform: rotate(45deg);
+    pointer-events: none;
+}
+
+.auth-container::after {
+    content: '';
+    position: absolute;
+    bottom: -100px;
+    right: -80px;
+    width: 420px;
+    height: 420px;
+    border-radius: 60px;
+    background: linear-gradient(135deg, rgba(67,97,238,0.06), rgba(67,97,238,0.02));
+    transform: rotate(30deg);
+    pointer-events: none;
 }
 
 .auth-card {
@@ -71,6 +101,8 @@ ul {
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-lg);
     text-align: center;
+    position: relative;
+    z-index: 1;
 }
 
 .auth-title {
