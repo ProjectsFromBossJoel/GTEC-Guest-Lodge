@@ -363,12 +363,14 @@ console.log("[Firestore] Placeholder invoice created ✅");
                 if (!rawPhone.startsWith('233')) rawPhone = '233' + rawPhone;
                 const whatsappNumber = rawPhone;
 
-                const bookingDetails =
-                    `Room: ${roomNumber}\n` +
-                    `Check-In: ${fmt(checkinDate)}\n` +
-                    `Check-Out: ${fmt(expectedCheckout)}\n` +
-                    `Nights: ${nights}\n` +
-                    `Guest: ${name}`;
+                    // Build a structured object first
+                const bookingDetailsObj = {
+                    guestName: name,
+                    room: roomNumber,
+                    checkIn: fmt(checkinDate),
+                    checkOut: fmt(expectedCheckout),
+                    nights: nights
+                }
 
                 const response = await fetch('https://gtec-whatsapp-api.vercel.app/api/send-whatsapp', {
                     method: 'POST',
@@ -379,7 +381,7 @@ console.log("[Firestore] Placeholder invoice created ✅");
                     body: JSON.stringify({
                         customerPhone: whatsappNumber,
                         bookingId: idNumber,
-                        bookingDetails: bookingDetails
+                        bookingDetails: JSON.stringify(bookingDetailsObj)   // stringified object
                     })
                 });
 
