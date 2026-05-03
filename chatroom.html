@@ -1012,7 +1012,8 @@
                 <a href="checkout.html" class="menu-item"><i class="fas fa-sign-out-alt"></i> Check-Out</a>
                 <a href="guests.html" class="menu-item"><i class="fas fa-users"></i> Guests</a>
                 <!-- ✅ Chat Room nav item with unread badge -->
-                <a href="chatroom.html" class="menu-item active"><i class="fas fa-comments"></i> Chat Room <span class="nav-badge" id="nav-chatroom-count" style="display:none;">0</span></a>
+                <a href="chatroom.html" class="menu-item active"><i class="fas fa-comments"></i> Chat Room
+                    <span class="nav-badge" id="nav-chatroom-count" style="display:none;">0</span></a>
                 <a href="logs.html" class="menu-item"><i class="fas fa-clipboard-list"></i> Logs</a>
                 <a href="chat.html" class="menu-item"><i class="fas fa-comment"></i> Client Messages
                 <span class="nav-badge" id="nav-chat-count" style="display:none;">0</span></a>
@@ -1527,7 +1528,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Heartbeat: refresh presence every 60s so stale entries don't persist
         setInterval(() => markPresence(true), 60000);
         // Sync other users' presence from logs
-        syncPresenceFromLogs();
+        
 
         applyStoredSettings();
         loadMembers();
@@ -1543,70 +1544,33 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 // ── Presence ──────────────────────────────────────────
+// ── Presence (simplified, heartbeat + timestamp) ──────────────────────────
+const PRESENCE_TIMEOUT_MS = 2 * 60 * 1000; // 2 minutes offline after last heartbeat
+
 async function markPresence(online) {
     if (!currentUser) return;
-    try {
-        await db.collection('chatPresence').doc(currentUser.uid).set({
-            name: currentUser.name, role: currentUser.role,
-            online, lastSeen: firebase.firestore.FieldValue.serverTimestamp()
-        }, { merge: true });
-    } catch (e) { console.warn('Presence error:', e); }
+    const data = {
+        name: currentUser.name,
+        role: currentUser.role,
+        online: online,
+        lastSeen: firebase.firestore.FieldValue.serverTimestamp()
+    };
+    await db.collection('chatPresence').doc(currentUser.uid).set(data, { merge: true });
 }
 
-// ── Sync presence from logs (real login/logout state) ─
-function syncPresenceFromLogs() {
-    // For each user in chatPresence, cross-check their latest log entry
-    db.collection('chatPresence').onSnapshot(async presenceSnap => {
-        const updates = [];
-        presenceSnap.forEach(doc => {
-            updates.push({ uid: doc.id, ...doc.data() });
-        });
+// Heartbeat – call every 60s while the tab is open
+window.setInterval(() => {
+    if (currentUser) markPresence(true);
+}, 60000);
 
-        for (const user of updates) {
-            // Skip current user — their presence is managed live
-            if (currentUser && user.uid === currentUser.uid) continue;
+// Clean up on close
+window.addEventListener('beforeunload', () => markPresence(false));
+window.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') markPresence(false);
+    else if (currentUser) markPresence(true);
+});
 
-            try {
-                // Get the most recent log entry for this user by email
-                // Logs store email in the 'user' field
-                // We match by name since logs don't store uid
-                const logSnap = await db.collection('logs')
-                    .orderBy('time', 'desc')
-                    .limit(50)
-                    .get();
-
-                let latestAction = null;
-                let latestTime   = 0;
-
-                logSnap.forEach(logDoc => {
-                    const d = logDoc.data();
-                    const logName = (d.user || '').toLowerCase();
-                    const presName = (user.name || '').toLowerCase();
-                    // Match by name prefix (log stores email, presence stores display name)
-                    if (logName.startsWith(presName) || presName.startsWith(logName.split('@')[0])) {
-                        const t = d.time?.seconds ? d.time.seconds * 1000 : 0;
-                        if (t > latestTime) {
-                            latestTime   = t;
-                            latestAction = (d.action || '').toLowerCase();
-                        }
-                    }
-                });
-
-                if (latestAction !== null) {
-                    const isOnline = latestAction.includes('logged in') &&
-                                     !latestAction.includes('logged out') &&
-                                     !latestAction.includes('auto logged out');
-                    // Only update if it disagrees with current presence
-                    if (user.online !== isOnline) {
-                        await db.collection('chatPresence').doc(user.uid).update({ online: isOnline });
-                    }
-                }
-            } catch (e) { /* non-fatal */ }
-        }
-    });
-}
-
-// ── Members ───────────────────────────────────────────────
+// ── Load members (real‑time with offline detection) ────────────────────────
 function loadMembers() {
     db.collection('chatPresence').onSnapshot(snap => {
         const sidebarList = document.getElementById('cr-member-list');
@@ -1616,17 +1580,25 @@ function loadMembers() {
         sidebarList.innerHTML = '';
         onlineList.innerHTML  = '';
 
+        const now = Date.now();
         let count = 0;
         const members = [];
-        snap.forEach(doc => { const d = doc.data(); members.push({uid:doc.id,...d}); if(d.online) count++; });
+        snap.forEach(doc => {
+            const d = doc.data();
+            const lastSeenMillis = d.lastSeen ? (d.lastSeen.seconds ? d.lastSeen.seconds * 1000 : 0) : 0;
+            const isOnline = (now - lastSeenMillis) < PRESENCE_TIMEOUT_MS;
+            members.push({ uid: doc.id, ...d, online: isOnline });
+            if (isOnline) count++;
+        });
 
         onlineCount.textContent = `(${count})`;
-        members.sort((a,b) => (b.online?1:0) - (a.online?1:0));
+        members.sort((a, b) => (b.online ? 1 : 0) - (a.online ? 1 : 0));
 
         members.forEach(m => {
             const status = m.online ? 'online' : 'offline';
             const roleLbl = roleLabel(m.role || 'staff');
 
+            // Sidebar member list
             const div = document.createElement('div');
             div.className = 'cr-member';
             div.innerHTML = `
@@ -1635,6 +1607,7 @@ function loadMembers() {
                 <div class="cr-member-role">${roleLbl}</div>`;
             sidebarList.appendChild(div);
 
+            // Online panel
             if (m.online) {
                 const li = document.createElement('div');
                 li.className = 'cr-online-list-item';
@@ -1692,12 +1665,26 @@ function incrementBadge(channel) {
 }
 
 function clearBadge(channel) {
+    // Locally clear the channel badge
     const badge = document.getElementById(`badge-${channel}`);
-    if (!badge) return;
-    badge.textContent = '';
-    badge.classList.remove('has-unread');
+    if (badge) {
+        badge.textContent = '';
+        badge.classList.remove('has-unread');
+    }
+
+    // Update local state (for in‑page badges)
     channelLastSeen[channel] = Date.now();
     updateNavBadge();
+
+    // 🔄 Save the read timestamp to Firestore for cross‑device sync
+    if (currentUser) {
+        const uid = currentUser.uid;
+        db.collection('chatUnread').doc(uid).set({
+            [`lastSeen_${channel}`]: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true }).catch(err => {
+            console.warn('Failed to save read timestamp:', err);
+        });
+    }
 }
 
 // ── Channel switching ─────────────────────────────────────

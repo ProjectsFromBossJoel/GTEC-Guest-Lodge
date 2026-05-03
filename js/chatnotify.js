@@ -322,6 +322,64 @@
         // so we don't flood with old messages on first load
         const now = Date.now();
 
+        // ── Chat Room unread badge (sidebar) ──────────────────────
+// ─────────────────────────────────────────────────────
+// Chat Room unread badge (Firestore‑synced)
+// ─────────────────────────────────────────────────────
+const chatRoomChannels = ['general', 'announcements', 'housekeeping', 'front-desk'];
+const unreadRef = db.collection('chatUnread').doc(currentUid);
+const latestMsgs = {};
+
+// Keep a local copy of readTimes updated in real time
+let readTimes = {};
+
+unreadRef.onSnapshot(userDoc => {
+    readTimes = userDoc.exists ? userDoc.data() : {};
+    updateChatRoomBadge();
+});
+
+// Start per‑channel listeners for latest message timestamps
+chatRoomChannels.forEach(channel => {
+    db.collection('chatrooms').doc(channel).collection('messages')
+        .orderBy('time', 'desc').limit(1)
+        .onSnapshot(snap => {
+            if (!snap.empty) {
+                const ts = snap.docs[0].data().time;
+                latestMsgs[channel] = ts ? (ts.toMillis ? ts.toMillis() : 0) : 0;
+            } else {
+                latestMsgs[channel] = 0;
+            }
+            updateChatRoomBadge();  // just use the local readTimes
+        }, err => {
+            console.warn(`Chatroom badge error [${channel}]:`, err);
+        });
+});
+
+function updateChatRoomBadge() {
+    let unreadChannels = 0;
+    chatRoomChannels.forEach(channel => {
+        const lastSeen = readTimes[`lastSeen_${channel}`];
+        const lastSeenMillis = lastSeen
+            ? (lastSeen.seconds ? lastSeen.seconds * 1000 : 0)
+            : 0;
+        const latestMillis = latestMsgs[channel] || 0;
+        if (latestMillis > lastSeenMillis) {
+            unreadChannels++;
+        }
+    });
+
+    const badge = document.getElementById('nav-chatroom-count');
+    if (badge) {
+        if (unreadChannels > 0) {
+            badge.textContent = unreadChannels;
+            badge.style.display = 'inline-flex';
+        } else {
+            badge.textContent = '';
+            badge.style.display = 'none';
+        }
+    }
+};
+
         ALL_CHANNELS.forEach(channel => {
             // If never seen, mark as now so old messages don't fire
             if (!lastSeen[channel]) {
