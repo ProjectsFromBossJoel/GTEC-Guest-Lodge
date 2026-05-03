@@ -172,6 +172,22 @@
         .cr-notif-card:hover .cr-notif-reply {
             background: #dbeafe;
         }
+            /* ── Live Chat sidebar badge (global) ── */
+        .nav-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: #ef4444;
+            color: white;
+            font-size: 10px;
+            font-weight: 700;
+            min-width: 18px;
+            height: 18px;
+            border-radius: 10px;
+            padding: 0 5px;
+            margin-left: auto;
+            line-height: 1;
+        }
     `;
     document.head.appendChild(style);
 
@@ -340,6 +356,25 @@
                     });
                 });
         });
+
+        // ── Live Chat unread badge (sidebar & anywhere with #nav-chat-count) ──
+db.collection('liveChats')
+    .where('adminRead', '==', false)
+    .onSnapshot(function (snapshot) {
+        var badge = document.getElementById('nav-chat-count');
+        if (!badge) return;
+        var count = snapshot.size;
+        if (count > 0) {
+            badge.textContent = count > 99 ? '99+' : count;
+            badge.style.display = 'inline-flex';
+        } else {
+            badge.textContent = '';
+            badge.style.display = 'none';
+        }
+    }, function (err) {
+        console.warn('chatnotify: live chat badge error', err);
+    });
+
     }
 
     // ── Bootstrap after Firebase is ready ────────────────────
@@ -357,7 +392,3 @@
     waitForFirebase();
 
 })();
-
-
-
-
