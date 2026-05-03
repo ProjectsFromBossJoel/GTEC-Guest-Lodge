@@ -430,11 +430,13 @@ console.log("[Firestore] Placeholder invoice created ✅");
         // ── EmailJS — send after Firestore succeeds ─────────────────────────
         const formattedCheckin = checkinDateObj.toLocaleString("en-GB", {
             weekday: "short", year: "numeric", month: "short",
-            day: "numeric", hour: "2-digit", minute: "2-digit"
+            day: "numeric", hour: "2-digit", minute: "2-digit",
+            hour12: true
         });
         const formattedCheckout = checkoutDateObj.toLocaleString("en-GB", {
             weekday: "short", year: "numeric", month: "short",
-            day: "numeric", hour: "2-digit", minute: "2-digit"
+            day: "numeric", hour: "2-digit", minute: "2-digit",
+            hour12: true
         });
         const formattedTime = new Date().toLocaleString("en-GB", {
             weekday: "short", year: "numeric", month: "short",
@@ -507,6 +509,48 @@ const nights = Math.round((checkout - checkin) / oneDay);
         } else {
             console.warn("[EmailJS] ⚠️ SDK not loaded — emails not sent.");
         }
+
+
+                // ─────────── AUTOMATIC SMS NOTIFICATION (via Vercel / MNotify) ───────────
+        try {
+            let rawPhone = phone.replace(/\D/g, '');
+            if (rawPhone.startsWith('0')) rawPhone = rawPhone.slice(1);
+            if (!rawPhone.startsWith('233')) rawPhone = '233' + rawPhone;
+            const guestNumber = rawPhone;
+
+            const bookingDetailsObj = {
+                guestName: name,
+                room: selectedRoom.number,
+                checkIn: formattedCheckin,      // already formatted string
+                checkOut: formattedCheckout,
+                nights: nights
+            };
+
+            const response = await fetch('https://gtec-whatsapp-api.vercel.app/api/send-whatsapp', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-api-key': 'gtec-2026-wa-secret'
+                },
+                body: JSON.stringify({
+                    customerPhone: guestNumber,
+                    bookingId: idNumber,
+                    bookingDetails: JSON.stringify(bookingDetailsObj)
+                })
+            });
+
+            const data = await response.json();
+            if (response.ok) {
+                console.log('[SMS] ✅ Notification sent to', guestNumber);
+            } else {
+                console.error('[SMS] ❌ Server error:', data);
+            }
+        } catch (err) {
+            console.warn('[SMS] ⚠️ Failed to send:', err.message);
+        }
+        // ─────────────────────────────────────────────────────────────────────
+
+
 
         // ── Success: hide loader, show verification popup ───────────────────
         UI.hideLoader();
