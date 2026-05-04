@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Privacy Policy – GTEC Guest Lodge</title>
+  <link rel="icon" type="image/jpeg" href="img/logo1.jpg">
+  <link rel="apple-touch-icon" href="img/logo1.jpg">
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <style>
+    :root {
+      --ink: #0d1117;
+      --ink-soft: #3d4451;
+      --gold: #c9a84c;
+      --gold-lt: #f0d98a;
+      --cream: #faf8f3;
+      --white: #ffffff;
+      --border: rgba(201,168,76,0.18);
+      --radius: 16px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body { font-family: 'DM Sans', sans-serif; background: var(--cream); color: var(--ink); overflow-x: hidden; }
+
+    .navbar {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 48px; height: 72px;
+      background: rgba(13,17,23,0.97);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(201,168,76,0.15);
+    }
+    .nav-logo { display: flex; align-items: center; gap: 12px; text-decoration: none; }
+    .nav-logo img { width: 38px; height: 38px; border-radius: 8px; border: 1px solid var(--gold); }
+    .nav-logo-text { font-family: 'Cormorant Garamond', serif; font-size: 22px; font-weight: 600; color: var(--white); }
+    .nav-logo-text span { color: var(--gold); }
+    .nav-back { color: rgba(255,255,255,0.6); font-size: 13px; font-weight: 500; text-decoration: none; display: flex; align-items: center; gap: 6px; transition: color 0.2s; }
+    .nav-back:hover { color: var(--gold); }
+
+    .hero-banner {
+      margin-top: 72px;
+      background: var(--ink);
+      padding: 64px 48px 52px;
+      position: relative;
+      overflow: hidden;
+      text-align: center;
+    }
+    .hero-banner::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: radial-gradient(ellipse 70% 80% at 50% 0%, rgba(201,168,76,0.1) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .hero-banner::after {
+      content: '';
+      position: absolute; inset: 0;
+      background-image: linear-gradient(rgba(201,168,76,0.04) 1px, transparent 1px),
+                        linear-gradient(90deg, rgba(201,168,76,0.04) 1px, transparent 1px);
+      background-size: 60px 60px;
+      pointer-events: none;
+    }
+    .banner-inner { position: relative; z-index: 1; }
+    .banner-eyebrow {
+      font-size: 11px; font-weight: 600; letter-spacing: 3px;
+      text-transform: uppercase; color: var(--gold); margin-bottom: 14px;
+    }
+    .banner-title {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: clamp(36px, 5vw, 60px); font-weight: 300;
+      color: var(--white); line-height: 1.1;
+    }
+    .banner-title em { font-style: italic; color: var(--gold); }
+    .banner-meta {
+      margin-top: 16px; font-size: 13px; color: rgba(255,255,255,0.4);
+      display: flex; align-items: center; justify-content: center; gap: 20px; flex-wrap: wrap;
+    }
+    .banner-meta span { display: flex; align-items: center; gap: 6px; }
+    .banner-meta i { color: var(--gold); }
+
+    .content-wrap {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 64px 24px 96px;
+    }
+
+    .toc {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px 32px;
+      margin-bottom: 48px;
+    }
+    .toc-label {
+      font-size: 11px; font-weight: 600; letter-spacing: 2px;
+      text-transform: uppercase; color: var(--gold); margin-bottom: 14px;
+    }
+    .toc-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+    .toc-list a {
+      color: var(--ink-soft); text-decoration: none; font-size: 14px; font-weight: 500;
+      display: flex; align-items: center; gap: 10px; transition: color 0.2s;
+    }
+    .toc-list a::before {
+      content: ''; display: inline-block; width: 18px; height: 1px;
+      background: var(--gold); flex-shrink: 0; transition: width 0.2s;
+    }
+    .toc-list a:hover { color: var(--ink); }
+    .toc-list a:hover::before { width: 28px; }
+
+    .policy-section {
+      margin-bottom: 48px;
+      padding-bottom: 48px;
+      border-bottom: 1px solid rgba(0,0,0,0.06);
+    }
+    .policy-section:last-child { border-bottom: none; margin-bottom: 0; }
+
+    .section-num {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 13px; font-weight: 600; letter-spacing: 2px;
+      text-transform: uppercase; color: var(--gold); margin-bottom: 10px;
+    }
+    .section-heading {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: clamp(22px, 3vw, 30px); font-weight: 500;
+      color: var(--ink); margin-bottom: 18px; line-height: 1.2;
+    }
+    .section-heading em { font-style: italic; color: var(--gold); }
+
+    p { font-size: 15px; color: var(--ink-soft); line-height: 1.8; margin-bottom: 14px; }
+    p:last-child { margin-bottom: 0; }
+
+    ul.policy-list {
+      list-style: none; padding: 0;
+      display: flex; flex-direction: column; gap: 10px;
+      margin-bottom: 14px;
+    }
+    ul.policy-list li {
+      display: flex; align-items: flex-start; gap: 12px;
+      font-size: 15px; color: var(--ink-soft); line-height: 1.7;
+    }
+    ul.policy-list li::before {
+      content: ''; flex-shrink: 0;
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--gold); margin-top: 8px;
+    }
+
+    .highlight-box {
+      background: var(--ink);
+      border-radius: 12px;
+      padding: 24px 28px;
+      margin: 20px 0;
+    }
+    .highlight-box p { color: rgba(255,255,255,0.7); margin-bottom: 0; }
+    .highlight-box strong { color: var(--gold); }
+
+    /* Notice / callout box */
+    .notice-box {
+      background: rgba(201,168,76,0.06);
+      border: 1px solid rgba(201,168,76,0.22);
+      border-left: 4px solid var(--gold);
+      border-radius: 12px;
+      padding: 20px 24px;
+      margin: 16px 0;
+    }
+    .notice-box p { color: var(--ink-soft); margin-bottom: 0; font-size: 14px; line-height: 1.75; }
+    .notice-box strong { color: var(--ink); }
+
+    .contact-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 14px;
+      margin-top: 20px;
+    }
+    .contact-tile {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      display: flex; align-items: flex-start; gap: 14px;
+    }
+    .contact-tile-icon {
+      width: 40px; height: 40px; border-radius: 10px;
+      background: rgba(201,168,76,0.1); border: 1px solid rgba(201,168,76,0.2);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 15px; color: var(--gold); flex-shrink: 0;
+    }
+    .contact-tile-label { font-size: 11px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: #94a3b8; margin-bottom: 4px; }
+    .contact-tile-value { font-size: 14px; font-weight: 500; color: var(--ink); }
+    .contact-tile-value a { color: var(--ink); text-decoration: none; transition: color 0.2s; }
+    .contact-tile-value a:hover { color: var(--gold); }
+
+    .site-footer {
+      background: var(--ink);
+      padding: 32px 48px;
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 16px;
+      border-top: 1px solid rgba(201,168,76,0.1);
+    }
+    .footer-logo { font-family: 'Cormorant Garamond', serif; font-size: 18px; color: var(--white); }
+    .footer-logo span { color: var(--gold); }
+    .footer-links { display: flex; gap: 24px; }
+    .footer-links a { color: rgba(255,255,255,0.4); font-size: 13px; text-decoration: none; transition: color 0.2s; }
+    .footer-links a:hover { color: var(--gold); }
+    .footer-copy { font-size: 12px; color: rgba(255,255,255,0.25); }
+
+    @media (max-width: 768px) {
+      .navbar { padding: 0 20px; }
+      .hero-banner { padding: 48px 20px 40px; }
+      .content-wrap { padding: 40px 20px 72px; }
+      .toc { padding: 20px; }
+      .site-footer { padding: 28px 20px; flex-direction: column; text-align: center; }
+      .footer-links { justify-content: center; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Navbar -->
+  <nav class="navbar">
+    <a class="nav-logo" href="index.html">
+      <img src="img/logo1.jpg" alt="GTEC Guest Lodge Logo">
+      <span class="nav-logo-text">GTEC <span>GuestLodge</span></span>
+    </a>
+    <a class="nav-back" href="index.html">
+      <i class="fas fa-arrow-left"></i> Back to Home
+    </a>
+  </nav>
+
+  <!-- Hero Banner -->
+  <div class="hero-banner">
+    <div class="banner-inner">
+      <p class="banner-eyebrow">Legal · Data Protection</p>
+      <h1 class="banner-title">Privacy <em>Policy</em></h1>
+      <div class="banner-meta">
+        <span><i class="fas fa-calendar-alt"></i> Effective: May 4, 2026</span>
+        <span><i class="fas fa-sync-alt"></i> Last Updated: May 4, 2026</span>
+        <span><i class="fas fa-globe"></i> gtecguestlodge.web.app</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="content-wrap">
+
+    <!-- Table of Contents -->
+    <div class="toc">
+      <p class="toc-label">Contents</p>
+      <ul class="toc-list">
+        <li><a href="#s1">Introduction</a></li>
+        <li><a href="#s2">Scope of This Policy</a></li>
+        <li><a href="#s3">Information We Collect</a></li>
+        <li><a href="#s4">How We Use Your Information</a></li>
+        <li><a href="#s5">Google Sign-In</a></li>
+        <li><a href="#s6">Data Sharing</a></li>
+        <li><a href="#s7">Data Storage & Security</a></li>
+        <li><a href="#s8">Your Rights</a></li>
+        <li><a href="#s9">Cookies</a></li>
+        <li><a href="#s10">Children's Privacy</a></li>
+        <li><a href="#s11">Changes to This Policy</a></li>
+        <li><a href="#s12">Contact Us</a></li>
+      </ul>
+    </div>
+
+    <!-- Section 1 -->
+    <div class="policy-section" id="s1">
+      <p class="section-num">01</p>
+      <h2 class="section-heading">Introduction</h2>
+      <p>Welcome to GTEC Guest Lodge. We are committed to protecting the personal information of our clients and guests. This Privacy Policy explains how we collect, use, store, and safeguard client data submitted through our booking website at <strong>gtecguestlodge.web.app</strong>.</p>
+      <p>By submitting a booking request or enquiry through our website, you agree to the data practices described in this policy. If you do not agree, please refrain from submitting personal information via our website.</p>
+    </div>
+
+    <!-- Section 2 — NEW: Scope clarification -->
+    <div class="policy-section" id="s2">
+      <p class="section-num">02</p>
+      <h2 class="section-heading">Scope of This <em>Policy</em></h2>
+      <p>It is important to understand the distinction between who <strong>provides</strong> personal data and who <strong>operates</strong> the booking management system:</p>
+
+      <div class="notice-box">
+        <p><strong>Data Subjects — Clients &amp; Guests:</strong> Personal information is collected from clients and guests who submit booking requests or enquiries through the GTEC Guest Lodge website. This Privacy Policy governs how that data is handled and upholds the rights of those individuals.</p>
+      </div>
+
+      <div class="notice-box">
+        <p><strong>System Users — Authorised Staff Only:</strong> The booking management platform — the back-end system used to view, process, and manage reservations — is strictly for use by authorised GTEC Guest Lodge staff. Clients and guests do not have accounts on, or direct access to, this internal system.</p>
+      </div>
+
+      <p>In summary: <em>clients and guests submit their data through the public-facing website; only authorised staff access and manage that data through the internal booking platform.</em> This policy is primarily addressed to clients and guests whose personal information is processed as part of the reservation workflow.</p>
+    </div>
+
+    <!-- Section 3 -->
+    <div class="policy-section" id="s3">
+      <p class="section-num">03</p>
+      <h2 class="section-heading">Information We <em>Collect</em></h2>
+      <p>When you submit a booking request or enquiry through our website, we may collect the following information about you:</p>
+      <ul class="policy-list">
+        <li><strong>Identity information:</strong> Full name and email address</li>
+        <li><strong>Contact details:</strong> Phone number</li>
+        <li><strong>Booking details:</strong> Check-in/check-out dates, room selection, number of guests, and purpose of stay</li>
+        <li><strong>Communications:</strong> Messages sent via our website enquiry or live chat feature</li>
+      </ul>
+      <div class="highlight-box">
+        <p><strong>Payment Information:</strong> We do <strong>not</strong> collect or store credit card or payment information directly. Any payment processing is handled by trusted third-party providers under their own privacy policies.</p>
+      </div>
+      <div class="notice-box">
+        <p><strong>Staff Accounts:</strong> Authorised GTEC Guest Lodge staff who access the internal booking management system may hold a work account linked to their institutional email. Staff account data is handled separately and is governed by GTEC's internal staff policies — it is not subject to this client-facing Privacy Policy.</p>
+      </div>
+    </div>
+
+    <!-- Section 4 -->
+    <div class="policy-section" id="s4">
+      <p class="section-num">04</p>
+      <h2 class="section-heading">How We Use Your <em>Information</em></h2>
+      <p>Client data collected through the website is accessed exclusively by authorised staff and used solely to operate and fulfil your booking:</p>
+      <ul class="policy-list">
+        <li>Process and manage your room reservation on your behalf</li>
+        <li>Send booking confirmations and updates via email and SMS</li>
+        <li>Respond to website enquiries and support requests</li>
+        <li>Generate booking confirmation letters and invoices</li>
+        <li>Maintain accurate administrative and occupancy records</li>
+        <li>Comply with legal and administrative obligations</li>
+      </ul>
+      <p>Clients and guests do not interact directly with the internal booking management system. All information submitted through the website is reviewed and actioned exclusively by GTEC Guest Lodge staff on your behalf.</p>
+    </div>
+
+    <!-- Section 5 -->
+    <div class="policy-section" id="s5">
+      <p class="section-num">05</p>
+      <h2 class="section-heading">Google <em>Sign-In</em></h2>
+      <p>The internal booking management platform uses Google OAuth 2.0 to allow authorised staff to sign in securely using their institutional Google accounts. This feature is restricted to GTEC Guest Lodge staff only — clients and guests are not required to sign in with Google or create any account to submit a booking request.</p>
+      <p>When staff sign in via Google, only their name and email address are retrieved. No Google password is stored by our system. Staff use of Google Sign-In is also governed by <a href="https://policies.google.com/privacy" target="_blank" style="color:var(--gold);text-decoration:underline;">Google's Privacy Policy</a>. Access may be revoked at any time through individual Google account settings.</p>
+    </div>
+
+    <!-- Section 6 -->
+    <div class="policy-section" id="s6">
+      <p class="section-num">06</p>
+      <h2 class="section-heading">Data <em>Sharing</em></h2>
+      <p>We do not sell, trade, or rent client personal information to third parties. Data may be shared only in the following limited circumstances:</p>
+      <ul class="policy-list">
+        <li>With service providers who help operate our platform (e.g., Google Firebase, EmailJS) under confidentiality agreements</li>
+        <li>With authorised GTEC Guest Lodge staff who require access solely to process and manage your booking</li>
+        <li>When required by Ghanaian law or a valid legal process</li>
+        <li>To protect the rights, safety, or property of GTEC Guest Lodge or its clients</li>
+      </ul>
+      <p>Client data is never shared with or made accessible to other guests or any unauthorised party.</p>
+    </div>
+
+    <!-- Section 7 -->
+    <div class="policy-section" id="s7">
+      <p class="section-num">07</p>
+      <h2 class="section-heading">Data Storage <em>&amp; Security</em></h2>
+      <p>Client data collected through the website is stored securely using Google Firebase, which employs industry-standard encryption and security measures including data encryption at rest and in transit. Access to stored data within the internal management platform is restricted to authorised staff only.</p>
+      <p>We retain your personal data only as long as necessary to fulfil the purposes outlined in this policy, or as required by law. Booking records are retained for administrative and legal compliance purposes.</p>
+      <p>While we implement strong security measures, no online system is entirely immune to risk. We encourage you to submit only the information necessary to complete your booking.</p>
+    </div>
+
+    <!-- Section 8 -->
+    <div class="policy-section" id="s8">
+      <p class="section-num">08</p>
+      <h2 class="section-heading">Your <em>Rights</em></h2>
+      <p>As a client whose personal data we process, you have the following rights:</p>
+      <ul class="policy-list">
+        <li><strong>Access:</strong> Request a copy of the personal information we hold about you</li>
+        <li><strong>Correction:</strong> Request correction of any inaccurate or incomplete data</li>
+        <li><strong>Deletion:</strong> Request deletion of your personal data from our records</li>
+        <li><strong>Withdrawal:</strong> Withdraw consent for data processing at any time</li>
+        <li><strong>Portability:</strong> Request your data in a portable format</li>
+      </ul>
+      <p>To exercise any of these rights, please contact us using the details in Section 12.</p>
+    </div>
+
+    <!-- Section 9 -->
+    <div class="policy-section" id="s9">
+      <p class="section-num">09</p>
+      <h2 class="section-heading"><em>Cookies</em></h2>
+      <p>Our website may use cookies and similar technologies to maintain your session, remember your preferences, and improve your browsing experience. These are small text files stored on your device by your browser.</p>
+      <p>You can control or disable cookie settings through your browser preferences. Please note that disabling cookies may affect certain features of the website, such as form pre-filling.</p>
+    </div>
+
+    <!-- Section 10 -->
+    <div class="policy-section" id="s10">
+      <p class="section-num">10</p>
+      <h2 class="section-heading">Children's <em>Privacy</em></h2>
+      <p>Our website is not directed to individuals under the age of 13. We do not knowingly collect personal information from children. If you believe a child has submitted personal information through our website, please contact us immediately and we will promptly delete it.</p>
+    </div>
+
+    <!-- Section 11 -->
+    <div class="policy-section" id="s11">
+      <p class="section-num">11</p>
+      <h2 class="section-heading">Changes to This <em>Policy</em></h2>
+      <p>We may update this Privacy Policy from time to time to reflect changes in our services or applicable law. Any changes will be posted on this page with an updated effective date at the top.</p>
+      <p>We encourage you to review this policy periodically. Continued submission of personal information through our website after any changes constitutes your acceptance of the updated policy.</p>
+    </div>
+
+    <!-- Section 12 -->
+    <div class="policy-section" id="s12">
+      <p class="section-num">12</p>
+      <h2 class="section-heading">Contact <em>Us</em></h2>
+      <p>If you have any questions, concerns, or requests regarding this Privacy Policy or how we handle your data, please reach out to us:</p>
+      <div class="contact-grid">
+        <div class="contact-tile">
+          <div class="contact-tile-icon"><i class="fas fa-building"></i></div>
+          <div>
+            <div class="contact-tile-label">Organisation</div>
+            <div class="contact-tile-value">GTEC Guest Lodge</div>
+          </div>
+        </div>
+        <div class="contact-tile">
+          <div class="contact-tile-icon"><i class="fas fa-envelope"></i></div>
+          <div>
+            <div class="contact-tile-label">Email</div>
+            <div class="contact-tile-value"><a href="mailto:hospitality@gtec.edu.gh">hospitality@gtec.edu.gh</a></div>
+          </div>
+        </div>
+        <div class="contact-tile">
+          <div class="contact-tile-icon"><i class="fas fa-phone"></i></div>
+          <div>
+            <div class="contact-tile-label">Phone</div>
+            <div class="contact-tile-value"><a href="tel:+233244660848">+233 24 466 0848</a></div>
+          </div>
+        </div>
+        <div class="contact-tile">
+          <div class="contact-tile-icon"><i class="fas fa-globe"></i></div>
+          <div>
+            <div class="contact-tile-label">Website</div>
+            <div class="contact-tile-value"><a href="https://gtecguestlodge.web.app">gtecguestlodge.web.app</a></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content-wrap -->
+
+  <!-- Footer -->
+  <footer class="site-footer">
+    <div class="footer-logo">GTEC <span>GuestLodge</span></div>
+    <div class="footer-links">
+      <a href="index.html">Home</a>
+      <a href="index.html#rooms">Rooms</a>
+      <a href="index.html#contact">Contact</a>
+    </div>
+    <div class="footer-copy">© 2026 GTEC Guest Lodge, Accra Ghana. All rights reserved.</div>
+  </footer>
+
+</body>
+</html>
