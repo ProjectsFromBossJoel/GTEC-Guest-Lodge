@@ -1379,8 +1379,12 @@ function formatFileSize(bytes) {
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
 }
 
-// ── Attachment UI ─────────────────────────────────────────
+// ── Attachment UI ─────────────────
 let _pendingAttachment = null;
+
+
+let _ignoreScroll = true;   // Ignores scroll events until the first channel is fully loaded
+
 
 function triggerFileAttach() {
     document.getElementById('cr-file-input').click();
@@ -1728,9 +1732,12 @@ function switchChannel(el, channel, desc) {
     document.getElementById('cr-message-input').placeholder = `Message #${channel}`;
     document.getElementById('cr-messages-container').innerHTML = '';
     clearBadge(channel);
+    document.getElementById('cr-unread-banner').classList.remove('show');
+    _ignoreScroll = true;   // disable banner until new channel is scrolled to bottom
     subscribeChannel(channel);
     stopTyping();
 }
+
 
 // ── Subscribe to messages ─────────────────────────────────
 let _lastMessageCount = 0;
@@ -1785,7 +1792,12 @@ function subscribeChannel(channel) {
                 }
             }
             _lastMessageCount = newCount;
+            _ignoreScroll = true;              // disable banner while we scroll to bottom
             scrollToBottom();
+            setTimeout(() => {
+                scrollToBottom();              // re‑scroll after attachments load
+                _ignoreScroll = false;        // re‑enable banner after final position is stable
+            }, 400);
 
         }, err => {
             console.error('Firestore error:', err);
@@ -2076,15 +2088,19 @@ async function pinMessage(msgId, shouldPin) {
 
 function updatePinnedPanel() {
     const el = document.getElementById('cr-pinned-list');
+    if (!el) return;
+
     if (!pinnedMessages.length) {
         el.innerHTML = '<p style="font-size:12px;color:var(--muted);">No pinned messages.</p>';
         return;
     }
+
     el.innerHTML = pinnedMessages.map(m => `
-        <div class="cr-pinned-msg">
+        <div class="cr-pinned-msg" onclick="scrollToMessage('${m.id}')" style="cursor:pointer;">
             <div class="cr-pinned-who">${m.senderName}</div>
-            <div>${(m.text||'').slice(0,80)}${(m.text||'').length>80?'…':''}</div>
-        </div>`).join('');
+            <div>${(m.text || '').slice(0, 80)}${(m.text || '').length > 80 ? '…' : ''}</div>
+        </div>
+    `).join('');
 }
 
 // ── Emoji picker ──────────────────────────────────────────
@@ -2232,7 +2248,24 @@ function scrollToBottom() {
     document.getElementById('cr-unread-banner').classList.remove('show');
 }
 
+function scrollToMessage(msgId) {
+    const el = document.getElementById(`msg-${msgId}`);
+    if (!el) return;
+
+    // Scroll into view
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+    // Highlight the message briefly
+    el.style.transition = 'background 0.3s';
+    el.style.background = '#fef3c7'; // light yellow
+    setTimeout(() => {
+        el.style.background = '';
+    }, 2000);
+}
+
+
 document.getElementById('cr-messages-container')?.addEventListener('scroll', function () {
+    if (_ignoreScroll) return;   // don’t toggle the banner during programmatic scrolls
     const atBottom = this.scrollHeight - this.scrollTop - this.clientHeight < 100;
     document.getElementById('cr-unread-banner').classList.toggle('show', !atBottom);
 });
