@@ -1331,6 +1331,7 @@
     <script src="js/firebase.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/sidebar.js"></script>
+    <script src="js/chatnotify.js?v=20260504"></script>
 
     <script>
       const EMOJIS = ['👍','❤️','😂','🎉','🔥','👀','✅','⚡','😊','🙏','💯','👏','😮','🤔','🚀','⭐'];
@@ -1495,7 +1496,6 @@ let typingTimeout  = null;
 let rightPanelOpen = true;
 let pinnedMessages = [];
 const ALL_CHANNELS = ['general','announcements','housekeeping','front-desk'];
-let channelLastSeen = {};
 
 // ── Boot ──────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
@@ -1533,7 +1533,7 @@ document.addEventListener('DOMContentLoaded', () => {
         applyStoredSettings();
         loadMembers();
         subscribeChannel('general');
-        startUnreadListeners();
+        applyChannelBadges();
 
         setTimeout(() => {
             const sm = document.getElementById('sidebarMenu');
@@ -1586,7 +1586,8 @@ function loadMembers() {
         snap.forEach(doc => {
             const d = doc.data();
             const lastSeenMillis = d.lastSeen ? (d.lastSeen.seconds ? d.lastSeen.seconds * 1000 : 0) : 0;
-            const isOnline = (now - lastSeenMillis) < PRESENCE_TIMEOUT_MS;
+            // Consider offline if the online flag explicitly says false, or if the timestamp is too old
+            const isOnline = d.online !== false && ((now - lastSeenMillis) < PRESENCE_TIMEOUT_MS);
             members.push({ uid: doc.id, ...d, online: isOnline });
             if (isOnline) count++;
         });
@@ -1622,61 +1623,90 @@ function loadMembers() {
 }
 
 // ── Nav badge ─────────────────────────────────────────────
-function updateNavBadge() {
-    let total = 0;
-    ALL_CHANNELS.forEach(ch => {
-        const badge = document.getElementById(`badge-${ch}`);
-        if (badge && badge.classList.contains('has-unread'))
-            total += parseInt(badge.textContent) || 0;
+
+
+// ── Unread badge listeners ────────────────────────────────
+
+
+
+// ── In‑page channel unread badges (Firestore sync) ────────────
+function applyChannelBadges() {
+    const CHANNELS = ['general', 'announcements', 'housekeeping', 'front-desk'];
+    // Keep a local cache of latest message times per channel
+    const latestMsgTimes = {};
+    let readTimes = {};
+
+    // 1. Listen to the user's read timestamps
+    if (currentUser) {
+        db.collection('chatUnread').doc(currentUser.uid)
+            .onSnapshot(doc => {
+                readTimes = doc.exists ? doc.data() : {};
+                updateAllChannelBadges();
+            });
+    }
+
+    // 2. For each channel, listen to the latest message and unread count
+    CHANNELS.forEach(channel => {
+        // Listen to latest message to update timestamp
+        db.collection('chatrooms').doc(channel).collection('messages')
+            .orderBy('time', 'desc')
+            .limit(1)
+            .onSnapshot(snap => {
+                if (!snap.empty) {
+                    const ts = snap.docs[0].data().time;
+                    latestMsgTimes[channel] = ts ? (ts.toMillis ? ts.toMillis() : 0) : 0;
+                } else {
+                    latestMsgTimes[channel] = 0;
+                }
+                updateChannelBadge(channel);
+            });
+
+        // Optional: If you want to show the exact unread count, you can also
+        // listen to messages newer than lastSeen. For simplicity, we’ll just
+        // show a red dot for any unread. To show a number, you could do:
+        // db.collection('chatrooms').doc(channel).collection('messages')
+        //   .where('time', '>', lastSeenTimestamp)
+        //   .onSnapshot(...)
+        // but that requires knowing the lastSeen timestamp. We'll stick to
+        // a simple dot for now. You can upgrade later.
     });
-    const navBadge = document.getElementById('nav-chatroom-count');
-    if (navBadge) {
-        navBadge.textContent = total;
-        navBadge.style.display = total > 0 ? 'inline-flex' : 'none';
+
+    function updateAllChannelBadges() {
+        CHANNELS.forEach(ch => updateChannelBadge(ch));
+    }
+
+    function updateChannelBadge(channel) {
+        const badge = document.getElementById(`badge-${channel}`);
+        if (!badge) return;
+
+        const lastSeen = readTimes[`lastSeen_${channel}`];
+        const lastSeenMillis = lastSeen ? (lastSeen.seconds ? lastSeen.seconds * 1000 : 0) : 0;
+        const latest = latestMsgTimes[channel] || 0;
+        const hasUnread = latest > lastSeenMillis;
+
+        if (hasUnread) {
+            badge.textContent = '●';   // or you can replace with a number if you add count
+            badge.classList.add('has-unread');
+        } else {
+            badge.textContent = '';
+            badge.classList.remove('has-unread');
+        }
     }
 }
 
-// ── Unread badge listeners ────────────────────────────────
-function startUnreadListeners() {
-    ALL_CHANNELS.forEach(ch => {
-        channelLastSeen[ch] = Date.now();
-        db.collection('chatrooms').doc(ch).collection('messages')
-            .orderBy('time','desc').limit(1)
-            .onSnapshot(snap => {
-                if (ch === currentChannel) return;
-                snap.forEach(doc => {
-                    const data = doc.data();
-                    const msgTime = data.time ? (data.time.toMillis ? data.time.toMillis() : 0) : 0;
-                    if (msgTime > (channelLastSeen[ch] || 0)) {
-                        incrementBadge(ch);
-                        channelLastSeen[ch] = msgTime;
-                    }
-                });
-            });
-    });
-}
+// Call this after user is ready
 
-function incrementBadge(channel) {
-    const badge = document.getElementById(`badge-${channel}`);
-    if (!badge) return;
-    badge.textContent = (parseInt(badge.textContent) || 0) + 1;
-    badge.classList.add('has-unread');
-    updateNavBadge();
-}
+
 
 function clearBadge(channel) {
-    // Locally clear the channel badge
+    // Locally clear the in‑page channel badge
     const badge = document.getElementById(`badge-${channel}`);
     if (badge) {
         badge.textContent = '';
         badge.classList.remove('has-unread');
     }
 
-    // Update local state (for in‑page badges)
-    channelLastSeen[channel] = Date.now();
-    updateNavBadge();
-
-    // 🔄 Save the read timestamp to Firestore for cross‑device sync
+    // Save the read timestamp to Firestore (cross‑device sync)
     if (currentUser) {
         const uid = currentUser.uid;
         db.collection('chatUnread').doc(uid).set({

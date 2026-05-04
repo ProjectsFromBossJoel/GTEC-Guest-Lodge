@@ -7,8 +7,7 @@
 (function () {
     'use strict';
 
-    // ── Don't run on the chat room page itself ────────────────
-    if (window.location.pathname.endsWith('chatroom.html')) return;
+
 
     const ALL_CHANNELS = ['general', 'announcements', 'housekeeping', 'front-desk'];
     const STORAGE_KEY  = 'cr-notify-last-seen'; // { channel: timestampMillis }
@@ -380,6 +379,7 @@ function updateChatRoomBadge() {
     }
 };
 
+        if (!window.location.pathname.endsWith('chatroom.html')) {
         ALL_CHANNELS.forEach(channel => {
             // If never seen, mark as now so old messages don't fire
             if (!lastSeen[channel]) {
@@ -414,7 +414,7 @@ function updateChatRoomBadge() {
                     });
                 });
         });
-
+    }
         // ── Live Chat unread badge (sidebar & anywhere with #nav-chat-count) ──
 db.collection('liveChats')
     .where('adminRead', '==', false)
