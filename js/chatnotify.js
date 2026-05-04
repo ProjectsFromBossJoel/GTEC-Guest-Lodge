@@ -356,7 +356,13 @@ chatRoomChannels.forEach(channel => {
 
 function updateChatRoomBadge() {
     let unreadChannels = 0;
+    const isChatRoom = window.location.pathname.endsWith('chatroom.html');
+    const activeChannel = sessionStorage.getItem('cr_active_channel') || '';
+
     chatRoomChannels.forEach(channel => {
+        // If we’re on the chatroom page and the user is viewing this channel, skip it
+        if (isChatRoom && channel === activeChannel) return;
+
         const lastSeen = readTimes[`lastSeen_${channel}`];
         const lastSeenMillis = lastSeen
             ? (lastSeen.seconds ? lastSeen.seconds * 1000 : 0)

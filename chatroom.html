@@ -1726,6 +1726,7 @@ function switchChannel(el, channel, desc) {
     document.querySelectorAll('.cr-channel').forEach(c => c.classList.remove('active'));
     el.classList.add('active');
     currentChannel = channel;
+    sessionStorage.setItem('cr_active_channel', channel);
     channelDesc = desc;
     document.getElementById('cr-channel-name').textContent = channel;
     document.getElementById('cr-channel-desc').textContent = desc;
@@ -1980,6 +1981,7 @@ async function sendMessage() {
         input.style.height = 'auto';
         stopTyping();
         scrollToBottom();
+        clearBadge(currentChannel);
 
     } catch (e) {
         console.error('Send error:', e);
