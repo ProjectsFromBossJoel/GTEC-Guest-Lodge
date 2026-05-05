@@ -6,6 +6,7 @@
 export default async function handler(req, res) {
   // ── CORS ──
   const ALLOWED_ORIGINS = [
+    'https://gtecguestlodge.web.app',
     'https://gtecguesthouse.web.app',
     'http://localhost:5000',
     'http://localhost:3000',
