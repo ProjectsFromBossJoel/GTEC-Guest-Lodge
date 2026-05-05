@@ -785,8 +785,7 @@
                             <div class="cal-day-name weekend">Sat</div>
                         </div>
                         <div class="cal-grid" id="cal-grid">
-                            <!-- Shimmer -->
-                            ${Array(35).fill('<div class="cal-shimmer-cell"></div>').join('')}
+                            <!-- Shimmer cells injected by JS -->
                         </div>
                     </div>
                 </div>
@@ -1070,7 +1069,14 @@
                         <div class="day-guest-name">${name}</div>
                         <div class="day-guest-meta">
                             ${g.roomNumber || g.room ? `Room ${g.roomNumber || g.room}` : '—'}
-                            ${g.phone ? ' · ' + g.phone : ''}
+                            ${(() => {
+                                const n = g.nights || (() => {
+                                    const ci = g.checkinDateStr ? new Date(g.checkinDateStr) : (g.checkinDate?.toDate?.());
+                                    const co = g.checkoutDateStr ? new Date(g.checkoutDateStr) : (g.checkoutDate?.toDate?.() || g.expectedCheckout?.toDate?.());
+                                    return ci && co ? Math.max(1, Math.round((co - ci) / 86400000)) : null;
+                                })();
+                                return n ? ' · ' + n + ' night' + (n > 1 ? 's' : '') : '';
+                            })()}
                         </div>
                     </div>
                     <span class="day-type-badge in">Check-in</span>
@@ -1097,7 +1103,14 @@
                         <div class="day-guest-name">${name}</div>
                         <div class="day-guest-meta">
                             ${g.roomNumber || g.room ? `Room ${g.roomNumber || g.room}` : '—'}
-                            ${g.phone ? ' · ' + g.phone : ''}
+                            ${(() => {
+                                const n = g.nights || (() => {
+                                    const ci = g.checkinDateStr ? new Date(g.checkinDateStr) : (g.checkinDate?.toDate?.());
+                                    const co = g.checkoutDateStr ? new Date(g.checkoutDateStr) : (g.checkoutDate?.toDate?.() || g.expectedCheckout?.toDate?.());
+                                    return ci && co ? Math.max(1, Math.round((co - ci) / 86400000)) : null;
+                                })();
+                                return n ? ' · ' + n + ' night' + (n > 1 ? 's' : '') : '';
+                            })()}
                         </div>
                     </div>
                     <span class="day-type-badge out">Check-out</span>
@@ -1127,7 +1140,14 @@
                 <div class="emg-avatar ${g.type}">${initials}</div>
                 <div style="flex:1;min-width:0;">
                     <div class="emg-name">${name}</div>
-                    <div class="emg-meta">Room ${g.roomNumber || g.room || '—'} · ${g.phone || '—'}</div>
+                    <div class="emg-meta">Room ${g.roomNumber || g.room || '—'} · ${(() => {
+                        const n = g.nights || (() => {
+                            const ci = g.checkinDateStr ? new Date(g.checkinDateStr) : (g.checkinDate?.toDate?.());
+                            const co = g.checkoutDateStr ? new Date(g.checkoutDateStr) : (g.checkoutDate?.toDate?.() || g.expectedCheckout?.toDate?.());
+                            return ci && co ? Math.max(1, Math.round((co - ci) / 86400000)) : null;
+                        })();
+                        return n ? n + ' night' + (n > 1 ? 's' : '') : (g.phone || '—');
+                    })()}</div>
                 </div>
                 <span class="emg-badge ${g.type}">${g.type === 'in' ? 'Check-in' : 'Check-out'}</span>
             `;
@@ -1248,6 +1268,10 @@
 
     // ── Boot ──────────────────────────────────────────────────────────────
     document.addEventListener('DOMContentLoaded', () => {
+        // Inject shimmer cells while data loads
+        const grid = document.getElementById('cal-grid');
+        if (grid) grid.innerHTML = Array(35).fill('<div class="cal-shimmer-cell"></div>').join('');
+
         firebase.auth().onAuthStateChanged(user => {
             if (!user) { window.location.href = 'admin.html'; return; }
             loadData();
