@@ -103,6 +103,11 @@ db.collection("rooms").onSnapshot(snapshot => {
                         ${disabled ? (room.status || 'Unavailable') : 'Book Now'}
                     </button>
                 </div>
+                ${room.price ? `
+                <div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(0,0,0,0.06);display:flex;align-items:center;justify-content:space-between;">
+                    <span style="font-size:11px;color:#94a3b8;font-weight:500;letter-spacing:0.5px;text-transform:uppercase;">Price / Night</span>
+                    <span style="font-family:'Cormorant Garamond',serif;font-size:18px;font-weight:600;color:#c9a84c;">GH₵ ${Number(room.price).toLocaleString()}</span>
+                </div>` : ''}
             </div>
         `;
 

@@ -87,7 +87,8 @@ document.addEventListener('DOMContentLoaded', () => {
             type: document.getElementById('room-type').value,
             status: document.getElementById('room-status').value,
             image: document.getElementById("room-image").value,
-            price: parseFloat(document.getElementById('room-price').value) || 0
+            price: parseFloat(document.getElementById('room-price').value) || 0,
+            capacity: parseInt(document.getElementById('room-capacity').value) || 2
         };
 
         try {
@@ -158,7 +159,7 @@ function renderRoomsTable(rooms) {
     tbody.innerHTML = '';
 
     if (rooms.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-light);">No rooms found. Add some rooms to get started.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-light);">No rooms found. Add some rooms to get started.</td></tr>';
         return;
     }
 
@@ -176,6 +177,7 @@ function renderRoomsTable(rooms) {
             <td><strong>${room.number}</strong></td>
             <td>${room.type || 'Standard'}</td>
             <td>${room.price ? `<strong>GH₵ ${Number(room.price).toLocaleString('en-GH', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</strong>` : '<span style="color:#94a3b8;">—</span>'}</td>
+            <td>${room.capacity ? `<i class="fas fa-user-friends" style="color:#c9a84c;margin-right:5px;font-size:11px;"></i>${room.capacity} guests` : '<span style="color:#94a3b8;">—</span>'}</td>
             <td><span class="badge ${badgeClass}">${room.status || 'Available'}</span></td>
             <td>
                 <button class="btn btn-sm btn-outline edit-btn" data-id="${room.id}" title="Edit Room">
@@ -206,6 +208,7 @@ function renderRoomsTable(rooms) {
                 const imgVal = room.image || '';
                 console.log('Stored image value:', imgVal);
                 document.getElementById('room-price').value = room.price || '';
+                document.getElementById('room-capacity').value = room.capacity || '';
                 setTimeout(() => {
                     document.getElementById('room-image').value = imgVal;
                     updateImagePreview(imgVal);

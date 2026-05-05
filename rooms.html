@@ -102,6 +102,7 @@
                                     <th>Room Number</th>
                                     <th>Type</th>
                                     <th>Price / Night</th>
+                                    <th>Max Guests</th>
                                     <th>Status</th>
                                     <th>Actions</th>
                                 </tr>
@@ -185,7 +186,12 @@
 
                     <div class="form-group">
                         <label for="room-price">Price per Night (GH₵)</label>
-                        <input type="number" id="room-price" class="form-control" min="0" step="0.01" placeholder="e.g. 1500">
+                        <input type="number" id="room-price" class="form-control" placeholder="e.g. 1500" min="0" step="0.01">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="room-capacity">Max Guests</label>
+                        <input type="number" id="room-capacity" class="form-control" placeholder="e.g. 2" min="1" max="10">
                     </div>
 
                 </div>
