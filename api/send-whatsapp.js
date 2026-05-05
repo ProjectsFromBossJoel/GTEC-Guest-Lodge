@@ -112,6 +112,9 @@ export default async function handler(req, res) {
     const mnotifySender = process.env.MNOTIFY_SENDER_ID; // e.g., 'GTECLodge'
 
     if (mnotifyKey && mnotifySender) {
+      const totalAmount = details.price && details.nights
+          ? (parseFloat(details.price) * parseInt(details.nights)).toFixed(2)
+          : (details.amount || 'N/A');
       const smsMessage = 
       `Hello ${details.guestName}, your booking at GTEC Guest Lodge is confirmed!\n\n` +
       `Booking ID: ${bookingId}\n` +
@@ -119,6 +122,7 @@ export default async function handler(req, res) {
       `Check-in: ${details.checkIn}\n` +
       `Check-out: ${details.checkOut}\n` +
       `Nights: ${details.nights}\n\n` +
+      `Amount: GH₵ ${totalAmount}\n\n` +
       `Kindly check your email for Terms and Conditions.`;
       `Thank you for choosing GTEC Guest Lodge!`;
       // MNotify expects local format: 024XXXXXXX (without country code)

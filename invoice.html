@@ -1100,7 +1100,7 @@
                     placeholder="Search by guest name, invoice number, room..."
                     oninput="filterHistory()">
                 <span class="history-count-tag" id="historyCountLabel">0 invoices</span>
-                <button class="clear-all-btn" onclick="confirmClearAll()">
+                <button class="clear-all-btn" id="clear-all-btn" onclick="confirmClearAll()">
                     <i class="fas fa-trash-alt"></i> Clear All
                 </button>
             </div>
@@ -1925,6 +1925,9 @@ function renderHistoryList(filter = '') {
             </div>
         </div>`;
     }).join('');
+
+    // 🔒 Apply role restrictions
+    applyHistoryDeleteRestrictions();
 }
 
 // Cache for Firestore-loaded invoices
@@ -2191,6 +2194,48 @@ document.addEventListener('DOMContentLoaded', () => {
 });
     });
 });
+
+// ── Toast ─────────────────────────────────────────────────────────────
+// ── Restrict Clear All & Delete in history modal (except superadmin) ──
+function applyHistoryDeleteRestrictions() {
+    const role = (window._userRole || '').toLowerCase();
+    const locked = role !== 'superadmin';
+
+    // Clear All button
+    const clearBtn = document.getElementById('clear-all-btn');
+    if (clearBtn) {
+        if (locked) {
+            clearBtn.disabled = true;
+            clearBtn.style.opacity = '0.4';
+            clearBtn.style.cursor = 'not-allowed';
+            clearBtn.style.pointerEvents = 'none';
+            clearBtn.title = 'Only Super Admin can clear invoices';
+        } else {
+            clearBtn.disabled = false;
+            clearBtn.style.opacity = '';
+            clearBtn.style.cursor = '';
+            clearBtn.style.pointerEvents = '';
+            clearBtn.title = '';
+        }
+    }
+
+    // All delete buttons inside the history list
+    document.querySelectorAll('.hist-del-btn').forEach(btn => {
+        if (locked) {
+            btn.disabled = true;
+            btn.style.opacity = '0.4';
+            btn.style.cursor = 'not-allowed';
+            btn.style.pointerEvents = 'none';
+            btn.title = 'Only Super Admin can delete an invoice';
+        } else {
+            btn.disabled = false;
+            btn.style.opacity = '';
+            btn.style.cursor = '';
+            btn.style.pointerEvents = '';
+            btn.title = '';
+        }
+    });
+}
 
 // ── Toast ─────────────────────────────────────────────────────────────
 function showToast(msg, type = 'success') {

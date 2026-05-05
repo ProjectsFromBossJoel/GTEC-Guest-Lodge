@@ -6,11 +6,13 @@
 const BLOCKED_PAGES = {
     superadmin:   [],
     manager:      ['roles.html'],
+    admin:        ['roles.html'],   // ← alias for "admin" stored in Firestore
     receptionist: ['roles.html', 'logs.html'],
     observer:     ['roles.html', 'verification.html', 'logs.html', 'chat.html', 'reports.html', 'payments.html', 'invoice.html', 'filelibrary.html', 'chatroom.html'],
 };
 
-const WRITE_RESTRICTED_ROLES = ['manager', 'receptionist'];
+// Roles with write restrictions (buttons will be disabled with tooltip)
+const WRITE_RESTRICTED_ROLES = ['manager','admin', 'receptionist'];
 
 window._userRole = null;
 
@@ -340,6 +342,7 @@ function _showRoleBadge(role) {
     const meta = {
         superadmin:   { label: 'Super Admin',  bg: '#dbeafe', color: '#1e40af' },
         manager:      { label: 'Admin',      bg: '#dcfce7', color: '#15803d' },
+        admin:        { label: 'Admin',        bg: '#dcfce7', color: '#15803d' },
         receptionist: { label: 'Receptionist', bg: '#fef3c7', color: '#854d0e' },
         observer:     { label: 'Observer',     bg: '#f3e8ff', color: '#6b21a8' },
     };
