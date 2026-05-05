@@ -866,7 +866,9 @@
                         <div class="field-row">
                             <div class="field-group">
                                 <label class="field-label">Room Number</label>
-                                <input type="text" id="fRoom" class="field-input" placeholder="e.g. 109">
+                                <input type="text" id="fRoom" class="field-input" placeholder="e.g. 109"
+                                    onblur="fetchRoomPriceAndSet(this.value)">
+                                    <div style="font-size:12px; font-weight:600; color:#c9a84c; margin-top:4px;" id="roomTypeBadge"></div>
                             </div>
                             <div class="field-group">
                                 <label class="field-label">No. of Guests</label>
@@ -1163,7 +1165,7 @@
                 </button>
             </div>
         </div>
-    </div
+    </div>
 
     <script src="js/chatnotify.js" defer></script>
 
@@ -1206,6 +1208,7 @@ let chargeCount    = 0;
 let invoiceCounter = Math.floor(Math.random() * 900) + 100;
 let currentInvNumber = '';
 let currentGuestName = '';
+let currentRoomType = '';
 let _uploadInProgress = false;
 let _pendingNavUrl    = null;
 
@@ -1339,6 +1342,9 @@ function selectGuest(g) {
         document.getElementById('fCheckout').value = `${co.getFullYear()}-${pad(co.getMonth()+1)}-${pad(co.getDate())}T${pad(co.getHours())}:${pad(co.getMinutes())}`;
     }
     updateNights();
+    // Fetch room price and update the Rate/n input
+    const roomNum = document.getElementById('fRoom').value.trim();
+    fetchRoomPriceAndSet(roomNum);
     const initials = (g.name || '?').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
     document.getElementById('guestCardAvatar').textContent = initials;
     document.getElementById('guestCardName').textContent   = g.name || '—';
@@ -1352,6 +1358,10 @@ function selectGuest(g) {
 function clearGuest() {
     document.getElementById('guestCard').classList.remove('show');
     ['fName','fPhone','fEmail','fRoom','fGuestId'].forEach(id => document.getElementById(id).value = '');
+        // Clear the room type too
+    currentRoomType = '';
+    const badge = document.getElementById('roomTypeBadge');
+    if (badge) badge.textContent = '';
 }
 
 // ── Charges ───────────────────────────────────────────────────────────
@@ -1569,6 +1579,40 @@ async function uploadInvoiceToDriveAndGetUrl(fileName, invNum, guestName) {
     }
 }
 
+
+// ── Auto‑fetch room price from Firestore ───────────────────────────
+async function fetchRoomPriceAndSet(roomNumber) {
+    if (!roomNumber) return;
+    try {
+        const snap = await db.collection('rooms')
+            .where('number', '==', roomNumber)
+            .limit(1)
+            .get();
+        if (snap.empty) {
+            currentRoomType = '';
+            const badge = document.getElementById('roomTypeBadge');
+            if (badge) badge.textContent = '';
+            return;
+        }
+        const room  = snap.docs[0].data();
+        const price = parseFloat(room.price) || 0;
+        const type  = room.type || '';
+        currentRoomType = type;                              // ← store globally
+        const badge = document.getElementById('roomTypeBadge');
+        if (badge) {
+            badge.textContent = type ? `Room Type: ${type}` : '';
+        }
+        const rateEl = document.querySelector('.charge-rate');
+        if (rateEl) {
+            rateEl.value = price;
+            recalcRoomCharge(rateEl);
+        }
+    } catch (err) {
+        console.warn('Could not fetch room price:', err);
+    }
+}
+
+
 // ── markGuestAsPaid ───────────────────────────────────────────────────
 async function markGuestAsPaid() {
     const name    = document.getElementById('fName').value.trim();
@@ -1619,6 +1663,7 @@ async function generateInvoice() {
     const phone    = document.getElementById('fPhone').value.trim();
     const email    = document.getElementById('fEmail').value.trim();
     const room     = document.getElementById('fRoom').value.trim();
+    const roomType = currentRoomType;
     const guests   = document.getElementById('fGuests').value || '1';
     const checkin  = document.getElementById('fCheckin').value;
     const checkout = document.getElementById('fCheckout').value;
@@ -1669,7 +1714,7 @@ async function generateInvoice() {
     try {
         const invoiceData = {
             invoiceNumber: invNum, guestName: name, guestPhone: phone,
-            guestEmail: email, guestId, room,
+            guestEmail: email, guestId, room, roomType,  
             guestsCount: parseInt(guests), checkinDate: checkin, checkoutDate: checkout,
             nights, subtotal, chargeItems, paymentMethod: paymentStatus, notes,
             paymentStatus: 'paid', generatedBy,
@@ -1686,7 +1731,7 @@ async function generateInvoice() {
         const histEntry = {
             id:            docRef.id,           // Firestore doc ID
             invNum,
-            name, phone, email, room,
+            name, phone, email, room, roomType, 
             guests:        parseInt(guests),
             checkin:       fmt(ciDate),
             checkinTime:   fmtTime(ciDate),
@@ -1762,7 +1807,10 @@ function renderInvoiceDoc(entry) {
     document.getElementById('invGuestPhone').textContent  = entry.phone || '—';
     document.getElementById('invGuestEmail').textContent  = entry.email || '—';
     document.getElementById('invGuestId').textContent     = entry.guestId ? `Guest ID: ${entry.guestId}` : '';
-    document.getElementById('invRoom').textContent        = entry.room ? `Room ${entry.room}` : '—';
+    const roomDisplay = entry.room
+    ? 'Room ' + entry.room + (entry.roomType ? ' · ' + entry.roomType : '')
+    : '—';
+    document.getElementById('invRoom').textContent = roomDisplay;
     document.getElementById('invCheckin').innerHTML      = entry.checkin + (entry.checkinTime  ? `<div style="font-size:12px;font-weight:500;color:#64748b;margin-top:2px;">${entry.checkinTime}</div>`  : '');
     document.getElementById('invCheckinDay').textContent  = entry.checkinDay;
     document.getElementById('invCheckout').innerHTML     = entry.checkout + (entry.checkoutTime ? `<div style="font-size:12px;font-weight:500;color:#64748b;margin-top:2px;">${entry.checkoutTime}</div>` : '');
@@ -1912,6 +1960,7 @@ async function loadHistoryFromFirestore() {
                 phone:         d.guestPhone    || '',
                 email:         d.guestEmail    || '',
                 room:          d.room          || '',
+                roomType:      d.roomType      || '',
                 guests:        d.guestsCount   || 1,
                 checkin:       fmt(ci),
                 checkinDay:    fmtDay(ci),
@@ -1982,6 +2031,7 @@ async function viewHistoryInvoice(id) {
                     phone:         d.guestPhone   || '',
                     email:         d.guestEmail   || '',
                     room:          d.room         || '',
+                    roomType:      d.roomType     || '',
                     guests:        d.guestsCount  || 1,
                     checkin:       fmt(ci),
                     checkinDay:    fmtDay(ci),
@@ -2131,6 +2181,14 @@ document.addEventListener('DOMContentLoaded', () => {
             window.location.href = _pendingNavUrl;
             _pendingNavUrl = null;
         };
+
+        document.getElementById('fRoom').addEventListener('input', () => {
+    if (!document.getElementById('fRoom').value.trim()) {
+        currentRoomType = '';
+        const badge = document.getElementById('roomTypeBadge');
+        if (badge) badge.textContent = '';
+    }
+});
     });
 });
 

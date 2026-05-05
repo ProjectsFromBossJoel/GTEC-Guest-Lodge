@@ -1281,7 +1281,8 @@
                         <div class="field-row">
                             <div class="field-group">
                                 <label class="field-label">Room Number</label>
-                                <input type="text" id="fRoom" class="field-input" placeholder="e.g. 109">
+                                <input type="text" id="fRoom" class="field-input" placeholder="e.g. 109"
+       onblur="fetchRoomPriceAndSet(this.value)">
                             </div>
                             <div class="field-group">
                                 <label class="field-label">No. of Guests</label>
