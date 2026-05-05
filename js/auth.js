@@ -80,16 +80,16 @@ window._userRole = null;
     window._resetInactivity = resetTimers;
 
     ['mousemove','mousedown','keydown','touchstart','scroll','click'].forEach(evt =>
-        document.addEventListener(evt, resetTimers, { passive: true })
+        document.addEventListener(evt, () => { if (!_isLoginPage()) resetTimers(); }, { passive: true })
     );
 
     document.addEventListener('DOMContentLoaded', () => {
-        if (!_isLoginPage())
-            firebase.auth().onAuthStateChanged(u => { if (u) resetTimers(); });
-        else {
+        if (_isLoginPage()) {
             clearTimeout(inactivityTimer);
             clearTimeout(warnTimer);
+            return;
         }
+        firebase.auth().onAuthStateChanged(u => { if (u) resetTimers(); });
     });
 })();
 
