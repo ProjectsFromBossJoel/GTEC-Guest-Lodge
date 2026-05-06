@@ -169,7 +169,7 @@ function openBooking(roomId, roomNumber, roomType) {
         const newCheckOut = checkOutEl.cloneNode(true);
         checkInEl.parentNode.replaceChild(newCheckIn, checkInEl);
         checkOutEl.parentNode.replaceChild(newCheckOut, checkOutEl);
-
+ 
         newCheckIn.addEventListener("change", function () {
             if (this.value) {
                 newCheckOut.min = this.value;
