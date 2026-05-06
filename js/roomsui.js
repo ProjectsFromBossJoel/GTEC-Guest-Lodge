@@ -222,6 +222,12 @@ if (bookingForm) {
         const roomId        = document.getElementById("roomId").value;
         const roomNumber    = document.getElementById("roomNumber").value;
 
+        // ✅ Capture roomType HERE — before any async ops or modal changes
+        const modalLabelEl  = document.getElementById("modalRoomLabel");
+        const roomType      = modalLabelEl
+            ? (modalLabelEl.textContent.split("—")[1] || "Standard").trim()
+            : "Standard";
+
         if (!name || !phone || !email || !guestsCount || !checkinInput || !checkoutInput || !roomId) {
             showFormMsg("Please fill in all required fields.", "error");
             return;
@@ -238,16 +244,15 @@ if (bookingForm) {
         }
 
         // ─────────────────────────────────────────────────────────
-// 🆕 CALCULATE NUMBER OF NIGHTS
-// ─────────────────────────────────────────────────────────
-const oneDay = 1000 * 60 * 60 * 24;
-function normalizeToNoon(date) {
-  const d = new Date(date);
-  d.setHours(12, 0, 0, 0);
-  return d;
-}
-const nights = Math.round((normalizeToNoon(expectedCheckout) - normalizeToNoon(checkinDate)) / oneDay);
-
+        // 🆕 CALCULATE NUMBER OF NIGHTS
+        // ─────────────────────────────────────────────────────────
+        const oneDay = 1000 * 60 * 60 * 24;
+        function normalizeToNoon(date) {
+            const d = new Date(date);
+            d.setHours(12, 0, 0, 0);
+            return d;
+        }
+        const nights = Math.round((normalizeToNoon(expectedCheckout) - normalizeToNoon(checkinDate)) / oneDay);
 
         const submitBtn = document.getElementById("submitBookingBtn")
             || bookingForm.querySelector(".submit-btn")
@@ -269,42 +274,42 @@ const nights = Math.round((normalizeToNoon(expectedCheckout) - normalizeToNoon(c
             status:        "checkedin",
             paymentStatus: "unpaid",
             timestamp:     firebase.firestore.FieldValue.serverTimestamp()
-                };
+        };
 
         try {
             await db.collection("guests").add(guestData);
-console.log("[Firestore] Guest saved ✅");
+            console.log("[Firestore] Guest saved ✅");
 
-// Auto-create unpaid invoice placeholder
-await db.collection("invoices").add({
-    invoiceNumber: `#PENDING-${idNumber}`,
-    guestName: name,
-    guestPhone: phone,
-    guestEmail: email,
-    guestId: idNumber,
-    room: roomNumber,
-    guestsCount: guestsCount,
-    paymentMethod: 'momo',
-    paymentStatus: 'unpaid',
-    subtotal: 0,
-    notes: notes || '',
-    createdAt: firebase.firestore.FieldValue.serverTimestamp()
-});
-console.log("[Firestore] Placeholder invoice created ✅");
+            // Auto-create unpaid invoice placeholder
+            await db.collection("invoices").add({
+                invoiceNumber: `#PENDING-${idNumber}`,
+                guestName: name,
+                guestPhone: phone,
+                guestEmail: email,
+                guestId: idNumber,
+                room: roomNumber,
+                guestsCount: guestsCount,
+                paymentMethod: 'momo',
+                paymentStatus: 'unpaid',
+                subtotal: 0,
+                notes: notes || '',
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            console.log("[Firestore] Placeholder invoice created ✅");
 
             // Fetch room price for email
-const roomDoc = await db.collection("rooms").doc(roomId).get();
-const roomPrice = parseFloat(roomDoc.data()?.price || 0);
-const totalAmount = (roomPrice * nights).toLocaleString('en-GH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            const roomDoc = await db.collection("rooms").doc(roomId).get();
+            const roomPrice = parseFloat(roomDoc.data()?.price || 0);
+            const totalAmount = (roomPrice * nights).toLocaleString('en-GH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-await db.collection("rooms").doc(roomId).update({ status: "Reserved" });
+            await db.collection("rooms").doc(roomId).update({ status: "Reserved" });
             console.log("[Firestore] Room → Reserved ✅");
 
-                const fmt = (d) => d.toLocaleString("en-GB", {
-                 weekday: "short", year: "numeric", month: "short",
-                 day: "numeric", hour: "2-digit", minute: "2-digit",
-                 hour12: true   // ← forces 12‑hour with am/pm
-             });
+            const fmt = (d) => d.toLocaleString("en-GB", {
+                weekday: "short", year: "numeric", month: "short",
+                day: "numeric", hour: "2-digit", minute: "2-digit",
+                hour12: true
+            });
             const formattedTime = fmt(new Date());
 
             const adminPayload = {
@@ -367,15 +372,16 @@ await db.collection("rooms").doc(roomId).update({ status: "Reserved" });
                 });
             } catch (e) { console.warn("[Sheets] Non-fatal:", e); }
 
-
-                        // ─────────── AUTOMATIC WHATSAPP NOTIFICATION (via Vercel API) ───────────
-                        try {
+            // ─────────── AUTOMATIC WHATSAPP NOTIFICATION (via Vercel API) ───────────
+            try {
                 let rawPhone = phone.replace(/\D/g, '');
                 if (rawPhone.startsWith('0')) rawPhone = rawPhone.slice(1);
                 if (!rawPhone.startsWith('233')) rawPhone = '233' + rawPhone;
                 const whatsappNumber = rawPhone;
 
-                    // Build a structured object first
+                
+
+                // Build a structured object first
                 const bookingDetailsObj = {
                     guestName: name,
                     room: roomNumber,
@@ -384,7 +390,7 @@ await db.collection("rooms").doc(roomId).update({ status: "Reserved" });
                     checkOut: fmt(expectedCheckout),
                     nights: nights,
                     amount: totalAmount
-                }
+                };
 
                 const response = await fetch('https://gtec-whatsapp-api.vercel.app/api/send-whatsapp', {
                     method: 'POST',
@@ -395,7 +401,7 @@ await db.collection("rooms").doc(roomId).update({ status: "Reserved" });
                     body: JSON.stringify({
                         customerPhone: whatsappNumber,
                         bookingId: idNumber,
-                        bookingDetails: JSON.stringify(bookingDetailsObj)   // stringified object
+                        bookingDetails: JSON.stringify(bookingDetailsObj)
                     })
                 });
 
@@ -403,7 +409,6 @@ await db.collection("rooms").doc(roomId).update({ status: "Reserved" });
                 if (response.ok) {
                     console.log('[WhatsApp] ✅ Auto‑message sent to', whatsappNumber);
                 } else {
-                    // Show the detailed error from the WhatsApp API
                     console.error('[WhatsApp] ❌ Server responded with error:', data);
                 }
             } catch (err) {
@@ -411,23 +416,17 @@ await db.collection("rooms").doc(roomId).update({ status: "Reserved" });
             }
             // ─────────────────────────────────────────────────────────────────────────
 
-
             bookingForm.reset();
 
             // ✅ Pass all booking data so the WA modal is fully pre-populated
             if (typeof showSuccessOverlay === "function") {
-                const modalLabelEl = document.getElementById("modalRoomLabel");
-                const roomType = modalLabelEl
-                    ? (modalLabelEl.textContent.split("—")[1] || "Standard").trim()
-                    : "Standard";
-
                 showSuccessOverlay(idNumber, {
                     guestName:  name,
                     roomNumber: roomNumber,
                     roomType:   roomType,
                     checkIn:    fmt(checkinDate),
                     checkOut:   fmt(expectedCheckout),
-                    guestPhone: phone   // ← pre-fills WhatsApp number field automatically
+                    guestPhone: phone
                 });
             } else {
                 showFormMsg("✅ Booking confirmed! Check your email for details.", "success");
