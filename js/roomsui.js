@@ -158,20 +158,32 @@ function openBooking(roomId, roomNumber, roomType) {
 
     const checkInEl  = document.getElementById("checkIn");
     const checkOutEl = document.getElementById("checkOut");
-    if (checkInEl)  { checkInEl.min  = nowStr; checkInEl.value  = ''; }
+    if (checkInEl)  { checkInEl.min  = nowStr; checkInEl.value = ''; }
     if (checkOutEl) { checkOutEl.min = nowStr; checkOutEl.value = ''; }
+
 
     // ✅ Whenever check-in changes, push check-out min forward
     if (checkInEl && checkOutEl) {
         // Remove any old listener by cloning
-        const newCheckIn = checkInEl.cloneNode(true);
+        const newCheckIn  = checkInEl.cloneNode(true);
+        const newCheckOut = checkOutEl.cloneNode(true);
         checkInEl.parentNode.replaceChild(newCheckIn, checkInEl);
+        checkOutEl.parentNode.replaceChild(newCheckOut, checkOutEl);
+
         newCheckIn.addEventListener("change", function () {
             if (this.value) {
-                checkOutEl.min = this.value;
-                if (checkOutEl.value && checkOutEl.value <= this.value) {
-                    checkOutEl.value = '';
+                newCheckOut.min = this.value;
+                if (newCheckOut.value && newCheckOut.value <= this.value) {
+                    newCheckOut.value = '';
                 }
+            }
+        });
+
+        // ✅ Auto-snap check-out time to 12:00 PM whenever guest picks a date
+        newCheckOut.addEventListener("change", function () {
+            if (this.value) {
+                const datePart = this.value.slice(0, 10);
+                this.value = `${datePart}T12:00`;
             }
         });
     }
@@ -239,6 +251,15 @@ if (bookingForm) {
         // ✅ Hard validation: checkout must be strictly after checkin
         if (expectedCheckout <= checkinDate) {
             showFormMsg("❌ Check-out date must be after check-in date.", "error");
+            document.getElementById("checkOut").focus();
+            return;
+        }
+
+        // ✅ Hard validation: checkout time cannot be after 12:00 PM (noon)
+        const checkoutHour   = expectedCheckout.getHours();
+        const checkoutMinute = expectedCheckout.getMinutes();
+        if (checkoutHour > 12 || (checkoutHour === 12 && checkoutMinute > 0)) {
+            showFormMsg("❌ Check-out time cannot be after 12:00 PM (noon). Please update your check-out time.", "error");
             document.getElementById("checkOut").focus();
             return;
         }
