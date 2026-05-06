@@ -104,10 +104,10 @@ db.collection("rooms").onSnapshot(snapshot => {
                     </button>
                 </div>
                 ${room.price ? `
-                <div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(0,0,0,0.06);display:flex;align-items:center;justify-content:space-between;">
-                    <span style="font-size:11px;color:#94a3b8;font-weight:500;letter-spacing:0.5px;text-transform:uppercase;">Price / Night</span>
-                    <span style="font-family:'Cormorant Garamond',serif;font-size:18px;font-weight:600;color:#c9a84c;">GH₵ ${Number(room.price).toLocaleString()}</span>
-                </div>` : ''}
+            <div style="margin-top:12px;padding:10px 14px;background:#fdf8ee;border:1.5px solid rgba(201,168,76,0.35);border-radius:10px;display:flex;align-items:center;justify-content:space-between;">
+                <span style="font-size:11px;color:#7a6020;font-weight:700;letter-spacing:1px;text-transform:uppercase;">Price / Night</span>
+                <span style="font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:700;color:#a06c00;letter-spacing:0.5px;">GH₵ ${Number(room.price).toLocaleString()}</span>
+            </div>` : ''}
             </div>
         `;
 
@@ -292,7 +292,12 @@ await db.collection("invoices").add({
 });
 console.log("[Firestore] Placeholder invoice created ✅");
 
-            await db.collection("rooms").doc(roomId).update({ status: "Reserved" });
+            // Fetch room price for email
+const roomDoc = await db.collection("rooms").doc(roomId).get();
+const roomPrice = parseFloat(roomDoc.data()?.price || 0);
+const totalAmount = (roomPrice * nights).toLocaleString('en-GH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+await db.collection("rooms").doc(roomId).update({ status: "Reserved" });
             console.log("[Firestore] Room → Reserved ✅");
 
                 const fmt = (d) => d.toLocaleString("en-GB", {
@@ -315,7 +320,8 @@ console.log("[Firestore] Placeholder invoice created ✅");
                 checkin:  fmt(checkinDate),
                 checkout: fmt(expectedCheckout),
                 nights:   nights,
-                idNumber, time: formattedTime
+                idNumber, time: formattedTime,
+                amount:   totalAmount
             };
 
             const ejs = _ejs();
@@ -375,7 +381,8 @@ console.log("[Firestore] Placeholder invoice created ✅");
                     room: roomNumber,
                     checkIn: fmt(checkinDate),
                     checkOut: fmt(expectedCheckout),
-                    nights: nights
+                    nights: nights,
+                    amount: totalAmount
                 }
 
                 const response = await fetch('https://gtec-whatsapp-api.vercel.app/api/send-whatsapp', {
