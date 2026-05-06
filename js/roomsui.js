@@ -379,6 +379,7 @@ await db.collection("rooms").doc(roomId).update({ status: "Reserved" });
                 const bookingDetailsObj = {
                     guestName: name,
                     room: roomNumber,
+                    roomType: roomType,
                     checkIn: fmt(checkinDate),
                     checkOut: fmt(expectedCheckout),
                     nights: nights,
