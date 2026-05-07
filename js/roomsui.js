@@ -297,8 +297,42 @@ if (bookingForm) {
             timestamp:     firebase.firestore.FieldValue.serverTimestamp()
         };
 
+
+                const roomRef = db.collection("rooms").doc(roomId);
+
+        // ✅ Step 1 — Atomically reserve the room (only if still Available)
+        try {
+            await db.runTransaction(async (transaction) => {
+                const roomDoc = await transaction.get(roomRef);
+                if (!roomDoc.exists) {
+                    throw new Error("Room does not exist.");
+                }
+                const currentStatus = roomDoc.data().status;
+                if (currentStatus !== "Available") {
+                    throw new Error("ROOM_UNAVAILABLE");
+                }
+                // Reserve the room
+                transaction.update(roomRef, { status: "Reserved" });
+            });
+        } catch (txError) {
+            if (txError.message === "ROOM_UNAVAILABLE") {
+                showFormMsg("Sorry, this room has just been reserved by another guest. Please choose a different room.", "error");
+            } else {
+                showFormMsg("Could not reserve room. Please try again.", "error");
+            }
+            // Re-enable the submit button
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-check-circle"></i> Confirm Booking';
+            }
+            return; // ⛔ Stop the booking process completely
+        }
+
+        // ✅ Step 2 — Now the room is reserved, proceed with guest & invoice
         try {
             await db.collection("guests").add(guestData);
+
+        
             console.log("[Firestore] Guest saved ✅");
 
             // Auto-create unpaid invoice placeholder
@@ -323,7 +357,7 @@ if (bookingForm) {
             const roomPrice = parseFloat(roomDoc.data()?.price || 0);
             const totalAmount = (roomPrice * nights).toLocaleString('en-GH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-            await db.collection("rooms").doc(roomId).update({ status: "Reserved" });
+            
             console.log("[Firestore] Room → Reserved ✅");
 
             const fmt = (d) => d.toLocaleString("en-GB", {
