@@ -481,3 +481,41 @@ function showFormMsg(msg, type) {
         if (!em && sm) { sm.style.color = "red"; sm.textContent = msg; }
     }
 }
+
+
+// ══════════════════════════════════════════
+// Success Overlay Functions (cache‑busted)
+// ══════════════════════════════════════════
+let _lastBooking = {};
+
+function showSuccessOverlay(idNumber, bookingData) {
+    _lastBooking = bookingData || {};
+    _lastBooking.bookingId = idNumber;
+
+    const bookingModal = document.getElementById('bookingModal');
+    if (bookingModal) {
+        bookingModal.classList.remove('open');
+        bookingModal.style.display = 'none';
+    }
+
+    const badge = document.getElementById('successBookingId');
+    if (badge) badge.textContent = `Booking ID: ${idNumber}`;
+
+    const titleEl = document.getElementById('successTitle');
+    const mainEl = document.getElementById('successMsgMain');
+    const subEl = document.getElementById('successMsgSub');
+
+    if (titleEl) titleEl.textContent = 'Booking Confirmed!';
+    if (mainEl) mainEl.innerHTML = 'Your room has been successfully reserved. A confirmation email has been sent to your inbox and an SMS has been sent to your phone.';
+    if (subEl) subEl.innerHTML = 'For check‑in, you will need your <strong>Guest ID</strong> and <strong>room number</strong> for verification, both are in your email and SMS.';
+
+    const overlay = document.getElementById('bookingSuccessOverlay');
+    if (overlay) overlay.classList.add('show');
+}
+
+function closeSuccessOverlay() {
+    const overlay = document.getElementById('bookingSuccessOverlay');
+    if (overlay) overlay.classList.remove('show');
+    const bookingModal = document.getElementById('bookingModal');
+    if (bookingModal) bookingModal.style.display = '';
+}

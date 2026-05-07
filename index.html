@@ -500,11 +500,11 @@
             <div class="success-check-circle" aria-hidden="true">
                 <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>
             </div>
-            <div class="success-title">Booking Confirmed!</div>
-            <p class="success-msg-text">Your room has been successfully reserved. A confirmation email has been sent to your inbox and an SMS has been sent to your phone.</p>
-            <div class="success-id-badge" id="successBookingId">ID: —</div>
-            <p class="success-msg-text" style="font-size:12px;color:#94a3b8;margin-bottom:0;">For check‑in, you will need your <strong>Guest ID</strong> and <strong>room number</strong> for verification, both are in your email and SMS.</p>
-            <br>
+            <div class="success-title" id="successTitle"></div>
+        <p class="success-msg-text" id="successMsgMain"></p>
+        <div class="success-id-badge" id="successBookingId">ID: —</div>
+        <p class="success-msg-text" id="successMsgSub" style="font-size:12px;color:#94a3b8;margin-bottom:0;"></p>
+        <br>
             
             <button class="success-close-btn" onclick="closeSuccessOverlay()">
                 <i class="fas fa-check" style="margin-right:8px;" aria-hidden="true"></i>Got it, Thank you!
@@ -620,29 +620,6 @@
         function openChat()  { document.getElementById('chatPanel').style.display = 'block'; }
         function closeChat() { document.getElementById('chatPanel').style.display = 'none'; }
 
-        /* ─── Booking success overlay ─── */
-        // Stores last booking data so WA modal can read it
-        let _lastBooking = {};
-
-        function showSuccessOverlay(idNumber, bookingData) {
-            // Merge whatever was passed in
-            _lastBooking = bookingData || {};
-            _lastBooking.bookingId = idNumber;
-
-            document.getElementById('bookingModal').classList.remove('open');
-            document.getElementById('bookingModal').style.display = 'none';
-
-            const badge = document.getElementById('successBookingId');
-            if (badge) badge.textContent = `Booking ID: ${idNumber}`;
-
-            document.getElementById('bookingSuccessOverlay').classList.add('show');
-        }
-
-        function closeSuccessOverlay() {
-            document.getElementById('bookingSuccessOverlay').classList.remove('show');
-            // Reset modal display for next booking
-            document.getElementById('bookingModal').style.display = '';
-        }
 
         function showToast(msg, success = true) {
             const t = document.createElement('div');
