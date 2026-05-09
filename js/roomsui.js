@@ -355,7 +355,7 @@ if (bookingForm) {
             // Fetch room price for email
             const roomDoc = await db.collection("rooms").doc(roomId).get();
             const roomPrice = parseFloat(roomDoc.data()?.price || 0);
-            const totalAmount = (roomPrice * nights).toLocaleString('en-GH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            const totalAmount = (roomPrice * nights).toFixed(2);   // e.g. "1200.00"
 
             
             console.log("[Firestore] Room → Reserved ✅");
@@ -428,11 +428,12 @@ if (bookingForm) {
             } catch (e) { console.warn("[Sheets] Non-fatal:", e); }
 
             // ─────────── AUTOMATIC WHATSAPP NOTIFICATION (via Vercel API) ───────────
+            let rawPhone = phone.replace(/\D/g, '');
+            if (rawPhone.startsWith('0')) rawPhone = rawPhone.slice(1);
+            if (!rawPhone.startsWith('233')) rawPhone = '233' + rawPhone;
+            const whatsappNumber = rawPhone;   // ← MOVED UP
+
             try {
-                let rawPhone = phone.replace(/\D/g, '');
-                if (rawPhone.startsWith('0')) rawPhone = rawPhone.slice(1);
-                if (!rawPhone.startsWith('233')) rawPhone = '233' + rawPhone;
-                const whatsappNumber = rawPhone;
 
                 
 
@@ -478,6 +479,8 @@ if (!mobileNetwork) {
     if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = '<i class="fas fa-check-circle"></i> Confirm Booking'; }
     return;
 }
+
+console.log('Payment payload:', { email, totalAmount, whatsappNumber, mobileNetwork, idNumber, roomId });
 
 // 📞 Call Vercel API to start MoMo payment
 try {
