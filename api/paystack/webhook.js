@@ -2,19 +2,31 @@
 import crypto from 'crypto';
 import admin from 'firebase-admin';
 
-// Initialize Firebase Admin (only once per cold start)
-if (!admin.apps.length) {
-  const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-  });
+// ── Firebase Admin (with error logging) ────────────────────────────
+let db;
+try {
+  if (!admin.apps.length) {
+    const raw = process.env.FIREBASE_SERVICE_ACCOUNT;
+    if (!raw) throw new Error('FIREBASE_SERVICE_ACCOUNT is empty');
+    const serviceAccount = JSON.parse(raw);
+    admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
+  }
+  db = admin.firestore();
+} catch (err) {
+  console.error('[Webhook] Firebase init failed:', err.message);
 }
 
-const db = admin.firestore();
 const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY;
 
+// ── Handler ────────────────────────────────────────────────────────
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
+
+  // If Firebase is not ready, return an error
+  if (!db) {
+    console.error('[Webhook] Firebase not initialised');
+    return res.status(500).json({ error: 'Firebase not initialised' });
+  }
 
   // Verify webhook signature
   const signature = req.headers['x-paystack-signature'];
@@ -34,7 +46,7 @@ export default async function handler(req, res) {
   if (event.event === 'charge.success') {
     const data = event.data;
     const metadata = data.metadata || {};
-    const bookingId = metadata.bookingId;
+    const bookingId = metadata.bookingId;   // e.g. 'GH-12345'
     const roomId = metadata.roomId;
 
     if (!bookingId || !roomId) {
@@ -45,30 +57,36 @@ export default async function handler(req, res) {
     try {
       const batch = db.batch();
 
-      // Update guest booking
-      const guestRef = db.collection('guests').doc(bookingId);
-      batch.update(guestRef, {
-        paymentStatus: 'paid',
-        paymentRef: data.reference,
-      });
+      // 🔁 FIX: guest doc is stored with 'idNumber' field, not as doc ID
+      const guestQuery = await db.collection('guests')
+        .where('idNumber', '==', bookingId)
+        .limit(1)
+        .get();
 
-      // Update invoice (if there's one matching the guestId)
+      if (!guestQuery.empty) {
+        batch.update(guestQuery.docs[0].ref, {
+          paymentStatus: 'paid',
+          paymentRef: data.reference,
+        });
+      } else {
+        console.warn(`[Webhook] No guest found with idNumber=${bookingId}`);
+      }
+
+      // Update invoice (same logic, already uses guestId field)
       const invoicesSnapshot = await db.collection('invoices')
         .where('guestId', '==', bookingId)
         .limit(1)
         .get();
       if (!invoicesSnapshot.empty) {
-        const invoiceRef = invoicesSnapshot.docs[0].ref;
-        batch.update(invoiceRef, {
+        batch.update(invoicesSnapshot.docs[0].ref, {
           paymentStatus: 'paid',
           subtotal: data.amount / 100,
           paymentMethod: 'momo',
         });
       }
 
-      // Optionally create a transaction record
-      const transactionRef = db.collection('transactions').doc(bookingId);
-      batch.set(transactionRef, {
+      // Transaction record
+      batch.set(db.collection('transactions').doc(bookingId), {
         reference: data.reference,
         status: 'success',
         bookingId,
