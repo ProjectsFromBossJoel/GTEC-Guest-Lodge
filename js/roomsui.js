@@ -471,21 +471,44 @@ if (bookingForm) {
             }
             // ─────────────────────────────────────────────────────────────────────────
 
-            bookingForm.reset();
+            // 📱 Mobile money provider
+const mobileNetwork = document.getElementById("mobileNetwork").value;
+if (!mobileNetwork) {
+    showFormMsg("Please select a mobile money provider.", "error");
+    if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = '<i class="fas fa-check-circle"></i> Confirm Booking'; }
+    return;
+}
 
-            // ✅ Pass all booking data so the WA modal is fully pre-populated
-            if (typeof showSuccessOverlay === "function") {
-                showSuccessOverlay(idNumber, {
-                    guestName:  name,
-                    roomNumber: roomNumber,
-                    roomType:   roomType,
-                    checkIn:    fmt(checkinDate),
-                    checkOut:   fmt(expectedCheckout),
-                    guestPhone: phone
-                });
-            } else {
-                showFormMsg("✅ Booking confirmed! Check your email for details.", "success");
-            }
+// 📞 Call Vercel API to start MoMo payment
+try {
+    const payRes = await fetch('https://gtec-whatsapp-api.vercel.app/api/paystack/initiate-payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            email: email,
+            amount: totalAmount,        // e.g., "1200.00"
+            phone: whatsappNumber,      // already normalized to 233XXXXXXXXX
+            network: mobileNetwork,    // 'mtn', 'vod', or 'tigo'
+            bookingId: idNumber,
+            roomId: roomId,
+        }),
+    });
+
+    const payData = await payRes.json();
+
+    if (payRes.ok && payData.authorization_url) {
+        // Redirect guest to Paystack's MoMo payment page
+        window.location.href = payData.authorization_url;
+    } else {
+        showFormMsg("Payment could not be started: " + (payData.error || 'Unknown error'), "error");
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = '<i class="fas fa-check-circle"></i> Confirm Booking'; }
+    }
+} catch (err) {
+    showFormMsg("Network error while starting payment. Please try again.", "error");
+    if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = '<i class="fas fa-check-circle"></i> Confirm Booking'; }
+}
+
+bookingForm.reset();
 
             if (typeof showToast === "function") showToast("Booking confirmed! ✅");
 

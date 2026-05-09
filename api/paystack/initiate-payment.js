@@ -51,6 +51,7 @@ export default async function handler(req, res) {
           bookingId,
           roomId,
         },
+        callback_url: `https://gtecguestlodge.web.app/booking-confirmed.html?bookingId=${bookingId}`,
       }),
     });
 
