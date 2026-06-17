@@ -15,6 +15,7 @@ const BLOCKED_PAGES = {
 const WRITE_RESTRICTED_ROLES = ['manager', 'admin', 'receptionist'];
 
 window._userRole = null;
+window._lastPermsJson = null;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // INACTIVITY AUTO-LOGOUT — 30 minutes
@@ -473,6 +474,55 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const role = await loadUserRole(user.uid);
                 if (role) enforceAccess(role);
+
+                // ── Real-time role sync ───────────────────────────────────
+                // If a super admin changes this user's role/permissions while
+                // they are logged in, re-enforce access instantly everywhere.
+                db.collection('users').doc(user.uid).onSnapshot(snap => {
+                    if (!snap.exists) {
+                        // Doc deleted — boot them out
+                        sessionStorage.clear();
+                        firebase.auth().signOut();
+                        window.location.replace('admin.html?status=unregistered');
+                        return;
+                    }
+                    const data = snap.data();
+
+                    // Boot pending/rejected users immediately
+                    if (data.status === 'pending') {
+                        sessionStorage.clear();
+                        firebase.auth().signOut();
+                        window.location.replace('admin.html?status=pending');
+                        return;
+                    }
+                    if (data.status === 'rejected') {
+                        sessionStorage.clear();
+                        firebase.auth().signOut();
+                        window.location.replace('admin.html?status=rejected');
+                        return;
+                    }
+
+                    const newRole = (data.role || 'observer').trim().toLowerCase();
+
+                    // Only re-enforce if something actually changed
+                    if (newRole === window._userRole) {
+                        // Role same — check if permissions changed
+                        const perms = JSON.stringify(data.permissions || {});
+                        if (perms === window._lastPermsJson) return;
+                        window._lastPermsJson = perms;
+                    } else {
+                        window._userRole = newRole;
+                        window._lastPermsJson = JSON.stringify(data.permissions || {});
+                    }
+
+                    console.log(`[Auth] 🔄 Role/permissions updated live → "${newRole}"`);
+
+                    // Remove stale badge so _showRoleBadge can re-render it
+                    const oldBadge = document.getElementById('role-badge-display');
+                    if (oldBadge) oldBadge.remove();
+
+                    enforceAccess(newRole);
+                });
             }
         } else {
             if (!_isLoginPage()) window.location.replace('admin.html');
