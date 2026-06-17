@@ -481,10 +481,10 @@ function setupRoleModal() {
 const PERM_COLORS = { create: '#3b82f6', edit: '#f59e0b', delete: '#ef4444' };
 
 const ROLE_PERM_DEFAULTS = {
-    superadmin:   { canCreate: true,  canEdit: true,  canDelete: true  },
-    manager:      { canCreate: true,  canEdit: true,  canDelete: false },
-    receptionist: { canCreate: true,  canEdit: false, canDelete: false },
-    observer:     { canCreate: false, canEdit: false, canDelete: false },
+    superadmin:   { canCreate: true,  canEdit: true,  canDelete: true,  fullButtonAccess: true  },
+    manager:      { canCreate: true,  canEdit: true,  canDelete: false, fullButtonAccess: false },
+    receptionist: { canCreate: true,  canEdit: false, canDelete: false, fullButtonAccess: false },
+    observer:     { canCreate: false, canEdit: false, canDelete: false, fullButtonAccess: false },
 };
 
 function togglePerm(perm) {
@@ -494,10 +494,13 @@ function togglePerm(perm) {
     _renderPerm(perm, !isOn);
 }
 
+const PERM_COLORS = { create: '#3b82f6', edit: '#f59e0b', delete: '#ef4444', fullaccess: '#8b5cf6' };
+
 function _renderPerm(perm, checked) {
     const box   = document.getElementById(`perm-${perm}-box`);
     const wrap  = document.getElementById(`perm-${perm}-wrap`);
-    const color = PERM_COLORS[perm];
+    if (!box) return;
+    const color = PERM_COLORS[perm] || '#64748b';
     box.dataset.checked = checked ? '1' : '0';
     if (checked) {
         box.style.cssText  = `width:20px;height:20px;border-radius:5px;border:2px solid ${color};display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.15s;background:${color};`;
@@ -513,23 +516,26 @@ function _renderPerm(perm, checked) {
 }
 
 function applyRoleDefaults(role) {
-    const d = ROLE_PERM_DEFAULTS[role] || { canCreate: false, canEdit: false, canDelete: false };
-    _renderPerm('create', d.canCreate);
-    _renderPerm('edit',   d.canEdit);
-    _renderPerm('delete', d.canDelete);
+    const d = ROLE_PERM_DEFAULTS[role] || { canCreate: false, canEdit: false, canDelete: false, fullButtonAccess: false };
+    _renderPerm('create',      d.canCreate);
+    _renderPerm('edit',        d.canEdit);
+    _renderPerm('delete',      d.canDelete);
+    _renderPerm('fullaccess',  d.fullButtonAccess);
 }
 
 function setPermissions(perms) {
-    _renderPerm('create', !!perms.canCreate);
-    _renderPerm('edit',   !!perms.canEdit);
-    _renderPerm('delete', !!perms.canDelete);
+    _renderPerm('create',     !!perms.canCreate);
+    _renderPerm('edit',       !!perms.canEdit);
+    _renderPerm('delete',     !!perms.canDelete);
+    _renderPerm('fullaccess', !!perms.fullButtonAccess);
 }
 
 function getPermissions() {
     return {
-        canCreate: document.getElementById('perm-create-box').dataset.checked === '1',
-        canEdit:   document.getElementById('perm-edit-box').dataset.checked   === '1',
-        canDelete: document.getElementById('perm-delete-box').dataset.checked === '1',
+        canCreate:         document.getElementById('perm-create-box').dataset.checked     === '1',
+        canEdit:           document.getElementById('perm-edit-box').dataset.checked       === '1',
+        canDelete:         document.getElementById('perm-delete-box').dataset.checked     === '1',
+        fullButtonAccess:  document.getElementById('perm-fullaccess-box').dataset.checked === '1',
     };
 }
 

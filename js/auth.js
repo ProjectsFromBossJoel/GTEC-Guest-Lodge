@@ -271,9 +271,21 @@ function enforceAccess(role) {
     }
 
     if (WRITE_RESTRICTED_ROLES.includes(normalisedRole)) {
-        const fn = () => _applyWriteRestrictedMode();
-        fn();
-        new MutationObserver(fn).observe(document.body, { childList: true, subtree: true });
+        // Skip dimming if the user has been granted Full Button Access
+        try {
+            const userSnap = await db.collection('users').doc(firebase.auth().currentUser.uid).get();
+            const perms = userSnap.exists ? (userSnap.data().permissions || {}) : {};
+            if (!perms.fullButtonAccess) {
+                const fn = () => _applyWriteRestrictedMode();
+                fn();
+                new MutationObserver(fn).observe(document.body, { childList: true, subtree: true });
+            }
+        } catch(e) {
+            // On error, apply restrictions by default
+            const fn = () => _applyWriteRestrictedMode();
+            fn();
+            new MutationObserver(fn).observe(document.body, { childList: true, subtree: true });
+        }
     }
 
     return true;
