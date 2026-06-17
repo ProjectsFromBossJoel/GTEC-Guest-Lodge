@@ -429,13 +429,28 @@ function setupAddUserForm() {
 // Change Role Modal
 // ─────────────────────────────────────────────────────────────────────────────
 function openRoleModal(uid, email, currentRole) {
-    document.getElementById('role-modal-uid').value        = uid;
+    document.getElementById('role-modal-uid').value         = uid;
     document.getElementById('role-modal-email').textContent = email;
-    document.getElementById('role-select').value           = currentRole;
+    document.getElementById('role-select').value            = currentRole;
+
+    // Load saved permissions from the user object, fall back to role defaults
+    const user = allUsers.find(u => u.uid === uid) || {};
+    if (user.permissions) {
+        setPermissions(user.permissions);
+    } else {
+        applyRoleDefaults(currentRole);
+    }
+
     openModal('role-modal');
 }
 
 function setupRoleModal() {
+
+    // Auto-update permission checkboxes when role dropdown changes
+    document.getElementById('role-select').addEventListener('change', function () {
+        applyRoleDefaults(this.value);
+    });
+
     document.getElementById('save-role-btn').addEventListener('click', async () => {
         const uid     = document.getElementById('role-modal-uid').value;
         const email   = document.getElementById('role-modal-email').textContent;
@@ -446,8 +461,9 @@ function setupRoleModal() {
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving…';
 
         try {
-            await db.collection('users').doc(uid).update({ role: newRole });
-            await addLog('Role Changed', `${email} role changed to ${ROLE_META[newRole]?.label || newRole}`);
+            const permissions = getPermissions();
+            await db.collection('users').doc(uid).update({ role: newRole, permissions });
+            await addLog('Role Changed', `${email} → ${ROLE_META[newRole]?.label || newRole} | create:${permissions.canCreate} edit:${permissions.canEdit} delete:${permissions.canDelete}`);
             UI.showNotification(`✅ Role updated to ${ROLE_META[newRole]?.label || newRole}`, 'success');
             closeModal('role-modal');
             loadAllData();
@@ -459,6 +475,62 @@ function setupRoleModal() {
             btn.innerHTML = '<i class="fas fa-save"></i> Save Role';
         }
     });
+}
+
+// ── Permission helpers ────────────────────────────────────────────────────────
+const PERM_COLORS = { create: '#3b82f6', edit: '#f59e0b', delete: '#ef4444' };
+
+const ROLE_PERM_DEFAULTS = {
+    superadmin:   { canCreate: true,  canEdit: true,  canDelete: true  },
+    manager:      { canCreate: true,  canEdit: true,  canDelete: false },
+    receptionist: { canCreate: true,  canEdit: false, canDelete: false },
+    observer:     { canCreate: false, canEdit: false, canDelete: false },
+};
+
+function togglePerm(perm) {
+    const box  = document.getElementById(`perm-${perm}-box`);
+    const wrap = document.getElementById(`perm-${perm}-wrap`);
+    const isOn = box.dataset.checked === '1';
+    _renderPerm(perm, !isOn);
+}
+
+function _renderPerm(perm, checked) {
+    const box   = document.getElementById(`perm-${perm}-box`);
+    const wrap  = document.getElementById(`perm-${perm}-wrap`);
+    const color = PERM_COLORS[perm];
+    box.dataset.checked = checked ? '1' : '0';
+    if (checked) {
+        box.style.cssText  = `width:20px;height:20px;border-radius:5px;border:2px solid ${color};display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.15s;background:${color};`;
+        box.innerHTML      = `<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><polyline points="2,6 5,9 10,3" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+        wrap.style.borderColor = color;
+        wrap.style.background  = color + '10';
+    } else {
+        box.style.cssText  = `width:20px;height:20px;border-radius:5px;border:2px solid #cbd5e1;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.15s;background:white;`;
+        box.innerHTML      = '';
+        wrap.style.borderColor = '#e2e8f0';
+        wrap.style.background  = '#f8fafc';
+    }
+}
+
+function applyRoleDefaults(role) {
+    const d = ROLE_PERM_DEFAULTS[role] || { canCreate: false, canEdit: false, canDelete: false };
+    _renderPerm('create', d.canCreate);
+    _renderPerm('edit',   d.canEdit);
+    _renderPerm('delete', d.canDelete);
+}
+
+function setPermissions(perms) {
+    _renderPerm('create', !!perms.canCreate);
+    _renderPerm('edit',   !!perms.canEdit);
+    _renderPerm('delete', !!perms.canDelete);
+}
+
+function getPermissions() {
+    return {
+        canCreate: document.getElementById('perm-create-box').dataset.checked === '1',
+        canEdit:   document.getElementById('perm-edit-box').dataset.checked   === '1',
+        canDelete: document.getElementById('perm-delete-box').dataset.checked === '1',
+    };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

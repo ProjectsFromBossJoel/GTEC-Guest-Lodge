@@ -339,7 +339,7 @@
 
 <!-- ── Change Role Modal ── -->
 <div id="role-modal" class="modal-overlay">
-    <div class="modal-container" style="max-width:400px;">
+    <div class="modal-container" style="max-width:460px;">
         <div class="modal-header">
             <h3 class="modal-title"><i class="fas fa-user-edit" style="margin-right:8px;color:#3b82f6;"></i>Change Role</h3>
             <button class="close-role-modal"><i class="fas fa-times"></i></button>
@@ -357,6 +357,49 @@
                     <option value="observer">Observer</option>
                 </select>
             </div>
+
+            <!-- ── Granular Permissions ── -->
+            <div style="margin-top:18px;">
+                <label class="form-label" style="margin-bottom:10px;display:flex;align-items:center;gap:8px;">
+                    Permissions
+                    <span style="font-size:11px;font-weight:400;color:#94a3b8;">Override role defaults</span>
+                </label>
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+
+                    <div id="perm-create-wrap" onclick="togglePerm('create')"
+                        style="display:flex;align-items:center;gap:10px;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:10px;padding:12px 14px;cursor:pointer;transition:all 0.2s;user-select:none;">
+                        <div id="perm-create-box" style="width:20px;height:20px;border-radius:5px;border:2px solid #cbd5e1;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.15s;background:white;"></div>
+                        <div>
+                            <div style="font-size:13px;font-weight:700;color:#1e293b;">Create</div>
+                            <div style="font-size:10px;color:#94a3b8;margin-top:1px;">Add new records</div>
+                        </div>
+                    </div>
+
+                    <div id="perm-edit-wrap" onclick="togglePerm('edit')"
+                        style="display:flex;align-items:center;gap:10px;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:10px;padding:12px 14px;cursor:pointer;transition:all 0.2s;user-select:none;">
+                        <div id="perm-edit-box" style="width:20px;height:20px;border-radius:5px;border:2px solid #cbd5e1;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.15s;background:white;"></div>
+                        <div>
+                            <div style="font-size:13px;font-weight:700;color:#1e293b;">Edit</div>
+                            <div style="font-size:10px;color:#94a3b8;margin-top:1px;">Modify records</div>
+                        </div>
+                    </div>
+
+                    <div id="perm-delete-wrap" onclick="togglePerm('delete')"
+                        style="display:flex;align-items:center;gap:10px;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:10px;padding:12px 14px;cursor:pointer;transition:all 0.2s;user-select:none;">
+                        <div id="perm-delete-box" style="width:20px;height:20px;border-radius:5px;border:2px solid #cbd5e1;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.15s;background:white;"></div>
+                        <div>
+                            <div style="font-size:13px;font-weight:700;color:#1e293b;">Delete</div>
+                            <div style="font-size:10px;color:#94a3b8;margin-top:1px;">Remove records</div>
+                        </div>
+                    </div>
+
+                </div>
+                <p style="font-size:11px;color:#94a3b8;margin-top:10px;line-height:1.5;">
+                    <i class="fas fa-info-circle" style="margin-right:4px;"></i>
+                    Super Admin always has full access regardless of these settings.
+                </p>
+            </div>
+
             <input type="hidden" id="role-modal-uid">
             <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
                 <button type="button" class="btn btn-outline close-role-modal">Cancel</button>

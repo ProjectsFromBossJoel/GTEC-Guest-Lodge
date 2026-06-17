@@ -82,7 +82,7 @@ async function loadAvailableRooms() {
 
         availableRooms.forEach(room => {
             const opt = document.createElement('option');
-            opt.value = JSON.stringify({ id: room.id, number: room.number });
+            opt.value = JSON.stringify({ id: room.id, number: room.number, price: room.price || 0 });
             opt.textContent = `Room ${room.number} (${room.type || 'Standard'})`;
             roomSelect.appendChild(opt);
         });
@@ -360,6 +360,7 @@ async function handleCheckinSubmit(e) {
 
         const selectedRoom = JSON.parse(roomDataJson);
         const idNumber = `GH-${Math.floor(Math.random() * 100000)}`;
+        const roomPrice = selectedRoom.price || 0;
 
         // ── Collect form values ─────────────────────────────────────────────
         const name = document.getElementById('guest-name').value.trim();
@@ -458,6 +459,8 @@ const checkin = normalizeToNoon(checkinDateObj);
 const checkout = normalizeToNoon(checkoutDateObj);
 
 const nights = Math.round((checkout - checkin) / oneDay);
+        const totalAmount = roomPrice * nights;
+        const formattedAmount = `GH₵ ${totalAmount.toFixed(2)}`;
 
 
         // Admin payload
@@ -470,7 +473,8 @@ const nights = Math.round((checkout - checkin) / oneDay);
             checkout: formattedCheckout,
             nights:   nights,
             notes: notes || "None",
-            time: formattedTime
+            time: formattedTime,
+            amount: formattedAmount
         };
 
         // Guest payload
@@ -484,7 +488,8 @@ const nights = Math.round((checkout - checkin) / oneDay);
             checkout: formattedCheckout,
             nights:   nights,
             idNumber,
-            time: formattedTime
+            time: formattedTime,
+            amount: formattedAmount
         };
 
         // ── Resolve EmailJS safely ─────────────────────────────────────────

@@ -526,10 +526,53 @@ async function loadReports(){
 
         // Chart 1: Occupancy donut
         const c1=document.getElementById('chartOccupancy').getContext('2d');
+        // Ensure both slices are always visible — use a tiny floor so a 0 value
+        // doesn't cause the other slice to swallow the whole donut
+        const occVal   = occupied   > 0 ? occupied   : 0;
+        const availVal = available  > 0 ? available  : 0;
+        const occDisplay   = occVal   || (availVal   ? 0 : 0);
+        const availDisplay = availVal || (occVal     ? 0 : 0);
+        // If one side is truly 0, add a hairline so both legend items still appear
+        const occPlot   = occDisplay   > 0 ? occDisplay   : (availDisplay > 0 ? 0.01 : 1);
+        const availPlot = availDisplay > 0 ? availDisplay : (occDisplay   > 0 ? 0.01 : 1);
+
         chartOccupancy=destroyAndCreate(chartOccupancy,()=>new Chart(c1,{
             type:'doughnut',
-            data:{ labels:['Occupied','Available'], datasets:[{data:[occupied,available],backgroundColor:['#ef4444','#22c55e'],borderWidth:0,hoverOffset:5}] },
-            options:{ cutout:'72%', plugins:{ legend:{position:'bottom',labels:{font:{family:'Nunito',size:12,weight:'700'},padding:12}}, tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${ctx.raw}`}} } }
+            data:{
+                labels:['Occupied','Available'],
+                datasets:[{
+                    data:[occPlot, availPlot],
+                    backgroundColor:['#ef4444','#22c55e'],
+                    borderWidth: occPlot === 0.01 || availPlot === 0.01 ? 0 : 2,
+                    borderColor: '#ffffff',
+                    hoverOffset:5
+                }]
+            },
+            options:{
+                cutout:'72%',
+                plugins:{
+                    legend:{
+                        position:'bottom',
+                        labels:{
+                            font:{family:'Nunito',size:12,weight:'700'},
+                            padding:12,
+                            // Always show real counts in legend, not the hairline plot values
+                            generateLabels: chart => [
+                                { text: `Occupied: ${occDisplay}`,  fillStyle:'#ef4444', strokeStyle:'#ef4444', lineWidth:0, index:0 },
+                                { text: `Available: ${availDisplay}`, fillStyle:'#22c55e', strokeStyle:'#22c55e', lineWidth:0, index:1 },
+                            ]
+                        }
+                    },
+                    tooltip:{
+                        callbacks:{
+                            label: ctx => {
+                                const realVal = ctx.dataIndex === 0 ? occDisplay : availDisplay;
+                                return ` ${ctx.label}: ${realVal}`;
+                            }
+                        }
+                    }
+                }
+            }
         }));
 
         // Chart 2: Room status donut

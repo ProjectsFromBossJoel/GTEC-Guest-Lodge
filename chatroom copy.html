@@ -1845,6 +1845,7 @@ function buildMessageEl(data) {
         <div class="cr-msg-body">
             <div class="cr-msg-header">
                 <span class="cr-msg-name">${data.senderName}</span>
+                <span class="cr-msg-role-tag tag-${role}">${roleLbl}</span>
                 <span class="cr-msg-time">${fmtTime(data.time)}</span>
                 ${pinIcon}
             </div>

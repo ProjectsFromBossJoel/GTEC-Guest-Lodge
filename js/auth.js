@@ -17,11 +17,11 @@ const WRITE_RESTRICTED_ROLES = ['manager','admin', 'receptionist'];
 window._userRole = null;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ✅ INACTIVITY AUTO-LOGOUT — 10 minutes
+// INACTIVITY AUTO-LOGOUT — 30 minutes
 // ─────────────────────────────────────────────────────────────────────────────
 (function () {
-    const TIMEOUT_MS = 10 * 60 * 1000;
-    const WARN_MS    =  9 * 60 * 1000;
+    const TIMEOUT_MS = 30 * 60 * 1000;
+    const WARN_MS    = 29 * 60 * 1000;
     let inactivityTimer, warnTimer;
 
     function createWarnBanner() {
