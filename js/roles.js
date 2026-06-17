@@ -488,8 +488,8 @@ const ROLE_PERM_DEFAULTS = {
 };
 
 function togglePerm(perm) {
-    const box  = document.getElementById(`perm-${perm}-box`);
-    const wrap = document.getElementById(`perm-${perm}-wrap`);
+    const box = document.getElementById(`perm-${perm}-box`);
+    if (!box) return;
     const isOn = box.dataset.checked === '1';
     _renderPerm(perm, !isOn);
 }
@@ -514,26 +514,28 @@ function _renderPerm(perm, checked) {
 }
 
 function applyRoleDefaults(role) {
-    const d = ROLE_PERM_DEFAULTS[role] || { canCreate: false, canEdit: false, canDelete: false, fullButtonAccess: false };
-    _renderPerm('create',      d.canCreate);
-    _renderPerm('edit',        d.canEdit);
-    _renderPerm('delete',      d.canDelete);
-    _renderPerm('fullaccess',  d.fullButtonAccess);
+    const d = ROLE_PERM_DEFAULTS[role] || { canCreate: false, canEdit: false, canDelete: false };
+    _renderPerm('create', d.canCreate);
+    _renderPerm('edit',   d.canEdit);
+    _renderPerm('delete', d.canDelete);
 }
 
 function setPermissions(perms) {
-    _renderPerm('create',     !!perms.canCreate);
-    _renderPerm('edit',       !!perms.canEdit);
-    _renderPerm('delete',     !!perms.canDelete);
-    _renderPerm('fullaccess', !!perms.fullButtonAccess);
+    _renderPerm('create', !!perms.canCreate);
+    _renderPerm('edit',   !!perms.canEdit);
+    _renderPerm('delete', !!perms.canDelete);
 }
 
 function getPermissions() {
+    const getChecked = (id) => {
+        const el = document.getElementById(id);
+        return el ? el.dataset.checked === '1' : false;
+    };
     return {
-        canCreate:         document.getElementById('perm-create-box').dataset.checked     === '1',
-        canEdit:           document.getElementById('perm-edit-box').dataset.checked       === '1',
-        canDelete:         document.getElementById('perm-delete-box').dataset.checked     === '1',
-        fullButtonAccess:  document.getElementById('perm-fullaccess-box').dataset.checked === '1',
+        canCreate:        getChecked('perm-create-box'),
+        canEdit:          getChecked('perm-edit-box'),
+        canDelete:        getChecked('perm-delete-box'),
+        fullButtonAccess: getChecked('perm-fullaccess-box'),
     };
 }
 
