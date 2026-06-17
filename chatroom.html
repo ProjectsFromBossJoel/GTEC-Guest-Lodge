@@ -1601,15 +1601,13 @@ function loadMembers() {
 
         members.forEach(m => {
             const status = m.online ? 'online' : 'offline';
-            const roleLbl = roleLabel(m.role || 'staff');
 
             // Sidebar member list
             const div = document.createElement('div');
             div.className = 'cr-member';
             div.innerHTML = `
                 <div class="cr-member-avatar role-${m.role||'staff'} ${status}">${roleIcon(m.role)}</div>
-                <div class="cr-member-name">${m.name}</div>
-                <div class="cr-member-role">${roleLbl}</div>`;
+                <div class="cr-member-name">${m.name}</div>`;
             sidebarList.appendChild(div);
 
             // Online panel
@@ -1618,8 +1616,7 @@ function loadMembers() {
                 li.className = 'cr-online-list-item';
                 li.innerHTML = `
                     <div class="cr-online-dot" style="background:var(--success);"></div>
-                    <span class="cr-online-list-name">${m.name}</span>
-                    <span class="cr-online-list-role">${roleLbl}</span>`;
+                    <span class="cr-online-list-name">${m.name}</span>`;
                 onlineList.appendChild(li);
             }
         });
