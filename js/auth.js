@@ -12,7 +12,7 @@ const BLOCKED_PAGES = {
 };
 
 // Roles with write restrictions (buttons will be disabled with tooltip)
-const WRITE_RESTRICTED_ROLES = ['manager','admin', 'receptionist'];
+const WRITE_RESTRICTED_ROLES = ['manager', 'admin', 'receptionist'];
 
 window._userRole = null;
 
@@ -271,18 +271,16 @@ function enforceAccess(role) {
     }
 
     if (WRITE_RESTRICTED_ROLES.includes(normalisedRole)) {
-        // Check fullButtonAccess permission asynchronously — don't block enforceAccess
         db.collection('users').doc(firebase.auth().currentUser.uid).get()
             .then(userSnap => {
                 const perms = userSnap.exists ? (userSnap.data().permissions || {}) : {};
-                if (!perms.fullButtonAccess) {
-                    const fn = () => _applyWriteRestrictedMode();
-                    fn();
-                    new MutationObserver(fn).observe(document.body, { childList: true, subtree: true });
-                }
+                const fn = () => _applyGranularPermissions(perms);
+                fn();
+                new MutationObserver(fn).observe(document.body, { childList: true, subtree: true });
             })
             .catch(() => {
-                const fn = () => _applyWriteRestrictedMode();
+                // On error, lock everything
+                const fn = () => _applyGranularPermissions({});
                 fn();
                 new MutationObserver(fn).observe(document.body, { childList: true, subtree: true });
             });
@@ -323,15 +321,94 @@ function _applyObserverMode() {
 }
 
 function _applyWriteRestrictedMode() {
-    _lockButtons([
-        '#add-room-btn','#add-guest-btn',
-        '#confirm-delete-btn','#confirm-delete-guest-btn',
-        'button[onclick*="deleteRoom"]','button[onclick*="deleteGuest"]',
-        'button[onclick*="editRoom"]','button[onclick*="openEdit"]',
-        '.edit-btn','.delete-btn',
-        '.edit-room-btn','.delete-room-btn',
-        '.edit-guest-btn','.delete-guest-btn',
-    ], 'writeLocked', 'Only Super Admin can perform this action');
+    _applyGranularPermissions({});
+}
+
+function _applyGranularPermissions(perms) {
+    const canCreate = !!perms.canCreate;
+    const canEdit   = !!perms.canEdit;
+    const canDelete = !!perms.canDelete;
+
+    // ── CREATE buttons ────────────────────────────────────────────────────
+    if (!canCreate) {
+        _lockButtons([
+            '#add-room-btn',
+            '#add-guest-btn',
+            '#submit-checkin-btn',
+            '.btn-primary[type="submit"]',
+            'button[onclick*="openAdd"]',
+            'button[onclick*="addNew"]',
+        ], 'createLocked', 'You do not have permission to create records');
+    } else {
+        _unlockButtons([
+            '#add-room-btn',
+            '#add-guest-btn',
+            '#submit-checkin-btn',
+            '.btn-primary[type="submit"]',
+            'button[onclick*="openAdd"]',
+            'button[onclick*="addNew"]',
+        ], 'createLocked');
+    }
+
+    // ── EDIT buttons ──────────────────────────────────────────────────────
+    if (!canEdit) {
+        _lockButtons([
+            '.edit-btn',
+            '.edit-room-btn',
+            '.edit-guest-btn',
+            'button[onclick*="editRoom"]',
+            'button[onclick*="openEdit"]',
+            'button[onclick*="edit"]',
+        ], 'editLocked', 'You do not have permission to edit records');
+    } else {
+        _unlockButtons([
+            '.edit-btn',
+            '.edit-room-btn',
+            '.edit-guest-btn',
+            'button[onclick*="editRoom"]',
+            'button[onclick*="openEdit"]',
+            'button[onclick*="edit"]',
+        ], 'editLocked');
+    }
+
+    // ── DELETE buttons ────────────────────────────────────────────────────
+    if (!canDelete) {
+        _lockButtons([
+            '.delete-btn',
+            '.delete-room-btn',
+            '.delete-guest-btn',
+            '#confirm-delete-btn',
+            '#confirm-delete-guest-btn',
+            'button[onclick*="deleteRoom"]',
+            'button[onclick*="deleteGuest"]',
+            'button[onclick*="delete"]',
+        ], 'deleteLocked', 'You do not have permission to delete records');
+    } else {
+        _unlockButtons([
+            '.delete-btn',
+            '.delete-room-btn',
+            '.delete-guest-btn',
+            '#confirm-delete-btn',
+            '#confirm-delete-guest-btn',
+            'button[onclick*="deleteRoom"]',
+            'button[onclick*="deleteGuest"]',
+            'button[onclick*="delete"]',
+        ], 'deleteLocked');
+    }
+}
+
+function _unlockButtons(selectors, lockKey) {
+    selectors.forEach(sel => {
+        document.querySelectorAll(sel).forEach(el => {
+            if (!el.dataset[lockKey]) return;
+            delete el.dataset[lockKey];
+            el.disabled = false;
+            el.style.opacity = '';
+            el.style.cursor = '';
+            el.style.pointerEvents = '';
+            el.title = '';
+        });
+    });
 }
 
 function _lockButtons(selectors, lockKey, tooltip) {

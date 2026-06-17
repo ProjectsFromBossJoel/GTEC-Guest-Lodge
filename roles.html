@@ -101,7 +101,7 @@
             <a href="chatroom.html"     class="menu-item"><i class="fas fa-comments"></i> Chat Room
             <span class="nav-badge" id="nav-chatroom-count" style="display:none;">0</span></a>
             <a href="logs.html"         class="menu-item"><i class="fas fa-clipboard-list"></i> Logs</a>
-            <a href="chat.html"         class="menu-item"><i class="fas fa-comment"></i> Client Messages
+            <a href="chat.html"         clas="menu-item"><i class="fas fa-comment"></i> Client Messages
             <span class="nav-badge" id="nav-chat-count" style="display:none;">0</span></a>
             <a href="verification.html" class="menu-item"><i class="fas fa-user-check"></i> Verification</a>
             <a href="payments.html"     class="menu-item"><i class="fas fa-credit-card"></i> Payments</a>
@@ -399,18 +399,7 @@
                     Super Admin always has full access regardless of these settings.
                 </p>
 
-                <!-- Full Button Access toggle -->
-                <div style="margin-top:14px;padding:12px 14px;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:10px;display:flex;align-items:center;justify-content:space-between;gap:12px;">
-                    <div>
-                        <div style="font-size:13px;font-weight:700;color:#1e293b;">Full Button Access</div>
-                        <div style="font-size:11px;color:#94a3b8;margin-top:2px;">Show all action buttons (edit, delete) without dimming</div>
-                    </div>
-                    <div id="perm-fullaccess-wrap" onclick="togglePerm('fullaccess')"
-                        style="display:flex;align-items:center;gap:8px;cursor:pointer;flex-shrink:0;">
-                        <div id="perm-fullaccess-box" style="width:20px;height:20px;border-radius:5px;border:2px solid #cbd5e1;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.15s;background:white;"></div>
-                        <span style="font-size:12px;font-weight:600;color:#64748b;">Enable</span>
-                    </div>
-                </div>
+                <!-- Full Button Access removed — Create/Edit/Delete checkboxes handle this directly -->
             </div>
 
             <input type="hidden" id="role-modal-uid">
