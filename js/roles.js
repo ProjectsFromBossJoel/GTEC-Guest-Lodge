@@ -478,7 +478,7 @@ function setupRoleModal() {
 }
 
 // ── Permission helpers ────────────────────────────────────────────────────────
-const PERM_COLORS = { create: '#3b82f6', edit: '#f59e0b', delete: '#ef4444' };
+const PERM_COLORS = { create: '#3b82f6', edit: '#f59e0b', delete: '#ef4444', fullaccess: '#8b5cf6' };
 
 const ROLE_PERM_DEFAULTS = {
     superadmin:   { canCreate: true,  canEdit: true,  canDelete: true,  fullButtonAccess: true  },
@@ -493,8 +493,6 @@ function togglePerm(perm) {
     const isOn = box.dataset.checked === '1';
     _renderPerm(perm, !isOn);
 }
-
-const PERM_COLORS = { create: '#3b82f6', edit: '#f59e0b', delete: '#ef4444', fullaccess: '#8b5cf6' };
 
 function _renderPerm(perm, checked) {
     const box   = document.getElementById(`perm-${perm}-box`);
