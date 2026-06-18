@@ -425,7 +425,7 @@
                 </div>
 
                 <!-- Live Activity -->
-                <div class="card activity-card">
+                <div class="card activity-card" id="activity-card-section">
                     <h3>Live Activity 🟢</h3>
                     <ul id="activity-feed" class="activity-feed">
                         <li>Loading activities...</li>
@@ -445,6 +445,26 @@
     <script src="js/logs.js"></script>
     <script src="js/sidebar.js"></script>
     <script src="js/chatnotify.js"></script>
+    <script>
+        // Restrict Live Activity feed to Super Admin only
+        (function () {
+            const activitySection = document.getElementById('activity-card-section');
+            if (!activitySection) return;
+
+            activitySection.style.display = 'none'; // hide until role is confirmed
+
+            firebase.auth().onAuthStateChanged(user => {
+                if (!user) return;
+                const waitForRole = setInterval(() => {
+                    if (window._userRole) {
+                        clearInterval(waitForRole);
+                        activitySection.style.display =
+                            (window._userRole === 'superadmin') ? '' : 'none';
+                    }
+                }, 100);
+            });
+        })();
+    </script>
 </body>
 
 </html>
