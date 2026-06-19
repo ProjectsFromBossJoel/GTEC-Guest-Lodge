@@ -1864,7 +1864,7 @@ function buildMessageEl(data) {
             <button class="cr-msg-action-btn" onclick="toggleEmoji()" title="More reactions">
                 <i class="fas fa-smile"></i>
             </button>
-            ${canDelete ? `<button class="cr-msg-action-btn del" onclick="deleteMessage('${data.id}')" title="Delete"><i class="fas fa-trash"></i></button>` : ''}
+            ${canDelete ? `<button class="cr-msg-action-btn del" onclick="removeChatMessage('${data.id}')" title="Delete"><i class="fas fa-trash"></i></button>` : ''}
             <button class="cr-msg-action-btn" onclick="pinMessage('${data.id}',${!data.pinned})" title="${data.pinned?'Unpin':'Pin'}">
                 <i class="fas fa-thumbtack"></i>
             </button>
@@ -2064,7 +2064,7 @@ async function toggleReaction(msgId, emoji) {
 // ── Delete / Pin ──────────────────────────────────────────
 let _pendingDeleteId = null;
 
-function deleteMessage(msgId) {
+function removeChatMessage(msgId) {
     _pendingDeleteId = msgId;
     document.getElementById('cr-delete-modal').classList.add('active');
 }
