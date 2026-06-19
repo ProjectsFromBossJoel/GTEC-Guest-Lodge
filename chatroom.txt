@@ -1999,7 +1999,7 @@ function roleLabel(role) {
                     <button class="cr-msg-action-btn" onclick="toggleEmoji()" title="More reactions">
                         <i class="fas fa-smile"></i>
                     </button>
-                    ${isMe ? `<button class="cr-msg-action-btn del" onclick="deleteMessage('${data.id}')" title="Delete"><i class="fas fa-trash"></i></button>` : ''}
+                    ${canDelete ? `<button class="cr-msg-action-btn del" onclick="deleteMessage('${data.id}')" title="Delete"><i class="fas fa-trash"></i></button>` : ''}
                     <button class="cr-msg-action-btn" onclick="pinMessage('${data.id}',${!data.pinned})" title="${data.pinned?'Unpin':'Pin'}">
                         <i class="fas fa-thumbtack"></i>
                     </button>
