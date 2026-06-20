@@ -1340,6 +1340,21 @@
     <script src="js/chatnotify.js?v=20260504"></script>
 
     <script>
+      // ── TEMPORARY DEBUG WATCHDOG ──────────────────────────────
+      window.addEventListener('error', function(e) {
+          document.body.style.visibility = 'visible';
+          document.body.style.opacity = '1';
+          alert('JS ERROR CAUGHT:\n' + e.message + '\nFile: ' + e.filename + '\nLine: ' + e.lineno);
+      });
+      setTimeout(function() {
+          if (getComputedStyle(document.body).visibility === 'hidden') {
+              document.body.style.visibility = 'visible';
+              document.body.style.opacity = '1';
+              alert('DEBUG: Page stuck hidden after 6 seconds — auth never resolved or a silent failure occurred.');
+          }
+      }, 6000);
+      // ── END DEBUG WATCHDOG ────────────────────────────────────
+
       const EMOJIS = ['👍','❤️','😂','🎉','🔥','👀','✅','⚡','😊','🙏','💯','👏','😮','🤔','🚀','⭐'];
 const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxcJLWeemy7PRYliGDHeSYa7BCIlOUsVzuAHFCvQIKQ8U_R2QkxneVQqNV6b_EgFj5k/exec";
 const MAX_FILE_MB = 20;
