@@ -10,7 +10,7 @@
 
 
     <link rel="icon" type="image/jpg" href="img/logo1.jpg">
-    <script src="https://www.google.com/recaptcha/enterprise.js?render=YOUR_SITE_KEY" async defer></script>
+    <script src="https://www.google.com/recaptcha/enterprise.js?render=6LdyWi0tAAAAABVOjmWK51Q1qIKsQpqIwRh3m4uh" async defer></script>
 
     <style>
         /* Hide browser's native password reveal button */
@@ -172,12 +172,11 @@
         </div>
     </div>
 
-    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-check-compat.js"></script>
-
     <!-- Firebase -->
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-check-compat.js"></script>
     <script src="js/firebase.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/logs.js"></script>
@@ -322,10 +321,8 @@
             }
         }
 
-        // ── Pre-load emails as soon as Firebase is ready ──────────────────
-        firebase.auth().onAuthStateChanged(user => {
-            if (!user) loadRegisteredEmails();
-        });
+        // ── Emails loaded on-demand during login flow only ────────────────
+        // (not preloaded — avoids unauthenticated Firestore read)
 
         // ══════════════════════════════════════════════════════════════════
         // ✅ VERIFY USER STATUS BEFORE ALLOWING DASHBOARD ACCESS
