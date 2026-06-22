@@ -585,6 +585,19 @@
             const email   = document.getElementById("chatEmail").value.trim();
             const phone   = document.getElementById("chatPhone").value.trim();
             const message = document.getElementById("chatMessage").value.trim();
+
+            // ── reCAPTCHA check ───────────────────────────────────────────
+            const rcToken = await getRecaptchaToken('CHAT');
+            if (!rcToken) {
+                showToast("Security check failed. Please refresh and try again. ❌", false);
+                return;
+            }
+
+            // ── original submit logic continues ───────────────────────────
+            const name2    = name;
+            const email   = document.getElementById("chatEmail").value.trim();
+            const phone   = document.getElementById("chatPhone").value.trim();
+            const message = document.getElementById("chatMessage").value.trim();
             try {
                 await addDoc(collection(db, "liveChats"), { name, email, phone, message, time: serverTimestamp(), adminRead: false });
                 showToast("Message sent! We'll be in touch soon. ✅");
@@ -600,6 +613,21 @@
         /* ═══════════════════════════════════════════════════
            PAGE UTILITIES
         ═══════════════════════════════════════════════════ */
+
+        // ── reCAPTCHA Enterprise token generator ──────────────────────────
+        async function getRecaptchaToken(action) {
+            try {
+                return await new Promise((resolve) => {
+                    grecaptcha.enterprise.ready(async () => {
+                        const token = await grecaptcha.enterprise.execute('6LdyWi0tAAAAABVOjmWK51Q1qIKsQpqIwRh3m4uh', { action });
+                        resolve(token);
+                    });
+                });
+            } catch (e) {
+                console.warn('[reCAPTCHA] Token generation failed:', e);
+                return null;
+            }
+        }
         function openBookingModal(roomId, roomNumber, roomType) {
             document.getElementById('roomId').value       = roomId;
             document.getElementById('roomNumber').value   = roomNumber;

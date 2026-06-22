@@ -39,6 +39,7 @@
     <meta name="ICBM" content="5.6037, -0.1870">
     <meta name="language" content="English">
     <link rel="alternate" hreflang="en-gh" href="https://gtecguestlodge.web.app/">
+    <script src="https://www.google.com/recaptcha/enterprise.js?render=6LdyWi0tAAAAABVOjmWK51Q1qIKsQpqIwRh3m4uh" async defer></script>
 
     <script type="application/ld+json">
     {
@@ -599,6 +600,24 @@
             const email   = document.getElementById("chatEmail").value.trim();
             const phone   = document.getElementById("chatPhone").value.trim();
             const message = document.getElementById("chatMessage").value.trim();
+
+            // ── reCAPTCHA check ───────────────────────────────────────────
+            try {
+                const rcToken = await new Promise((resolve) => {
+                    grecaptcha.enterprise.ready(async () => {
+                        const t = await grecaptcha.enterprise.execute('6LdyWi0tAAAAABVOjmWK51Q1qIKsQpqIwRh3m4uh', { action: 'CHAT' });
+                        resolve(t);
+                    });
+                });
+                if (!rcToken) {
+                    showToast("Security check failed. Please refresh. ❌", false);
+                    return;
+                }
+            } catch (rcErr) {
+                console.warn('[reCAPTCHA] Chat check failed:', rcErr);
+            }
+
+            // ── Save to Firestore ─────────────────────────────────────────
             try {
                 await addDoc(collection(db, "liveChats"), { name, email, phone, message, time: serverTimestamp(), adminRead: false });
                 showToast("Message sent! We'll be in touch soon. ✅");
@@ -614,6 +633,21 @@
         /* ═══════════════════════════════════════════════════
            PAGE UTILITIES
         ═══════════════════════════════════════════════════ */
+
+        // ── reCAPTCHA Enterprise token generator ──────────────────────────
+        async function getRecaptchaToken(action) {
+            try {
+                return await new Promise((resolve) => {
+                    grecaptcha.enterprise.ready(async () => {
+                        const token = await grecaptcha.enterprise.execute('6LdyWi0tAAAAABVOjmWK51Q1qIKsQpqIwRh3m4uh', { action });
+                        resolve(token);
+                    });
+                });
+            } catch (e) {
+                console.warn('[reCAPTCHA] Token generation failed:', e);
+                return null;
+            }
+        }
         function openBookingModal(roomId, roomNumber, roomType) {
             document.getElementById('roomId').value       = roomId;
             document.getElementById('roomNumber').value   = roomNumber;

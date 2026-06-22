@@ -66,6 +66,10 @@ const firebaseConfig = {
 // ✅ Single initialization — no duplicate calls
 let app, auth, db;
 
+// ── App Check debug token (REMOVE BEFORE DEPLOYING) ──────────────────────
+// Uncomment the line below only when testing on localhost
+// self.FIREBASE_APPCHECK_DEBUG_TOKEN = true;
+
 try {
     app = firebase.apps.length
         ? firebase.app()
@@ -84,6 +88,18 @@ try {
 
     // ✅ No offline persistence — always fetch fresh data from server
     db.settings({ cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED });
+
+    // ── Firebase App Check (reCAPTCHA Enterprise) ─────────────────────────
+    try {
+        const appCheck = firebase.appCheck();
+        appCheck.activate(
+            new firebase.appCheck.ReCaptchaEnterpriseProvider('6LdyWi0tAAAAABVOjmWK51Q1qIKsQpqIwRh3m4uh'),
+            true // auto-refresh tokens
+        );
+        console.log('[AppCheck] ✅ Initialized');
+    } catch (acErr) {
+        console.warn('[AppCheck] ⚠️ Could not initialize:', acErr.message);
+    }
 
     console.log("[Firebase] Initialized ✅ — live sync active");
 
@@ -144,3 +160,4 @@ const UI = {
 window.UI = UI;
 window.db = db;
 window.auth = auth;
+window.app = app;

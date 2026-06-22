@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="icon" type="image/jpg" href="img/logo1.jpg">
+    <script src="https://www.google.com/recaptcha/enterprise.js?render=6LdyWi0tAAAAABVOjmWK51Q1qIKsQpqIwRh3m4uh" async defer></script>
 
     <style>
         input[type="password"]::-ms-reveal,
@@ -170,6 +171,8 @@
         </div>
     </div>
 
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-check-compat.js"></script>
+
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
@@ -186,6 +189,21 @@
             el.innerHTML = message;
         }
         function hideAlert() { document.getElementById('register-alert').style.display = 'none'; }
+
+        // ── reCAPTCHA Enterprise token generator ──────────────────────────
+        async function getRecaptchaToken(action) {
+            try {
+                return await new Promise((resolve) => {
+                    grecaptcha.enterprise.ready(async () => {
+                        const token = await grecaptcha.enterprise.execute('6LdyWi0tAAAAABVOjmWK51Q1qIKsQpqIwRh3m4uh', { action });
+                        resolve(token);
+                    });
+                });
+            } catch (e) {
+                console.warn('[reCAPTCHA] Token generation failed:', e);
+                return null;
+            }
+        }
         function showSuccessScreen() {
             document.getElementById('register-section').style.display = 'none';
             document.getElementById('success-screen').style.display = 'block';
@@ -224,6 +242,15 @@
             hideAlert();
 
             try {
+                // ── reCAPTCHA check ───────────────────────────────────────
+                const rcToken = await getRecaptchaToken('GOOGLE_REGISTER');
+                if (!rcToken) {
+                    btn.disabled = false;
+                    btn.innerHTML = GOOGLE_BTN_INNER;
+                    showAlert(`<i class="fas fa-exclamation-circle" style="margin-right:6px;"></i>Security check failed. Please refresh and try again.`, 'error');
+                    return;
+                }
+
                 const provider = new firebase.auth.GoogleAuthProvider();
                 provider.setCustomParameters({ prompt: 'select_account' });
                 const result = await auth.signInWithPopup(provider);
@@ -332,6 +359,15 @@
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating Account…';
 
             try {
+                // ── reCAPTCHA check ───────────────────────────────────────
+                const rcToken = await getRecaptchaToken('EMAIL_REGISTER');
+                if (!rcToken) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-user-plus"></i> Create Account';
+                    showAlert(`<i class="fas fa-exclamation-circle" style="margin-right:6px;"></i>Security check failed. Please refresh and try again.`, 'error');
+                    return;
+                }
+
                 const credential = await auth.createUserWithEmailAndPassword(email, password);
                 const user = credential.user;
                 await user.updateProfile({ displayName: name });

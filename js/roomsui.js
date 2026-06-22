@@ -224,6 +224,22 @@ if (bookingForm) {
     bookingForm.addEventListener("submit", async (e) => {
         e.preventDefault();
 
+        // ── reCAPTCHA check ───────────────────────────────────────────────
+        try {
+            const rcToken = await new Promise((resolve) => {
+                grecaptcha.enterprise.ready(async () => {
+                    const t = await grecaptcha.enterprise.execute('6LdyWi0tAAAAABVOjmWK51Q1qIKsQpqIwRh3m4uh', { action: 'BOOKING' });
+                    resolve(t);
+                });
+            });
+            if (!rcToken) {
+                showFormMsg("Security check failed. Please refresh and try again.", "error");
+                return;
+            }
+        } catch (rcErr) {
+            console.warn('[reCAPTCHA] Booking check failed:', rcErr);
+        }
+
         const name          = document.getElementById("guestName").value.trim();
         const phone         = document.getElementById("phone").value.trim();
         const email         = document.getElementById("email").value.trim();
