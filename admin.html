@@ -227,8 +227,10 @@
         async function isRegisteredEmail(email) {
             const emailLower = email.toLowerCase().trim();
             const emails = await loadRegisteredEmails();
-            if (emails !== null) return emails.has(emailLower);
-            return false;
+            // If list failed to load, return true and let Firebase Auth
+            // and Firestore status check be the real gatekeepers
+            if (emails === null) return true;
+            return emails.has(emailLower);
         }
 
         // ── Password visibility toggle ────────────────────────────────────
