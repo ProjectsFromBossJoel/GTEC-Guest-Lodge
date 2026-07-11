@@ -337,9 +337,9 @@
 <body>
 
     <nav class="navbar" role="navigation" aria-label="Main navigation">
-        <a class="nav-logo" href="#" aria-label="GTEC GuestLodge Home">
+        <a class="nav-logo" href="#" aria-label="GTEC Guest Lodge Home">
             <img src="img/logo1.jpg" alt="GTEC Guest Lodge Logo" width="38" height="38">
-            <span class="nav-logo-text">GTEC <span>GuestLodge</span></span>
+            <span class="nav-logo-text">GTEC <span>Guest Lodge</span></span>
         </a>
         <ul class="nav-links">
             <li><a href="#rooms">Rooms</a></li>
@@ -427,7 +427,7 @@
             </div>
         </div>
         <footer style="border-top:1px solid rgba(201,168,76,0.08);padding:28px 48px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;margin-bottom:100px;" role="contentinfo">
-            <div style="font-family:'Cormorant Garamond',serif;font-size:18px;color:white;">GTEC <span style="color:var(--gold);">GuestLodge</span></div>
+            <div style="font-family:'Cormorant Garamond',serif;font-size:18px;color:white;">GTEC <span style="color:var(--gold);">Guest Lodge</span></div>
             <small style="font-size:12px;color:rgba(255,255,255,0.3);">© 2026 GTEC Guest Lodge, Accra Ghana. All rights reserved.</small>
         </footer>
     </section>

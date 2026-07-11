@@ -1775,7 +1775,7 @@ async function generateInvoice() {
             + String(today.getMonth() + 1).padStart(2, '0') + '-'
             + String(today.getDate()).padStart(2, '0');
         const safeName = name.trim().replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_\-]/g, '');
-        const fileName = `GTEC_GuestLodge_Invoice_${currentInvNumber}_${safeName}_${dateStr}`;
+        const fileName = `GTEC_Guest_Lodge_Invoice_${currentInvNumber}_${safeName}_${dateStr}`;
         const firestoreDocId = docRef.id;
         setTimeout(async () => {
     const result = await uploadInvoiceToDriveAndGetUrl(fileName, currentInvNumber, name);
