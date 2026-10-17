@@ -1,3 +1,4 @@
+//audit1.js
 // Server-side audit writer. Every row lands in Firestore `auditLogs` (browsers can never write there;
 // only this Admin-SDK code can). Personal data is masked, IPs are stored as a salted hash.
 import crypto from 'node:crypto';
