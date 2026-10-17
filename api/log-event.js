@@ -1,9 +1,9 @@
 // POST /api/log-event — the booking page reports booking + email outcomes here.
 // Browser-reported rows are stored with source:'client' (untrusted: anyone can call this endpoint),
 // so the Monitoring page shows them with a "client" badge. SMS and security rows come from the server itself.
-const { applyCors, getIp, readJson } = require('./_lib/http');
-const { enforce, LIMITS } = require('./_lib/ratelimit');
-const { writeAudit } = require('./_lib/audit');
+import { applyCors, getIp, readJson } from './_lib/http.js';
+import { enforce, LIMITS } from './_lib/ratelimit.js';
+import { writeAudit } from './_lib/audit.js';
 
 // event -> [type, status]. The server decides type and status; the browser only names the event.
 const EVENTS = {
@@ -16,7 +16,7 @@ const EVENTS = {
   client_error:          ['security', 'warning'],
 };
 
-module.exports = async (req, res) => {
+export default async function handler(req, res) {
   if (!applyCors(req, res)) return;
   if (req.method !== 'POST') return res.status(405).json({ error: 'method not allowed' });
 
@@ -48,4 +48,4 @@ module.exports = async (req, res) => {
   });
 
   return res.status(204).end();
-};
+}

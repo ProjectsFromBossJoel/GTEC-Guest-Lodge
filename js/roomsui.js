@@ -13,6 +13,11 @@
 
 // 0. EMAILJS
 // ══════════════════════════════════════════
+// Audit reporter. Safe if js/audit.js failed to load.
+function _audit(ev) {
+    try { if (window.Audit) window.Audit.report(ev); } catch (_) { /* never break the booking */ }
+}
+
 function _ejs() {
     const lib = window.emailjs;
     if (!lib) {
@@ -332,6 +337,12 @@ if (bookingForm) {
                 transaction.update(roomRef, { status: "Reserved" });
             });
         } catch (txError) {
+            _audit({
+                type: 'booking',
+                event: txError.message === "ROOM_UNAVAILABLE" ? 'booking_blocked' : 'booking_failed',
+                room: roomNumber, guestName: name, contact: email, contactKind: 'email',
+                detail: txError.message
+            });
             if (txError.message === "ROOM_UNAVAILABLE") {
                 showFormMsg("Sorry, this room has just been reserved by another guest. Please choose a different room.", "error");
             } else {
@@ -351,6 +362,8 @@ if (bookingForm) {
 
         
             console.log("[Firestore] Guest saved ✅");
+            _audit({ type: 'booking', event: 'booking_created', bookingId: idNumber, room: roomNumber,
+                     guestName: name, contact: email, contactKind: 'email' });
 
             // Auto-create unpaid invoice placeholder
             await db.collection("invoices").add({
@@ -414,14 +427,24 @@ if (bookingForm) {
                 }
 
                 try {
-                    await ejs.send("service_muxt9dr", "template_zbbfaym", guestPayload);
+                    const guestRes = await ejs.send("service_muxt9dr", "template_zbbfaym", guestPayload);
                     console.log("[EmailJS] Guest email sent ✅");
+                    _audit({ type: 'email', event: 'email_sent', bookingId: idNumber, contact: email,
+                             meta: { template: 'template_zbbfaym', httpStatus: guestRes && guestRes.status } });
                 } catch (e) {
                     console.error("[EmailJS] Guest email failed:", e);
+                    _audit({ type: 'email', event: 'email_failed', bookingId: idNumber, contact: email,
+                             detail: String((e && (e.text || e.message)) || 'unknown error'),
+                             meta: { template: 'template_zbbfaym' } });
                     if (typeof showToast === "function") {
                         showToast(`⚠️ Guest email failed: ${e?.text || e?.message || "quota may be exceeded"}`, false);
                     }
                 }
+            }
+
+            if (!ejs) {
+                _audit({ type: 'email', event: 'email_failed', bookingId: idNumber, contact: email,
+                         detail: 'EmailJS SDK not loaded', meta: { template: 'template_zbbfaym' } });
             }
 
             // Google Sheets — non-fatal
@@ -497,6 +520,9 @@ if (bookingForm) {
 
         } catch (err) {
             console.error("[Booking] Error:", err);
+            _audit({ type: 'booking', event: 'booking_failed', bookingId: idNumber, room: roomNumber,
+                     guestName: name, contact: email, contactKind: 'email',
+                     detail: String((err && err.message) || err) });
             showFormMsg("❌ Booking failed. Please try again.", "error");
             if (typeof showToast === "function") showToast("Booking failed ❌", false);
         } finally {
