@@ -105,6 +105,7 @@
 
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/portal.css">
 
     <script type="text/javascript" src="js/email.min.js"
     onload="(function(){
@@ -151,6 +152,12 @@
         .nav-links a { color: rgba(255,255,255,0.7); text-decoration: none; font-size: 14px; font-weight: 500; letter-spacing: 0.3px; transition: color 0.2s; }
         .nav-links a:hover { color: var(--gold); }
         .nav-actions { display: flex; gap: 12px; align-items: center; }
+        .nav-actions a { text-decoration: none; font-size: 13px; font-weight: 600; padding: 9px 20px; border-radius: 8px; font-family: 'DM Sans', sans-serif; transition: all .2s; white-space: nowrap; }
+        .btn-signin { color: rgba(255,255,255,.85); border: 1px solid rgba(255,255,255,.25); }
+        .btn-signin:hover { border-color: var(--gold); color: var(--gold); }
+        .btn-signup { background: var(--gold); color: var(--ink); border: 1px solid var(--gold); }
+        .btn-signup:hover { background: var(--gold-lt); }
+        @media(max-width:480px) { .nav-actions a { padding: 7px 12px; font-size: 12px; } .nav-logo-text { display: none; } }
 
         .hero {
             min-height: 100vh; background: var(--ink);
@@ -348,7 +355,10 @@
             <li><a href="#amenities">Amenities</a></li>
             <li><a href="#contact">Contact</a></li>
         </ul>
-        <div class="nav-actions"></div>
+        <div class="nav-actions" id="navAuth">
+            <a href="signin.html" class="btn-signin">Sign in</a>
+            <a href="signup.html" class="btn-signup">Sign up</a>
+        </div>
     </nav>
 
     <section class="hero" id="home" aria-label="Welcome to GTEC Guest Lodge">
@@ -412,6 +422,8 @@
             </div>
         </div>
     </section>
+
+    <section id="guest-reviews" class="pt-reviews" hidden></section>
 
     <section id="contact" style="background:#07090d;padding:80px 48px 120px;" aria-label="Contact Information">
         <div style="max-width:1100px;margin:0 auto;">
@@ -561,7 +573,7 @@
     <script>
         (function () {
             var v = Date.now();
-            var scripts = ['js/firebase.js', 'js/audit.js', 'js/roomsui.js'];
+            var scripts = ['js/firebase.js', 'js/audit.js', 'js/roomsui.js', 'js/reviews-public.js'];
             scripts.forEach(function (src) {
                 var s = document.createElement('script');
                 s.src = src + '?v=' + v;
@@ -674,5 +686,21 @@
 
     </script>
 
+<script>
+(function () {
+    var t = setInterval(function () {
+        if (!window.firebase || !firebase.apps || !firebase.apps.length) return;
+        clearInterval(t);
+        firebase.auth().onAuthStateChanged(function (u) {
+            var a = document.getElementById('navAuth');
+            if (!a) return;
+            a.innerHTML = u
+                ? '<a href="account.html" class="btn-signin">My account</a>'
+                : '<a href="signin.html" class="btn-signin">Sign in</a><a href="signup.html" class="btn-signup">Sign up</a>';
+        });
+    }, 200);
+})();
+</script>
 </body>
+
 </html>

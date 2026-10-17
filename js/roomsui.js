@@ -308,6 +308,7 @@ if (bookingForm) {
         const idNumber  = `GH-${Math.floor(Math.random() * 100000)}`;
         const guestData = {
             name, phone, email, idNumber, guestsCount,
+            emailLower: String(email || '').trim().toLowerCase(),
             roomId, roomNumber,
             checkinDate:     firebase.firestore.Timestamp.fromDate(checkinDate),
             checkinDateStr:  checkinDate.toISOString(),

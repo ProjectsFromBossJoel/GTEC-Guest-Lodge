@@ -1,0 +1,46 @@
+<!-- account.html -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My account – GTEC Guest Lodge</title>
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="css/portal.css">
+</head>
+<body class="pt-body" data-page="account">
+
+<header class="pt-top">
+  <a class="pt-brandmark" href="index.html">GTEC Guest Lodge</a>
+  <div class="who">
+    <span id="pt-who"></span>
+    <button class="pt-btn pt-btn-ghost pt-btn-sm" id="pt-signout" type="button">Sign out</button>
+  </div>
+</header>
+
+<!-- loading placeholder -->
+<div id="pt-boot" class="pt-main" style="max-width:900px;margin:0 auto">
+  <div class="pt-skel"></div><div class="pt-skel"></div><div class="pt-skel"></div>
+</div>
+
+<!-- e-mail verification gate (filled by js) -->
+<div id="pt-gate" class="pt-hide" style="max-width:560px;margin:2rem auto;padding:0 1rem"></div>
+
+<!-- the portal -->
+<div class="pt-shell pt-hide" id="pt-shell">
+  <nav class="pt-nav" id="pt-nav" aria-label="Account sections"></nav>
+  <main class="pt-main" id="pt-main" tabindex="-1"></main>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+<script src="js/portal-config.js"></script>
+<script src="js/portal-core.js"></script>
+<!-- sections register themselves with Portal.sections; portal-account.js must load last -->
+<script src="js/portal-stay.js"></script>
+<script src="js/portal-requests.js"></script>
+<script src="js/portal-info.js"></script>
+<script src="js/portal-account.js"></script>
+</body>
+</html>
