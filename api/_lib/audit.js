@@ -1,7 +1,9 @@
 // api/_lib/audit.js
 // Server-side audit writer. Every row lands in Firestore `auditLogs` (browsers can never write there;
-// only this Admin-SDK code can). Names, emails and phones are masked. The visitor's IP address is stored
-// in full (admin-only, deleted by the TTL policy), plus a salted hash used to group requests from one network.
+// only this Admin-SDK code can). `guestName` and `contact` are masked (shown in the tables); the full values
+// are kept in `guestNameFull` and `contactFull` for the details modal. The visitor's IP address is stored in
+// full, plus a salted hash used to group requests from one network. Everything here is readable by
+// admin/superadmin only (Firestore rule) and deleted by the TTL policy after RETENTION_DAYS.
 import crypto from 'node:crypto';
 import { getDb, FieldValue, Timestamp } from './firebase-admin.js';
 import { getIp } from './http.js';
@@ -70,6 +72,7 @@ function parseUA(ua, env) {
     lang: str(env.lang, 12),
     tz: str(env.tz, 40),
     cores: num(env.cores),
+    gpu: str(env.gpu, 120),
     memory: num(env.memory),
     conn: str(env.conn, 12),
     ua: ua.slice(0, 300),
@@ -122,7 +125,9 @@ export async function writeAudit(req, e) {
       bookingId: str(e.bookingId, 40),
       room: str(e.room, 20),
       guestName: maskName(e.guestName),
+      guestNameFull: str(e.guestName, 80),
       contact: kind === 'phone' ? maskPhone(e.contact) : maskEmail(e.contact),
+      contactFull: str(e.contact, 120),
       detail: str(e.detail, 300),
       meta: cleanMeta(e.meta),
       deviceId: str(e.deviceId, 24),

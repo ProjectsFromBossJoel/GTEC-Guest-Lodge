@@ -234,13 +234,14 @@
 
   /* ───────────── data ───────────── */
   function db() { return firebase.firestore(); }
-  function cacheKey() { return 'mon:v2:' + state.range; }
+  function cacheKey() { return 'mon:v3:' + state.range; }
 
   function normalize(id, d) {
     var ts = d.ts && d.ts.toMillis ? d.ts.toMillis() : 0;
     return {
       id: id, type: d.type || '', event: d.event || '', status: d.status || 'info', tsMs: ts,
       bookingId: d.bookingId || '', room: d.room || '', guest: d.guestName || '', contact: d.contact || '',
+      guestFull: d.guestNameFull || '', contactFull: d.contactFull || '',
       detail: d.detail || '', meta: d.meta || {}, device: d.device || {}, net: d.net || {},
       source: d.source || '', deviceId: d.deviceId || '', page: d.page || ''
     };
@@ -454,6 +455,41 @@
     return '<div class="mon-sec"><h4>' + esc(title) + '</h4>' + body + '</div>';
   }
 
+  // Full value for the modal; falls back to the masked one for rows logged before full values were stored.
+  function fullVal(full, masked) {
+    if (full) return esc(full);
+    if (masked) return esc(masked) + ' <span class="sub">(masked: logged before full details were stored)</span>';
+    return val('');
+  }
+  // Chrome reports Windows 11 as platform version 13 or higher, which is meaningless to read as "19.0.0".
+  function osLabel(d) {
+    var v = String(d.osVersion || '');
+    var major = parseInt(v, 10);
+    if (d.os === 'Windows' && isFinite(major) && major > 0) return (major >= 13 ? 'Windows 11' : 'Windows 10') + ' (platform ' + v + ')';
+    return [d.os, v].filter(Boolean).join(' ');
+  }
+  // The screen is reported in CSS pixels; multiply by the scale factor to get the real panel size.
+  function screenText(d) {
+    var m = /^(\d+)x(\d+)$/.exec(d.screen || '');
+    if (!m) return d.screen || '';
+    var base = m[1] + '×' + m[2];
+    var dpr = Number(d.dpr);
+    if (dpr && Math.abs(dpr - 1) > 0.01) {
+      return base + ' CSS px · about ' + Math.round(m[1] * dpr) + '×' + Math.round(m[2] * dpr) + ' physical (scale ×' + dpr + ')';
+    }
+    return base;
+  }
+  function modelCell(d) {
+    if (d.model) return esc(d.model);
+    var why = d.os === 'iOS' ? 'iPhones and iPads never reveal their model to websites'
+      : d.type === 'desktop' ? 'Browsers never reveal the make or model of a PC or laptop. See Graphics for the closest hint.'
+      : 'This browser does not share the device model (Chrome on Android does)';
+    return '<span class="sub">' + esc(why) + '</span>';
+  }
+  function cleanGpu(s) {
+    return String(s).replace(/^ANGLE \(/, '').replace(/\)$/, '');
+  }
+
   function detailHtml(r) {
     var d = r.device || {}, n = r.net || {}, m = r.meta || {};
     var out = '';
@@ -472,8 +508,8 @@
       var brows = [
         ['Booking ID', r.bookingId ? '<code>' + esc(r.bookingId) + '</code>' : val('')],
         ['Room', val(r.room)],
-        ['Guest', val(r.guest)],
-        ['Contact', val(r.contact)]
+        ['Guest', fullVal(r.guestFull, r.guest)],
+        ['Contact', fullVal(r.contactFull, r.contact)]
       ];
       if (r.type === 'booking') {
         var e = deliveryOf(ctx.email, r), s = deliveryOf(ctx.sms, r);
@@ -483,18 +519,18 @@
     }
 
     out += sec('Device', dl([
-      ['Model', d.model ? esc(d.model) : '<span class="sub">not shared by this browser (Chrome on Android shares it; Safari, Firefox and iPhones do not)</span>'],
+      ['Model', modelCell(d)],
       ['Browser', val([d.browser, d.browserVersion].filter(Boolean).join(' '))],
-      ['Operating system', val([d.os, d.osVersion].filter(Boolean).join(' '))],
+      ['Operating system', val(osLabel(d))],
       ['Device type', val(d.type)],
-      ['Screen', val(d.screen)],
+      ['Screen', val(screenText(d))],
       ['Window size', val(d.viewport)],
-      ['Pixel ratio', val(d.dpr)],
       ['Touch screen', d.touch === undefined ? val('') : (d.touch ? 'Yes' : 'No')],
+      ['Graphics', d.gpu ? esc(cleanGpu(d.gpu)) : val('')],
       ['Language', val(d.lang)],
       ['Time zone', val(d.tz)],
-      ['CPU cores', val(d.cores)],
-      ['Memory', d.memory ? esc(d.memory + ' GB (approx.)') : val('')],
+      ['CPU threads', val(d.cores)],
+      ['Memory', d.memory ? esc(d.memory + ' GB (rounded by the browser)') : val('')],
       ['Connection', val(d.conn)],
       ['Device ID', r.deviceId ? '<code>' + esc(r.deviceId) + '</code>' : val('')],
       ['User agent', d.ua ? '<div class="mon-pre">' + esc(d.ua) + '</div>' : val('')]
@@ -512,7 +548,7 @@
       ['City', val(n.city)],
       ['Coordinates', coords],
       ['Network time zone', val(n.tz)]
-    ]) + '<div class="mon-note" style="margin:8px 0 0;">Location is worked out from the IP address, so it is approximate: usually the city or the mobile carrier\'s hub, not the building.</div>');
+    ]) + '<div class="mon-note" style="margin:8px 0 0;">Location is worked out from the IP address, so it is approximate: usually the city or the mobile carrier\'s hub, not the building. On mobile data or a phone hotspot the IP belongs to the carrier and is shared with many people. A private address such as 172.x or 192.168.x never reaches the server.</div>');
 
     var metaRows = Object.keys(m).map(function (k) { return [k, val(m[k])]; });
     if (r.detail || metaRows.length) {

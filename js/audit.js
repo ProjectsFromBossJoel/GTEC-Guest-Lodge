@@ -14,8 +14,8 @@
  * Fire-and-forget: it never throws and never blocks the booking flow.
  * The server adds the IP address, IP-derived location, and parses the device from the User-Agent.
  * This file adds what the User-Agent no longer carries: device model and OS version (Chrome/Edge
- * "client hints"), screen and window size, CPU cores, memory and connection type.
- * Names, emails and phones are masked on the server before they are stored.
+ * "client hints"), screen and window size, CPU threads, memory, graphics card and connection type.
+ * The server stores masked names/contacts for the tables and the full values for the details modal.
  */
 (function () {
   'use strict';
@@ -50,6 +50,23 @@
     return Promise.race([p, new Promise(function (resolve) { setTimeout(resolve, 800); })]);
   })();
 
+  // Graphics card name, e.g. "Intel(R) UHD Graphics 620". Browsers never reveal a PC's make or model,
+  // so this is the closest hint to what hardware it is. Read once and cached.
+  var gpuName = null;
+  function gpu() {
+    if (gpuName !== null) return gpuName;
+    gpuName = '';
+    try {
+      var c = document.createElement('canvas');
+      var gl = c.getContext('webgl') || c.getContext('experimental-webgl');
+      if (gl) {
+        var ext = gl.getExtension('WEBGL_debug_renderer_info');
+        gpuName = String((ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER)) || '').slice(0, 120);
+      }
+    } catch (e) { /* ignore */ }
+    return gpuName;
+  }
+
   function env() {
     var tz = '';
     try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch (e) { /* ignore */ }
@@ -65,7 +82,8 @@
       model: hints.model || '',
       osVersion: hints.platformVersion || '',
       browserVersion: hints.uaFullVersion || '',
-      cores: navigator.hardwareConcurrency || 0,
+      cores: navigator.hardwareConcurrency || 0,   // logical processors (threads), not physical cores
+      gpu: gpu(),
       memory: navigator.deviceMemory || 0,
       conn: conn.effectiveType || ''
     };
