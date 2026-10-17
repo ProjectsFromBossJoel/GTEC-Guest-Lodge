@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GTEC Guest Lodge - Monitoring &amp; Auditing</title>
+    <link rel="stylesheet" href="css/style.css">
+    <script src="js/sidebar-collapse.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="icon" type="image/jpg" href="img/logo1.jpg">
+    <script src="js/buttonguard.js" defer></script>
+    <style>
+        .sidebar-menu { visibility: hidden; }
+
+        /* ── Controls ─────────────────────────────── */
+        .mon-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .mon-controls select, .mon-tools select, .mon-tools input[type="search"] {
+            border: 1px solid #e2e8f0; border-radius: 8px; padding: 7px 10px; font-size: 13px;
+            background: #fff; color: #1e293b;
+        }
+        .mon-live { font-size: 13px; color: #475569; display: flex; align-items: center; gap: 6px; cursor: pointer; }
+        .mon-btn {
+            border: 1px solid #cbd5e1; background: #fff; color: #1e293b; border-radius: 8px;
+            padding: 7px 12px; font-size: 13px; font-weight: 600; cursor: pointer;
+        }
+        .mon-btn:hover { background: #f1f5f9; }
+
+        /* ── Banners / notes ──────────────────────── */
+        .mon-banner { border-radius: 10px; padding: 12px 14px; margin-bottom: 16px; font-size: 14px; }
+        .mon-banner.bad { background: #fee2e2; color: #991b1b; }
+        .mon-note { font-size: 12px; color: #64748b; margin-bottom: 14px; }
+
+        /* ── Needs attention ──────────────────────── */
+        .mon-alerts { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+        .mon-alerts li { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: 10px; font-size: 13px; }
+        .mon-alerts li.bad  { background: #fee2e2; color: #991b1b; }
+        .mon-alerts li.warn { background: #fef3c7; color: #92400e; }
+        .mon-alerts li.info { background: #e0f2fe; color: #075985; }
+        .mon-alerts li.ok   { background: #dcfce7; color: #166534; }
+        .mon-alerts .a-title { font-weight: 700; }
+        .mon-alerts .a-desc  { opacity: .85; margin-top: 2px; }
+
+        /* ── Summary cards ────────────────────────── */
+        .mon-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 16px 0 20px; }
+        .mon-card { background: #fff; border: 1px solid #f1f5f9; border-radius: 14px; padding: 14px 16px; box-shadow: 0 2px 10px rgba(0,0,0,.04); }
+        .mon-card .k { font-size: 12px; color: #64748b; display: flex; align-items: center; gap: 6px; }
+        .mon-card .v { font-size: 26px; font-weight: 800; color: #1e293b; margin-top: 4px; }
+        .mon-card.bad .v { color: #dc2626; }
+        .mon-card.warn .v { color: #d97706; }
+
+        /* ── Tables ───────────────────────────────── */
+        .mon-table { margin-bottom: 22px; }
+        .mon-th { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+        .mon-count { font-size: 12px; font-weight: 600; color: #64748b; margin-left: 6px; }
+        .mon-tools { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+        .mon-scroll { overflow-x: auto; }
+        .mon-table-el { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .mon-table-el th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: #64748b;
+            padding: 8px 10px; border-bottom: 1px solid #e2e8f0; white-space: nowrap; }
+        .mon-table-el td { padding: 9px 10px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+        .mon-table-el .sub { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+        .mon-table-el code { font-size: 12px; background: #f1f5f9; padding: 1px 5px; border-radius: 4px; }
+        .mon-table-el .detail { max-width: 340px; display: inline-block; word-break: break-word; }
+        .mon-table-el .foreign { color: #b45309; font-weight: 600; }
+        .mon-table-el tr.row-bad  td { background: #fff5f5; }
+        .mon-table-el tr.row-warn td { background: #fffbeb; }
+        .mon-table-el tr.row-flag td:first-child { box-shadow: inset 3px 0 0 #f59e0b; }
+        .mon-table-el td.empty { text-align: center; color: #94a3b8; padding: 22px; }
+        .mon-more { text-align: center; margin-top: 12px; }
+
+        .badge { display: inline-block; border-radius: 20px; padding: 2px 9px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+        .badge.ok   { background: #dcfce7; color: #15803d; }
+        .badge.bad  { background: #fee2e2; color: #dc2626; }
+        .badge.warn { background: #fef3c7; color: #b45309; }
+        .badge.info { background: #e2e8f0; color: #475569; }
+        .badge.client { background: #ede9fe; color: #6d28d9; }
+
+        @media (max-width: 640px) {
+            .mon-table-el thead { display: none; }
+            .mon-table-el tr { display: block; border-bottom: 1px solid #e2e8f0; padding: 6px 0; }
+            .mon-table-el td { display: flex; gap: 10px; justify-content: space-between; border: 0; padding: 4px 10px; }
+            .mon-table-el td::before { content: attr(data-label); font-size: 11px; color: #94a3b8; text-transform: uppercase; flex-shrink: 0; }
+            .mon-table-el td.empty { display: block; }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">
+                    <img src="img/logo1.jpg" alt="Logo" class="logo" style="width:40px;height:40px;"> Guest Lodge
+                </div>
+            </div>
+            <div class="sidebar-menu">
+                <div class="menu-label">Main Menu</div>
+                <a href="dashboard.html" class="menu-item"><i class="fas fa-chart-pie"></i> Dashboard</a>
+                <a href="rooms.html" class="menu-item"><i class="fas fa-bed"></i> Rooms</a>
+
+                <div class="menu-label" style="margin-top:20px;">Guest Activity</div>
+                <a href="checkin.html" class="menu-item"><i class="fas fa-sign-in-alt"></i> Check-In</a>
+                <a href="checkout.html" class="menu-item"><i class="fas fa-sign-out-alt"></i> Check-Out</a>
+                <a href="guests.html" class="menu-item"><i class="fas fa-users"></i> Guests</a>
+                <a href="chatroom.html" class="menu-item"><i class="fas fa-comments"></i> Chat Room
+                <span class="nav-badge" id="nav-chatroom-count" style="display:none;">0</span></a>
+                <a href="logs.html" class="menu-item"><i class="fas fa-clipboard-list"></i> Logs</a>
+                <a href="chat.html" class="menu-item"><i class="fas fa-comment"></i> Client Messages
+                <span class="nav-badge" id="nav-chat-count" style="display:none;">0</span></a>
+                <a href="verification.html" class="menu-item"><i class="fas fa-user-check"></i> Verification</a>
+                <a href="invoice.html" class="menu-item"><i class="fas fa-file-invoice"></i> Invoice</a>
+                <a href="calendar.html" class="menu-item"><i class="fas fa-calendar-alt"></i> Calendar</a>
+                <a href="filelibrary.html" class="menu-item"><i class="fas fa-folder-open"></i> File Library</a>
+
+                <div class="menu-label" style="margin-top:20px;">Analysis</div>
+                <a href="reports.html" class="menu-item"><i class="fas fa-chart-bar"></i> Reports</a>
+                <div class="menu-label" style="margin-top:20px;">Administration</div>
+                <a href="profile.html" class="menu-item"><i class="fas fa-circle-user"></i> My Profile</a>
+                <a href="roles.html" class="menu-item"><i class="fas fa-user-shield"></i> Roles</a>
+                <a href="monitoring.html" class="menu-item active"><i class="fas fa-shield-halved"></i> Monitoring</a>
+            </div>
+            <div class="sidebar-footer">
+                <a href="#" id="logout-btn" class="menu-item" style="color:var(--status-occupied);padding-left:0;">
+                    <i class="fas fa-power-off"></i> Logout
+                </a>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="header">
+                <div class="toggle-sidebar" id="toggle-sidebar"><i class="fas fa-bars"></i></div>
+                <div class="header-right" style="margin-left:auto;">
+                    <a href="index.html">🏠 Home</a>
+                    <div class="user-profile" style="cursor:pointer;" onclick="window.location.href='profile.html'" title="View Profile">
+                        <div class="user-avatar"><i class="fas fa-user"></i></div>
+                        <span id="user-email-display" style="font-weight:500;">Admin</span>
+                    </div>
+                </div>
+            </header>
+
+            <div class="content-area">
+                <div class="page-header">
+                    <h1 class="page-title">Monitoring &amp; Auditing</h1>
+                    <div class="mon-controls">
+                        <select id="mon-range" aria-label="Time range">
+                            <option value="1h">Last hour</option>
+                            <option value="24h" selected>Last 24 hours</option>
+                            <option value="7d">Last 7 days</option>
+                            <option value="30d">Last 30 days</option>
+                        </select>
+                        <label class="mon-live" title="Checks for new events every 30 seconds while this tab is visible">
+                            <input type="checkbox" id="mon-live"> Live
+                        </label>
+                        <button class="mon-btn" id="mon-refresh"><i class="fas fa-rotate"></i> Refresh</button>
+                    </div>
+                </div>
+
+                <div id="mon-denied" class="mon-banner bad" style="display:none;"></div>
+
+                <div id="mon-app" style="display:none;">
+                    <div id="mon-status" class="mon-note"></div>
+
+                    <div class="card">
+                        <div class="card-header"><h2 class="card-title"><i class="fas fa-triangle-exclamation"></i> Needs attention</h2></div>
+                        <div class="card-body"><ul class="mon-alerts" id="mon-alerts"></ul></div>
+                    </div>
+
+                    <div class="mon-cards" id="mon-cards"></div>
+
+                    <div id="tables"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+    <script src="js/firebase.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/logs.js"></script>
+    <script src="js/sidebar.js"></script>
+    <script src="js/chatnotify.js"></script>
+    <script src="js/cache.js"></script>
+    <script src="js/monitoring.js"></script>
+</body>
+
+</html>

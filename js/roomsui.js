@@ -392,7 +392,7 @@ if (bookingForm) {
                 notes: notes || "None", time: formattedTime
             };
             const guestPayload = {
-                title:    `Booking Received — Room ${roomNumber}`,
+                title:    `Booking Reserved — Room ${roomNumber}`,
                 name, phone, email, room: roomNumber,
                 checkin:  fmt(checkinDate),
                 checkout: fmt(expectedCheckout),
@@ -493,7 +493,7 @@ if (bookingForm) {
 
             showSuccessOverlay(idNumber, { name, room: roomNumber, nights, smsSent });
 
-            if (typeof showToast === "function") showToast("Booking received! ✅");
+            if (typeof showToast === "function") showToast("Booking reserved! ✅");
 
         } catch (err) {
             console.error("[Booking] Error:", err);
@@ -545,7 +545,7 @@ function showSuccessOverlay(idNumber, bookingData) {
     const mainEl = document.getElementById('successMsgMain');
     const subEl = document.getElementById('successMsgSub');
 
-    if (titleEl) titleEl.textContent = 'Booking Received!';
+    if (titleEl) titleEl.textContent = 'Booking Reserved!';
     if (mainEl) mainEl.innerHTML = _lastBooking.smsSent
         ? 'Your room has been reserved. A confirmation email has been sent to your inbox and an SMS has been sent to your phone.'
         : 'Your room has been reserved. A confirmation email has been sent to your inbox. We could not send the SMS, so please keep the Booking ID shown below.';
