@@ -222,7 +222,8 @@
     // ── Avatar background colours per role ────────────────────
     const ROLE_COLORS = {
         superadmin:   'linear-gradient(135deg,#1e40af,#3b82f6)',
-        manager:      'linear-gradient(135deg,#15803d,#22c55e)',
+        admin:        'linear-gradient(135deg,#15803d,#22c55e)',
+        manager:      'linear-gradient(135deg,#0e7490,#22d3ee)',
         receptionist: 'linear-gradient(135deg,#92400e,#f59e0b)',
         observer:     'linear-gradient(135deg,#6b21a8,#a855f7)',
         staff:        'linear-gradient(135deg,#0891b2,#22d3ee)',

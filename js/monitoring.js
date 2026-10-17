@@ -8,7 +8,7 @@
   'use strict';
 
   var HOME_COUNTRY = 'GH';             // bookings from anywhere else are highlighted
-  var ALLOWED_ROLES = ['superadmin', 'admin', 'manager'];   // "manager" is shown as "Admin" in User Roles
+  var ALLOWED_ROLES = ['superadmin', 'admin'];
   var MAX_DOCS = 500;
   var PAGE_SIZE = 25;
   var CACHE_TTL = 60 * 1000;

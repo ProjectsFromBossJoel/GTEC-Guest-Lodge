@@ -1,0 +1,223 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helper functions ──────────────────────────────────────────────────
+    function isAuth() {
+      return request.auth != null;
+    }
+    function isOwner(userId) {
+      return isAuth() && request.auth.uid == userId;
+    }
+    function myDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    // Active staff with elevated role (docs without a status field count as active)
+    function isAdmin() {
+      return isAuth()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && myDoc().role in ['superadmin', 'admin', 'manager']
+        && myDoc().get('status', 'active') == 'active';
+    }
+    function isSuperAdmin() {
+      return isAuth()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && myDoc().role == 'superadmin'
+        && myDoc().get('status', 'active') == 'active';
+    }
+    function validString(field, maxLen) {
+      return field is string && field.size() > 0 && field.size() <= maxLen;
+    }
+
+    // ── Hub helper functions (check the hubUsers collection) ──────────────
+    function hubMe() {
+      return get(/databases/$(database)/documents/hubUsers/$(request.auth.uid)).data;
+    }
+    function hubActive() {
+      return isAuth()
+        && exists(/databases/$(database)/documents/hubUsers/$(request.auth.uid))
+        && hubMe().get('status', 'active') == 'active';
+    }
+    function isHubSuperAdmin() {
+      return hubActive() && hubMe().get('role', '') == 'superadmin';
+    }
+    function isHubAdmin() {
+      return hubActive() && hubMe().get('role', '') in ['superadmin', 'admin'];
+    }
+
+    // ── Users ─────────────────────────────────────────────────────────────
+    match /users/{userId} {
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
+
+      // Super admin creates any user (Add User button).
+      // Self-registration: a user may only create their OWN doc, as pending.
+      allow create: if (
+          isSuperAdmin()
+          && validString(request.resource.data.email, 200)
+          && validString(request.resource.data.name, 100)
+        ) || (
+          isOwner(userId)
+          && validString(request.resource.data.email, 200)
+          && validString(request.resource.data.name, 100)
+          && request.resource.data.status == 'pending'
+        );
+
+      // Only super admin can approve, reject, change roles or remove users
+      allow update, delete: if isSuperAdmin();
+    }
+
+    // ── Rooms ─────────────────────────────────────────────────────────────
+    match /rooms/{roomId} {
+      allow read: if true;
+      allow update: if isAuth()
+        || (request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['status']));
+      allow create, delete: if isAdmin();
+    }
+
+    // ── Guests ────────────────────────────────────────────────────────────
+    match /guests/{guestId} {
+      allow create: if validString(request.resource.data.name, 100)
+        && validString(request.resource.data.email, 200)
+        && validString(request.resource.data.phone, 30)
+        && request.resource.data.guestsCount is number
+        && request.resource.data.guestsCount >= 1
+        && request.resource.data.guestsCount <= 20;
+      allow read, update, delete: if isAuth();
+    }
+
+    // ── Invoices ──────────────────────────────────────────────────────────
+    match /invoices/{invoiceId} {
+      allow create: if validString(request.resource.data.guestName, 100)
+        && validString(request.resource.data.guestEmail, 200);
+      allow read, update, delete: if isAuth();
+    }
+
+    // ── Live Chats ────────────────────────────────────────────────────────
+    match /liveChats/{chatId} {
+      allow create: if validString(request.resource.data.name, 100)
+        && validString(request.resource.data.message, 1000);
+      allow read, update, delete: if isAuth();
+    }
+
+    // ── Login Attempts ────────────────────────────────────────────────────
+    match /loginAttempts/{docId} {
+      allow read: if true;
+      allow write: if !isAuth() || isAdmin();
+    }
+
+    // ── Logs ──────────────────────────────────────────────────────────────
+    match /logs/{logId} {
+      allow create: if isAuth()
+        && validString(request.resource.data.action, 200);
+      allow read: if isAdmin();
+      allow delete: if isSuperAdmin();
+      allow update: if false;
+    }
+
+    // ── History ───────────────────────────────────────────────────────────
+    match /history/{historyId} {
+      allow read, write: if isAuth();
+    }
+
+    // ── Internal Chat (chatrooms) ─────────────────────────────────────────
+    match /chatrooms/{channel}/messages/{msgId} {
+      allow read, write: if isAuth();
+    }
+    match /chatrooms/{channel}/typing/{uid} {
+      allow read, write: if isAuth();
+    }
+    match /chatPresence/{uid} {
+      allow read, write: if isAuth();
+    }
+    match /chatUnread/{uid} {
+      allow read, write: if isOwner(uid);
+    }
+
+    // ── Audit logs (written only by the server; superadmin/admin can read) ──
+    match /auditLogs/{logId} {
+      allow read: if isAuth()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && myDoc().role in ['superadmin', 'admin', 'manager']
+        && myDoc().get('status', 'active') == 'active';
+      allow delete: if isSuperAdmin();
+      allow create, update: if false;
+    }
+
+    // ── Hub Users ─────────────────────────────────────────────────────────
+    match /hubUsers/{userId} {
+    
+      // A user can read their own profile; only the hub superadmin can list/read all
+      allow get: if isOwner(userId) || isHubSuperAdmin();
+      allow list: if isHubSuperAdmin();
+
+      // Superadmin creates any user (Add User button).
+      // Self-registration: own doc only, as pending, with no privileges or app access.
+      allow create: if (
+          isHubSuperAdmin()
+          && validString(request.resource.data.email, 200)
+          && validString(request.resource.data.name, 100)
+        ) || (
+          isOwner(userId)
+          && validString(request.resource.data.email, 200)
+          && validString(request.resource.data.name, 100)
+          && request.resource.data.status == 'pending'
+          && request.resource.data.get('role', 'observer') in ['observer', 'staff']
+          && request.resource.data.get('roles', []).size() == 0
+        );
+
+      // Approve, reject, edit role/apps, delete: superadmin only
+      allow update, delete: if isHubSuperAdmin();
+    }
+
+    // ── Hub Login Attempts ────────────────────────────────────────────────
+    match /hubLoginAttempts/{docId} {
+      allow read: if true;
+      allow write: if !isAuth() || isHubAdmin();
+    }
+
+    // ── Hub Logs ──────────────────────────────────────────────────────────
+    match /hubLogs/{logId} {
+      allow create: if isAuth()
+        && validString(request.resource.data.action, 200);
+      allow read, delete: if isHubAdmin();
+      allow update: if false;
+    }
+
+        // ── Hub Events ────────────────────────────────────────────────────────
+    match /hubEvents/{eventId} {
+      allow get: if true;                       // public registration page reads one event
+      allow list: if hubActive();
+      allow create: if isHubAdmin()
+        && validString(request.resource.data.title, 150);
+      allow update, delete: if isHubAdmin();
+    }
+
+    // ── Hub Event Registrations ───────────────────────────────────────────
+    match /hubEventRegistrations/{regId} {
+      allow read: if hubActive();
+
+      // Public can register, but cannot read, edit or delete.
+      // Duplicate emails are blocked: with an email, the doc ID must be
+      // "<eventId>_<email>", and updates are denied, so a second attempt fails.
+      allow create: if validString(request.resource.data.eventId, 100)
+        && exists(/databases/$(database)/documents/hubEvents/$(request.resource.data.eventId))
+        && validString(request.resource.data.name, 100)
+        && validString(request.resource.data.phone, 30)
+        && validString(request.resource.data.organisation, 150)
+        && request.resource.data.email is string
+        && request.resource.data.email.size() <= 200
+        && request.resource.data.email == request.resource.data.email.lower()
+        && (request.resource.data.email.size() == 0
+            || regId == request.resource.data.eventId + '_' + request.resource.data.email)
+        && request.resource.data.createdAt is string
+        && request.resource.data.keys().hasOnly(
+             ['eventId', 'name', 'phone', 'email', 'organisation', 'createdAt']);
+
+      allow update: if false;
+      allow delete: if isHubAdmin();
+    }
+
+  }
+}

@@ -848,14 +848,16 @@
 
         /* Role-based avatar colours */
         .role-superadmin   { background: #1e40af !important; }
-        .role-manager      { background: #15803d !important; }
+        .role-admin        { background: #15803d !important; }
+        .role-manager      { background: #0e7490 !important; }
         .role-receptionist { background: #92400e !important; }
         .role-observer     { background: #6b21a8 !important; }
         .role-staff        { background: #0891b2 !important; }
 
         /* Role tag colours */
         .tag-superadmin   { background: #dbeafe; color: #1e40af; }
-        .tag-manager      { background: #dcfce7; color: #15803d; }
+        .tag-admin        { background: #dcfce7; color: #15803d; }
+        .tag-manager      { background: #cffafe; color: #0e7490; }
         .tag-receptionist { background: #fef3c7; color: #92400e; }
         .tag-observer     { background: #f3e8ff; color: #6b21a8; }
         .tag-staff        { background: #e0f2fe; color: #0369a1; }
@@ -1026,7 +1028,7 @@
                 <span class="nav-badge" id="nav-chat-count" style="display:none;">0</span></a>
                 <a href="verification.html" class="menu-item"><i class="fas fa-user-check"></i> Verification</a>
                 <a href="invoice.html" class="menu-item"><i class="fas fa-file-invoice"></i> Invoice</a>
-                <a href="payments.html"     class="menu-item active"><i class="fas fa-credit-card"></i> Payments</a>
+                <a href="payments.html" class="menu-item"><i class="fas fa-credit-card"></i> Payments</a>
                 <a href="calendar.html" class="menu-item"><i class="fas fa-calendar-alt"></i> Calendar</a>
                 <a href="filelibrary.html" class="menu-item"><i class="fas fa-folder-open"></i> File Library</a>
 
@@ -1036,7 +1038,7 @@
 
                 <div class="menu-label" style="margin-top:20px;">Administration</div>
             <a href="profile.html" class="menu-item"><i class="fas fa-circle-user"></i> My Profile</a>
-                <a href="roles.html" class="menu-item"><i class="fas fa-user-shield"></i> Roles</a>
+                <a href="roles.html" class="menu-item"><i class="fas fa-user-shield"></i> User Roles</a>
             </div>
             <div class="sidebar-footer">
                 <a href="#" id="logout-btn" class="menu-item" style="color:var(--status-occupied);padding-left:0;">
@@ -1348,7 +1350,8 @@
 
       const ROLE_ICONS = {
           superadmin:   'fa-crown',
-          manager:      'fa-user-shield',
+          admin:        'fa-user-shield',
+          manager:      'fa-user-gear',
           receptionist: 'fa-user-tie',
           observer:     'fa-eye',
           staff:        'fa-user'
@@ -1483,7 +1486,8 @@ function capitalize(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
 // ── Role display labels (must match roles.js) ──────────────────────────────
 const ROLE_LABELS = {
     superadmin:   'Superadmin',
-    manager:      'Admin',        // ← "manager" in Firebase → show "Admin"
+    admin:        'Admin',
+    manager:      'Manager',
     receptionist: 'Receptionist',
     observer:     'Observer',
     staff:        'Staff',

@@ -5,9 +5,10 @@
 
 const ROLE_META = {
     superadmin:   { label: 'Super Admin',  bg: '#dbeafe', color: '#1e40af', icon: 'fa-crown',    hint: 'Full access — can create, edit, delete everything including user roles.' },
-    manager:      { label: 'Admin',      bg: '#dcfce7', color: '#15803d', icon: 'fa-user-shield', hint: 'Can check-in and check-out guests. Cannot create, edit, or delete records.' },
-    receptionist: { label: 'Receptionist', bg: '#fef3c7', color: '#854d0e', icon: 'fa-user-tie',     hint: 'Can check-in and check-out guests. Cannot create, edit, or delete records.' },
-    observer:     { label: 'Observer',     bg: '#f3e8ff', color: '#6b21a8', icon: 'fa-eye',      hint: 'Read-only access. Cannot see Verification, Logs, or Chat pages.' },
+    admin:        { label: 'Admin',        bg: '#dcfce7', color: '#15803d', icon: 'fa-user-shield', hint: 'Can create, edit and delete records and use Monitoring & Auditing. Cannot manage user roles.' },
+    manager:      { label: 'Manager',      bg: '#cffafe', color: '#0e7490', icon: 'fa-user-gear',   hint: 'Can create and edit records. Cannot delete records, open Monitoring or manage user roles.' },
+    receptionist: { label: 'Receptionist', bg: '#fef3c7', color: '#854d0e', icon: 'fa-user-tie',     hint: 'Can check guests in/out and create records. Cannot edit or delete records, or open Logs and Monitoring.' },
+    observer:     { label: 'Observer',     bg: '#f3e8ff', color: '#6b21a8', icon: 'fa-eye',      hint: 'Read-only access. Cannot open sensitive pages (Verification, Logs, Chat, Reports, Payments, Invoice, Monitoring).' },
 };
 
 let allUsers      = [];
@@ -436,6 +437,7 @@ function setupAddUserForm() {
 // Change Role Modal
 // ─────────────────────────────────────────────────────────────────────────────
 function openRoleModal(uid, email, currentRole) {
+
     document.getElementById('role-modal-uid').value         = uid;
     document.getElementById('role-modal-email').textContent = email;
     document.getElementById('role-select').value            = currentRole;
@@ -498,6 +500,7 @@ const PERM_COLORS = { create: '#3b82f6', edit: '#f59e0b', delete: '#ef4444', ful
 
 const ROLE_PERM_DEFAULTS = {
     superadmin:   { canCreate: true,  canEdit: true,  canDelete: true,  fullButtonAccess: true  },
+    admin:        { canCreate: true,  canEdit: true,  canDelete: true,  fullButtonAccess: false },
     manager:      { canCreate: true,  canEdit: true,  canDelete: false, fullButtonAccess: false },
     receptionist: { canCreate: true,  canEdit: false, canDelete: false, fullButtonAccess: false },
     observer:     { canCreate: false, canEdit: false, canDelete: false, fullButtonAccess: false },
@@ -531,7 +534,8 @@ const _without = (...omit) => _ALL_PAGES.filter(k => !omit.includes(k));
 // Adjust these defaults to match how you want each role to start out
 const ROLE_PAGE_DEFAULTS = {
     superadmin:   _ALL_PAGES,
-    manager:      _without('roles'),
+    admin:        _without('roles'),
+    manager:      _without('roles', 'monitoring'),
     receptionist: _without('roles', 'logs', 'monitoring'),
     observer:     _without('roles', 'verification', 'logs', 'chat', 'reports', 'payments', 'filelibrary', 'chatroom', 'invoice', 'monitoring'),
 };

@@ -156,11 +156,15 @@
                 </div>
                 <div class="stat-card" style="border-left:4px solid #22c55e;">
                     <div class="stat-icon" style="background:#dcfce7;"><i class="fas fa-user-shield" style="color:#15803d;"></i></div>
-                    <div class="stat-details"><h3>Admin</h3><p style="font-size:12px;color:var(--text-light);font-weight:400;">Check-in/out only, no edit/delete</p></div>
+                    <div class="stat-details"><h3>Admin</h3><p style="font-size:12px;color:var(--text-light);font-weight:400;">Create, edit, delete · Monitoring</p></div>
+                </div>
+                <div class="stat-card" style="border-left:4px solid #0e7490;">
+                    <div class="stat-icon" style="background:#cffafe;"><i class="fas fa-user-gear" style="color:#0e7490;"></i></div>
+                    <div class="stat-details"><h3>Manager</h3><p style="font-size:12px;color:var(--text-light);font-weight:400;">Create &amp; edit, no delete</p></div>
                 </div>
                 <div class="stat-card" style="border-left:4px solid #f59e0b;">
                     <div class="stat-icon" style="background:#fef3c7;"><i class="fas fa-user-tie" style="color:#854d0e;"></i></div>
-                    <div class="stat-details"><h3>Receptionist</h3><p style="font-size:12px;color:var(--text-light);font-weight:400;">Check-in/out only, no edit/delete</p></div>
+                    <div class="stat-details"><h3>Receptionist</h3><p style="font-size:12px;color:var(--text-light);font-weight:400;">Check-in/out, create only</p></div>
                 </div>
                 <div class="stat-card" style="border-left:4px solid #a855f7;">
                     <div class="stat-icon" style="background:#f3e8ff;"><i class="fas fa-eye" style="color:#6b21a8;"></i></div>
@@ -250,7 +254,8 @@
                 <label class="form-label">Assign Role</label>
                 <select id="approve-role-select" class="form-control">
                     <option value="superadmin">Super Admin</option>
-                    <option value="manager">Admin</option>
+                    <option value="admin">Admin</option>
+                    <option value="manager">Manager</option>
                     <option value="receptionist" selected>Receptionist</option>
                     <option value="observer">Observer</option>
                 </select>
@@ -325,7 +330,8 @@
                     <select id="new-user-role" class="form-control" required>
                         <option value="">— Select a role —</option>
                         <option value="superadmin">Super Admin</option>
-                        <option value="manager">Admin</option>
+                        <option value="admin">Admin</option>
+                    <option value="manager">Manager</option>
                         <option value="receptionist">Receptionist</option>
                         <option value="observer">Observer</option>
                     </select>
@@ -357,7 +363,8 @@
                 <label class="form-label">New Role</label>
                 <select id="role-select" class="form-control">
                     <option value="superadmin">Super Admin</option>
-                    <option value="manager">Admin</option>
+                    <option value="admin">Admin</option>
+                    <option value="manager">Manager</option>
                     <option value="receptionist">Receptionist</option>
                     <option value="observer">Observer</option>
                 </select>

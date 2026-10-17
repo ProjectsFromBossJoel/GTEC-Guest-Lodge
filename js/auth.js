@@ -5,8 +5,8 @@
 
 const BLOCKED_PAGES = {
     superadmin:   [],
-    manager:      ['roles.html'],
-    admin:        ['roles.html'],   // ← alias for "admin" stored in Firestore
+    manager:      ['roles.html', 'monitoring.html'],
+    admin:        ['roles.html'],
     receptionist: ['roles.html', 'logs.html', 'monitoring.html'],
     observer:     ['roles.html', 'verification.html', 'logs.html', 'chat.html', 'reports.html', 'payments.html', 'invoice.html', 'filelibrary.html', 'chatroom.html', 'monitoring.html'],
 };
@@ -478,7 +478,7 @@ function _showRoleBadge(role) {
     if (!emailEl) return;
     const meta = {
         superadmin:   { label: 'Super Admin',  bg: '#dbeafe', color: '#1e40af' },
-        manager:      { label: 'Admin',      bg: '#dcfce7', color: '#15803d' },
+        manager:      { label: 'Manager',    bg: '#cffafe', color: '#0e7490' },
         admin:        { label: 'Admin',        bg: '#dcfce7', color: '#15803d' },
         receptionist: { label: 'Receptionist', bg: '#fef3c7', color: '#854d0e' },
         observer:     { label: 'Observer',     bg: '#f3e8ff', color: '#6b21a8' },
