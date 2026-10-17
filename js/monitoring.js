@@ -8,7 +8,7 @@
   'use strict';
 
   var HOME_COUNTRY = 'GH';             // bookings from anywhere else are highlighted
-  var ALLOWED_ROLES = ['superadmin', 'admin'];
+  var ALLOWED_ROLES = ['superadmin', 'admin', 'manager'];   // "manager" is shown as "Admin" in User Roles
   var MAX_DOCS = 500;
   var PAGE_SIZE = 25;
   var CACHE_TTL = 60 * 1000;
@@ -221,7 +221,7 @@
 
   function showError(e) {
     var msg = e && e.code === 'permission-denied'
-      ? 'Firestore refused the read. Deploy the auditLogs rule from MONITORING_SETUP.md, and check that your role is superadmin or admin.'
+      ? 'Firestore refused the read. Deploy the auditLogs rule from MONITORING_SETUP.md, and check that your role is superadmin, admin or manager.'
       : 'Could not load audit data: ' + (e && e.message ? e.message : e);
     $('mon-status').textContent = msg;
   }

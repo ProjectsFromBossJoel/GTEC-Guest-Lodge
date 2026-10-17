@@ -7,8 +7,8 @@ const BLOCKED_PAGES = {
     superadmin:   [],
     manager:      ['roles.html'],
     admin:        ['roles.html'],   // ← alias for "admin" stored in Firestore
-    receptionist: ['roles.html', 'logs.html'],
-    observer:     ['roles.html', 'verification.html', 'logs.html', 'chat.html', 'reports.html', 'payments.html', 'invoice.html', 'filelibrary.html', 'chatroom.html'],
+    receptionist: ['roles.html', 'logs.html', 'monitoring.html'],
+    observer:     ['roles.html', 'verification.html', 'logs.html', 'chat.html', 'reports.html', 'payments.html', 'invoice.html', 'filelibrary.html', 'chatroom.html', 'monitoring.html'],
 };
 
 // Roles with write restrictions (buttons will be disabled with tooltip)
@@ -20,7 +20,7 @@ window._userPageAccess = null;   // array of page keys, or null = use role defau
 
 // Page keys = html file name without ".html" (must match PAGE_LIST in roles.js)
 const _PAGE_KEYS = ['dashboard','rooms','checkin','checkout','guests','chatroom','logs','chat',
-                    'verification','payments','calendar','filelibrary','reports','profile','roles'];
+                    'verification','invoice','payments','calendar','filelibrary','reports','monitoring','profile','roles'];
 
 function _firstAllowedPage(access) {
     const first = (access || []).find(k => k !== 'roles' && _PAGE_KEYS.includes(k));
@@ -232,6 +232,8 @@ async function loadUserRole(uid) {
             const role = (data.role || 'observer').trim().toLowerCase();
             window._userRole = role;
             window._userPageAccess = Array.isArray(data.pageAccess) ? data.pageAccess : null;
+            window._userPerms = data.permissions || {};
+            window._lastPermsJson = JSON.stringify({ p: data.permissions || {}, a: data.pageAccess || null });
             console.log(`[Auth] ✅ Role resolved: "${role}"`);
 
         } else {
@@ -288,28 +290,44 @@ function enforceAccess(role) {
     _showRoleBadge(normalisedRole);
 
     if (normalisedRole === 'observer') {
-        const fn = () => _applyObserverMode();
-        fn();
-        new MutationObserver(fn).observe(document.body, { childList: true, subtree: true });
-    }
-
-    if (WRITE_RESTRICTED_ROLES.includes(normalisedRole)) {
-        db.collection('users').doc(firebase.auth().currentUser.uid).get()
-            .then(userSnap => {
-                const perms = userSnap.exists ? (userSnap.data().permissions || {}) : {};
-                const fn = () => _applyGranularPermissions(perms);
-                fn();
-                new MutationObserver(fn).observe(document.body, { childList: true, subtree: true });
-            })
-            .catch(() => {
-                // On error, lock everything
-                const fn = () => _applyGranularPermissions({});
-                fn();
-                new MutationObserver(fn).observe(document.body, { childList: true, subtree: true });
-            });
+        _runAndWatch(() => _applyObserverMode());
+    } else if (WRITE_RESTRICTED_ROLES.includes(normalisedRole)) {
+        _clearLocks(['observerLocked']);
+        _runAndWatch(() => _applyGranularPermissions(window._userPerms || {}));
+    } else {
+        _domFn = null;   // superadmin: nothing should be locked
+        _clearLocks(['createLocked', 'editLocked', 'deleteLocked', 'observerLocked']);
     }
 
     return true;
+}
+
+// One shared MutationObserver; the function it runs can be swapped on live role changes
+let _domObserver = null;
+let _domFn = null;
+function _runAndWatch(fn) {
+    _domFn = fn;
+    fn();
+    if (_domObserver) return;
+    _domObserver = new MutationObserver(() => { if (_domFn) _domFn(); });
+    _domObserver.observe(document.body, { childList: true, subtree: true });
+}
+
+// Remove lock flags; only re-enable a button if no other lock still applies to it
+function _clearLocks(keys) {
+    const ALL = ['createLocked', 'editLocked', 'deleteLocked', 'observerLocked'];
+    keys.forEach(k => {
+        const attr = 'data-' + k.replace(/[A-Z]/g, m => '-' + m.toLowerCase());
+        document.querySelectorAll('[' + attr + ']').forEach(el => {
+            delete el.dataset[k];
+            if (ALL.some(x => el.dataset[x])) return;
+            el.disabled = false;
+            el.style.opacity = '';
+            el.style.cursor = '';
+            el.style.pointerEvents = '';
+            el.title = '';
+        });
+    });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -533,6 +551,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     const newRole = (data.role || 'observer').trim().toLowerCase();
                     window._userPageAccess = Array.isArray(data.pageAccess) ? data.pageAccess : null;
+                    window._userPerms = data.permissions || {};
 
                     // Only re-enforce if something actually changed
                     if (newRole === window._userRole) {
