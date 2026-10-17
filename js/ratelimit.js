@@ -5,7 +5,7 @@
 // and the in-memory layer still applies.
 import crypto from 'node:crypto';
 import { getDb, Timestamp } from './firebase-admin.js';
-import { writeAudit } from './audit.js';
+import { writeAudit } from './audit1.js';
 
 // ── Tune limits here ────────────────────────────────────────────────────────
 // IPs on Ghanaian mobile networks are often shared by many people, so IP limits are generous;

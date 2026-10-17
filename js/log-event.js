@@ -3,7 +3,7 @@
 // so the Monitoring page shows them with a "client" badge. SMS and security rows come from the server itself.
 import { applyCors, getIp, readJson } from './_lib/http.js';
 import { enforce, LIMITS } from './_lib/ratelimit.js';
-import { writeAudit } from './_lib/audit.js';
+import { writeAudit } from './_lib/audit1.js';
 
 // event -> [type, status]. The server decides type and status; the browser only names the event.
 const EVENTS = {
