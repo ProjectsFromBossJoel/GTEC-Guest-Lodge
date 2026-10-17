@@ -1,8 +1,8 @@
-// api/send-whatsapp.js
-// This is the Vercel serverless function that sends booking SMS messages (MNotify)
-// It will be called by your frontend (roomsui.js)
+   // api/send-sms.js
+   // This is the Vercel serverless function that sends booking SMS messages (MNotify)
+   // It will be called by your frontend (roomsui.js)
 
-// api/send-whatsapp.js
+   // api/send-sms.js
 export default async function handler(req, res) {
   // ── CORS ──
   const ALLOWED_ORIGINS = [
