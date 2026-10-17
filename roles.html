@@ -1,3 +1,4 @@
+<!-- Roles-->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -5,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GTEC Guest Lodge - User Roles</title>
     <link rel="stylesheet" href="css/style.css">
+    <script src="js/sidebar-collapse.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="icon" type="image/jpg" href="img/logo1.jpg">
     <style>
@@ -47,6 +49,7 @@
         }
         .modal-body .form-control:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.12); background: #fff; }
         .modal-body select.form-control { appearance: auto; }
+        #role-modal .modal-container { max-height: 90vh; overflow-y: auto; }
         #role-hint { padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-top: -8px; margin-bottom: 4px; background: #f0f9ff; border: 1px solid #bae6fd; }
 
         /* ── Pending section ── */
@@ -104,6 +107,7 @@
             <a href="chat.html"         class="menu-item"><i class="fas fa-comment"></i> Client Messages
             <span class="nav-badge" id="nav-chat-count" style="display:none;">0</span></a>
             <a href="verification.html" class="menu-item"><i class="fas fa-user-check"></i> Verification</a>
+            <a href="invoice.html" class="menu-item"><i class="fas fa-file-invoice"></i> Invoice</a>
             <a href="payments.html"     class="menu-item"><i class="fas fa-credit-card"></i> Payments</a>
             <a href="calendar.html" class="menu-item"><i class="fas fa-calendar-alt"></i> Calendar</a>
             <a href="filelibrary.html" class="menu-item"><i class="fas fa-folder-open"></i> File Library</a>
@@ -400,6 +404,25 @@
                 </p>
 
                 <!-- Full Button Access removed — Create/Edit/Delete checkboxes handle this directly -->
+            </div>
+
+            <!-- ── Page Access ── -->
+            <div style="margin-top:18px;">
+                <label class="form-label" style="margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;">
+                    <span>Page Access
+                        <span style="font-size:11px;font-weight:400;color:#94a3b8;margin-left:6px;">Pages this user can open</span>
+                    </span>
+                    <span style="font-size:11px;font-weight:600;">
+                        <a href="javascript:void(0)" onclick="setAllPageAccess(true)" style="color:#3b82f6;text-decoration:none;">All</a>
+                        <span style="color:#cbd5e1;"> · </span>
+                        <a href="javascript:void(0)" onclick="setAllPageAccess(false)" style="color:#64748b;text-decoration:none;">None</a>
+                    </span>
+                </label>
+                <div id="page-access-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;"></div>
+                <p style="font-size:11px;color:#94a3b8;margin-top:10px;line-height:1.5;">
+                    <i class="fas fa-info-circle" style="margin-right:4px;"></i>
+                    Super Admin can always open every page.
+                </p>
             </div>
 
             <input type="hidden" id="role-modal-uid">

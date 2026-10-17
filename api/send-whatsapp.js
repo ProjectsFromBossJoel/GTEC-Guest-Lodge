@@ -1,5 +1,5 @@
 // gtec-whatsapp-api/api/send-whatsapp.js
-// This is the Vercel serverless function that sends WhatsApp messages
+// This is the Vercel serverless function that sends booking SMS messages (MNotify)
 // It will be called by your frontend (roomsui.js)
 
 // api/send-whatsapp.js
@@ -23,16 +23,50 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  // ── API Key check ──
-  const API_SECRET = process.env.API_SECRET;
-  if (API_SECRET && req.headers['x-api-key'] !== API_SECRET) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
+
 
   try {
-    const { customerPhone, bookingId, bookingDetails } = req.body;
+    const { customerPhone, bookingId, bookingDetails, recaptchaToken } = req.body;
     if (!customerPhone || !bookingId) {
       return res.status(400).json({ error: 'Missing customerPhone or bookingId' });
+    }
+
+    // ── reCAPTCHA Enterprise verification ──
+    const rcProject = process.env.RECAPTCHA_PROJECT_ID;
+    const rcApiKey = process.env.RECAPTCHA_API_KEY;
+    if (!rcProject || !rcApiKey) {
+      console.error('[reCAPTCHA] Not configured on server');
+      return res.status(500).json({ error: 'Server not configured' });
+    }
+    if (!recaptchaToken) {
+      return res.status(403).json({ error: 'Missing security token' });
+    }
+    try {
+      const rcRes = await fetch(
+        `https://recaptchaenterprise.googleapis.com/v1/projects/${rcProject}/assessments?key=${rcApiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            event: {
+              token: recaptchaToken,
+              siteKey: '6LdyWi0tAAAAABVOjmWK51Q1qIKsQpqIwRh3m4uh',
+              expectedAction: 'BOOKING'
+            }
+          })
+        }
+      );
+      const rc = await rcRes.json();
+      const valid = rc.tokenProperties?.valid === true;
+      const actionOk = rc.tokenProperties?.action === 'BOOKING';
+      const score = rc.riskAnalysis?.score ?? 0;
+      if (!valid || !actionOk || score < 0.5) {
+        console.warn('[reCAPTCHA] Rejected:', { valid, actionOk, score, reason: rc.tokenProperties?.invalidReason, error: rc.error?.message });
+        return res.status(403).json({ error: 'Security check failed' });
+      }
+    } catch (rcErr) {
+      console.error('[reCAPTCHA] Verification error:', rcErr.message);
+      return res.status(500).json({ error: 'Security verification unavailable' });
     }
 
     // Parse booking details (stringified JSON)
@@ -45,65 +79,7 @@ export default async function handler(req, res) {
 
     const promises = [];
 
-    // ────────────────────────────────
-    // 1. WhatsApp attempt (if configured)
-    // ────────────────────────────────
-    const whatsappToken = process.env.WHATSAPP_TOKEN;
-    const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
-    const templateName = 'gtecguestlodge_booking_confirmation';
-    const templateLang = 'en';
 
-    if (whatsappToken && phoneNumberId) {
-      promises.push(
-        (async () => {
-          try {
-            const response = await fetch(
-              `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`,
-              {
-                method: 'POST',
-                headers: {
-                  Authorization: `Bearer ${whatsappToken}`,
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  messaging_product: 'whatsapp',
-                  to: customerPhone,
-                  type: 'template',
-                  template: {
-                    name: templateName,
-                    language: { code: templateLang },
-                    components: [{
-                      type: 'body',
-                      parameters: [
-                        { type: 'text', text: details.guestName || 'Guest' },
-                        { type: 'text', text: bookingId },
-                        { type: 'text', text: details.room || 'N/A' },
-                        { type: 'text', text: details.checkIn || 'N/A' },
-                        { type: 'text', text: details.checkOut || 'N/A' },
-                        { type: 'text', text: details.nights?.toString() || 'N/A' }
-                      ]
-                    }]
-                  }
-                }),
-              }
-            );
-            const data = await response.json();
-            if (response.ok) {
-              console.log('[WhatsApp] ✅ Template message sent');
-              return { success: true };
-            } else {
-              console.error('[WhatsApp] ❌ Failed:', data);
-              return { success: false, error: data };
-            }
-          } catch (err) {
-            console.error('[WhatsApp] ❌ Error:', err.message);
-            return { success: false, error: err.message };
-          }
-        })()
-      );
-    } else {
-      console.log('[WhatsApp] Not configured – skipping');
-    }
 
     // ────────────────────────────────
     // 2. SMS via MNotify – always sends if configured
@@ -122,7 +98,7 @@ export default async function handler(req, res) {
       `Check-in: ${details.checkIn}\n` +
       `Check-out: ${details.checkOut}\n` +
       `Nights: ${details.nights}\n\n` +
-      `Amount: GH₵ ${totalAmount}\n\n` +
+      `Amount: GHS ${totalAmount}\n\n` +
       `Kindly check your email for Terms and Conditions. Thank you for choosing GTEC Guest Lodge!`;
       // MNotify expects local format: 024XXXXXXX (without country code)
       // Our customerPhone is already 233XXXXXXXXX

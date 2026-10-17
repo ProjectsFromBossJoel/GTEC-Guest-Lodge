@@ -441,6 +441,13 @@ function openRoleModal(uid, email, currentRole) {
         applyRoleDefaults(currentRole);
     }
 
+    // Load saved page access, fall back to role defaults
+    if (Array.isArray(user.pageAccess)) {
+        setPageAccess(user.pageAccess);
+    } else {
+        applyRolePageDefaults(currentRole);
+    }
+
     openModal('role-modal');
 }
 
@@ -449,6 +456,7 @@ function setupRoleModal() {
     // Auto-update permission checkboxes when role dropdown changes
     document.getElementById('role-select').addEventListener('change', function () {
         applyRoleDefaults(this.value);
+        applyRolePageDefaults(this.value);
     });
 
     document.getElementById('save-role-btn').addEventListener('click', async () => {
@@ -462,7 +470,8 @@ function setupRoleModal() {
 
         try {
             const permissions = getPermissions();
-            await db.collection('users').doc(uid).update({ role: newRole, permissions });
+            const pageAccess = newRole === 'superadmin' ? _ALL_PAGES : getPageAccess();
+            await db.collection('users').doc(uid).update({ role: newRole, permissions, pageAccess });
             await addLog('Role Changed', `${email} → ${ROLE_META[newRole]?.label || newRole} | create:${permissions.canCreate} edit:${permissions.canEdit} delete:${permissions.canDelete}`);
             UI.showNotification(`✅ Role updated to ${ROLE_META[newRole]?.label || newRole}`, 'success');
             closeModal('role-modal');
@@ -486,6 +495,66 @@ const ROLE_PERM_DEFAULTS = {
     receptionist: { canCreate: true,  canEdit: false, canDelete: false, fullButtonAccess: false },
     observer:     { canCreate: false, canEdit: false, canDelete: false, fullButtonAccess: false },
 };
+
+// ── Page access ───────────────────────────────────────────────────────────────
+// key = html file name without ".html"
+const PAGE_LIST = [
+    { key: 'dashboard',    label: 'Dashboard',       icon: 'fa-chart-pie' },
+    { key: 'rooms',        label: 'Rooms',           icon: 'fa-bed' },
+    { key: 'checkin',      label: 'Check-In',        icon: 'fa-sign-in-alt' },
+    { key: 'checkout',     label: 'Check-Out',       icon: 'fa-sign-out-alt' },
+    { key: 'guests',       label: 'Guests',          icon: 'fa-users' },
+    { key: 'chatroom',     label: 'Chat Room',       icon: 'fa-comments' },
+    { key: 'logs',         label: 'Logs',            icon: 'fa-clipboard-list' },
+    { key: 'chat',         label: 'Client Messages', icon: 'fa-comment' },
+    { key: 'verification', label: 'Verification',    icon: 'fa-user-check' },
+    { key: 'payments',     label: 'Payments',        icon: 'fa-credit-card' },
+    { key: 'calendar',     label: 'Calendar',        icon: 'fa-calendar-alt' },
+    { key: 'filelibrary',  label: 'File Library',    icon: 'fa-folder-open' },
+    { key: 'reports',      label: 'Reports',         icon: 'fa-chart-bar' },
+    { key: 'profile',      label: 'My Profile',      icon: 'fa-circle-user' },
+    { key: 'roles',        label: 'User Roles',      icon: 'fa-shield-alt' },
+];
+
+const _ALL_PAGES = PAGE_LIST.map(p => p.key);
+const _without = (...omit) => _ALL_PAGES.filter(k => !omit.includes(k));
+
+// Adjust these defaults to match how you want each role to start out
+const ROLE_PAGE_DEFAULTS = {
+    superadmin:   _ALL_PAGES,
+    manager:      _without('roles'),
+    receptionist: _without('roles', 'logs'),
+    observer:     _without('roles', 'verification', 'logs', 'chat', 'reports', 'payments', 'filelibrary', 'chatroom'),
+};
+
+function renderPageAccessGrid() {
+    const grid = document.getElementById('page-access-grid');
+    if (!grid || grid.children.length) return;
+    grid.innerHTML = PAGE_LIST.map(p => `
+        <label style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1.5px solid #e2e8f0;
+                      border-radius:8px;background:#f8fafc;cursor:pointer;font-size:13px;color:#1e293b;user-select:none;">
+            <input type="checkbox" class="page-access-cb" value="${p.key}"
+                   style="width:16px;height:16px;accent-color:#3b82f6;cursor:pointer;margin:0;">
+            <i class="fas ${p.icon}" style="width:14px;color:#64748b;font-size:12px;text-align:center;"></i> ${p.label}
+        </label>`).join('');
+}
+
+function setPageAccess(keys) {
+    renderPageAccessGrid();
+    document.querySelectorAll('.page-access-cb').forEach(cb => { cb.checked = keys.includes(cb.value); });
+}
+
+function getPageAccess() {
+    return [...document.querySelectorAll('.page-access-cb:checked')].map(cb => cb.value);
+}
+
+function applyRolePageDefaults(role) {
+    setPageAccess(ROLE_PAGE_DEFAULTS[role] || ['dashboard']);
+}
+
+function setAllPageAccess(on) {
+    document.querySelectorAll('.page-access-cb').forEach(cb => { cb.checked = on; });
+}
 
 function togglePerm(perm) {
     const box = document.getElementById(`perm-${perm}-box`);

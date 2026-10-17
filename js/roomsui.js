@@ -225,8 +225,9 @@ if (bookingForm) {
         e.preventDefault();
 
         // ── reCAPTCHA check ───────────────────────────────────────────────
+        let rcToken = null;
         try {
-            const rcToken = await new Promise((resolve) => {
+            rcToken = await new Promise((resolve) => {
                 grecaptcha.enterprise.ready(async () => {
                     const t = await grecaptcha.enterprise.execute('6LdyWi0tAAAAABVOjmWK51Q1qIKsQpqIwRh3m4uh', { action: 'BOOKING' });
                     resolve(t);
@@ -443,11 +444,11 @@ if (bookingForm) {
                 });
             } catch (e) { console.warn("[Sheets] Non-fatal:", e); }
 
-            // ─────────── AUTOMATIC WHATSAPP NOTIFICATION (via Vercel API) ───────────
+            // ─────────── AUTOMATIC SMS NOTIFICATION (via Vercel API) ───────────
             let rawPhone = phone.replace(/\D/g, '');
             if (rawPhone.startsWith('0')) rawPhone = rawPhone.slice(1);
             if (!rawPhone.startsWith('233')) rawPhone = '233' + rawPhone;
-            const whatsappNumber = rawPhone;   // ← MOVED UP
+            const smsNumber = rawPhone;
 
             try {
 
@@ -466,68 +467,29 @@ if (bookingForm) {
 
                 const response = await fetch('https://gtec-whatsapp-api.vercel.app/api/send-whatsapp', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'x-api-key': 'gtec-2026-wa-secret'
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        customerPhone: whatsappNumber,
+                        customerPhone: smsNumber,
                         bookingId: idNumber,
+                        recaptchaToken: rcToken,
                         bookingDetails: JSON.stringify(bookingDetailsObj)
                     })
                 });
 
                 const data = await response.json();
                 if (response.ok) {
-                    console.log('[WhatsApp] ✅ Auto‑message sent to', whatsappNumber);
+                    console.log('[SMS] ✅ Request sent for', smsNumber);
                 } else {
-                    console.error('[WhatsApp] ❌ Server responded with error:', data);
+                    console.error('[SMS] ❌ Server responded with error:', data);
                 }
             } catch (err) {
-                console.warn('[WhatsApp] ⚠️ Failed to send (non‑critical):', err.message);
+                console.warn('[SMS] ⚠️ Failed to send (non‑critical):', err.message);
             }
             // ─────────────────────────────────────────────────────────────────────────
 
-            // 📱 Mobile money provider
-const mobileNetwork = document.getElementById("mobileNetwork").value;
-if (!mobileNetwork) {
-    showFormMsg("Please select a mobile money provider.", "error");
-    if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = '<i class="fas fa-check-circle"></i> Confirm Booking'; }
-    return;
-}
+            bookingForm.reset();
 
-console.log('Payment payload:', { email, totalAmount, whatsappNumber, mobileNetwork, idNumber, roomId });
-
-// 📞 Call Vercel API to start MoMo payment
-try {
-    const payRes = await fetch('https://gtec-whatsapp-api.vercel.app/api/paystack/initiate-payment', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            email: email,
-            amount: totalAmount,        // e.g., "1200.00"
-            phone: whatsappNumber,      // already normalized to 233XXXXXXXXX
-            network: mobileNetwork,    // 'mtn', 'vod', or 'tigo'
-            bookingId: idNumber,
-            roomId: roomId,
-        }),
-    });
-
-    const payData = await payRes.json();
-
-    if (payRes.ok && payData.authorization_url) {
-        // Redirect guest to Paystack's MoMo payment page
-        window.location.href = payData.authorization_url;
-    } else {
-        showFormMsg("Payment could not be started: " + (payData.error || 'Unknown error'), "error");
-        if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = '<i class="fas fa-check-circle"></i> Confirm Booking'; }
-    }
-} catch (err) {
-    showFormMsg("Network error while starting payment. Please try again.", "error");
-    if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = '<i class="fas fa-check-circle"></i> Confirm Booking'; }
-}
-
-bookingForm.reset();
+            showSuccessOverlay(idNumber, { name, room: roomNumber, nights });
 
             if (typeof showToast === "function") showToast("Booking confirmed! ✅");
 

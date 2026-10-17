@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GTEC Guest Lodge - Reservations Calendar</title>
     <link rel="stylesheet" href="css/style.css">
+    <script src="js/sidebar-collapse.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
     <link rel="icon" type="image/jpg" href="img/logo1.jpg">
@@ -29,6 +30,93 @@
             --both-bg: #fef9c3;
             --both-color: #854d0e;
             --shadow: 0 4px 24px rgba(0,0,0,0.07);
+        }
+
+        /* ── Sidebar Collapse ── */
+        .collapse-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            border: 1.5px solid var(--border);
+            background: white;
+            color: var(--navy);
+            font-size: 16px;
+            cursor: pointer;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s;
+        }
+
+        .collapse-btn:hover {
+            background: var(--navy);
+            color: white;
+            border-color: var(--navy);
+        }
+
+        @media (min-width: 769px) {
+            .collapse-btn { display: flex; }
+            .toggle-sidebar { display: none !important; }
+        }
+
+        @media (min-width: 769px) {
+            .app-container.sidebar-collapsed .sidebar {
+                position: fixed !important;
+                top: 0; left: 0; bottom: 0;
+                width: 78px !important;
+                min-width: 78px !important;
+                z-index: 200;
+                overflow: hidden;
+            }
+
+            .app-container.sidebar-collapsed .main-content {
+                margin-left: 78px !important;
+                width: calc(100% - 78px) !important;
+                max-width: none !important;
+            }
+
+            /* Header: keep logo, hide the "Guest Lodge" text */
+            .app-container.sidebar-collapsed .sidebar-header {
+                display: flex;
+                justify-content: center;
+                padding-left: 0 !important;
+                padding-right: 0 !important;
+            }
+            .app-container.sidebar-collapsed .sidebar-logo {
+                font-size: 0 !important;
+                justify-content: center;
+            }
+
+            /* Menu: hide section labels and link text, keep icons */
+            .app-container.sidebar-collapsed .menu-label { display: none !important; }
+
+            .app-container.sidebar-collapsed .sidebar-menu {
+                overflow-x: hidden;
+                overflow-y: auto;
+                scrollbar-width: none;
+            }
+            .app-container.sidebar-collapsed .sidebar-menu::-webkit-scrollbar { display: none; }
+
+            .app-container.sidebar-collapsed .menu-item {
+                font-size: 0 !important;
+                justify-content: center;
+                padding-left: 0 !important;
+                padding-right: 0 !important;
+                gap: 0 !important;
+                position: relative;
+            }
+            .app-container.sidebar-collapsed .menu-item i {
+                font-size: 18px !important;
+                margin: 0 !important;
+            }
+
+            /* Unread badges sit on the corner of the icon */
+            .app-container.sidebar-collapsed .nav-badge {
+                position: absolute;
+                top: 4px;
+                right: 16px;
+                font-size: 10px !important;
+            }
         }
 
         /* ── Calendar Header ── */
@@ -681,6 +769,7 @@
     <main class="main-content">
         <header class="header">
             <div class="toggle-sidebar" id="toggle-sidebar"><i class="fas fa-bars"></i></div>
+            <button class="collapse-btn" id="collapse-sidebar-btn" title="Collapse sidebar"><i class="fas fa-bars"></i></button>
             <div class="header-right" style="margin-left:auto;">
                 <a href="index.html" style="color:var(--text-light);font-size:14px;font-weight:500;">🏠 Home</a>
                 <div class="user-profile" style="cursor:pointer;" onclick="window.location.href='profile.html'" title="View Profile">
@@ -1268,7 +1357,30 @@
 
     // ── Boot ──────────────────────────────────────────────────────────────
     document.addEventListener('DOMContentLoaded', () => {
+        // Sidebar collapse toggle (state remembered across pages)
+        const appContainer = document.querySelector('.app-container');
+        const collapseBtn  = document.getElementById('collapse-sidebar-btn');
+        try {
+            if (localStorage.getItem('sidebarCollapsed') === '1') appContainer.classList.add('sidebar-collapsed');
+        } catch(e) {}
+        if (collapseBtn) {
+            collapseBtn.title = appContainer.classList.contains('sidebar-collapsed') ? 'Expand sidebar' : 'Collapse sidebar';
+            collapseBtn.onclick = () => {
+                const collapsed = appContainer.classList.toggle('sidebar-collapsed');
+                collapseBtn.title = collapsed ? 'Expand sidebar' : 'Collapse sidebar';
+                try { localStorage.setItem('sidebarCollapsed', collapsed ? '1' : '0'); } catch(e) {}
+            };
+        }
+
+        // Tooltips on nav icons (useful when the sidebar is collapsed)
+        document.querySelectorAll('.sidebar .menu-item').forEach(a => {
+            const clone = a.cloneNode(true);
+            clone.querySelectorAll('.nav-badge').forEach(b => b.remove());
+            a.title = clone.textContent.replace(/\s+/g, ' ').trim();
+        });
+
         // Inject shimmer cells while data loads
+
         const grid = document.getElementById('cal-grid');
         if (grid) grid.innerHTML = Array(35).fill('<div class="cal-shimmer-cell"></div>').join('');
 

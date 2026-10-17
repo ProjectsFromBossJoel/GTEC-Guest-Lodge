@@ -16,6 +16,16 @@ const WRITE_RESTRICTED_ROLES = ['manager', 'admin', 'receptionist'];
 
 window._userRole = null;
 window._lastPermsJson = null;
+window._userPageAccess = null;   // array of page keys, or null = use role defaults
+
+// Page keys = html file name without ".html" (must match PAGE_LIST in roles.js)
+const _PAGE_KEYS = ['dashboard','rooms','checkin','checkout','guests','chatroom','logs','chat',
+                    'verification','payments','calendar','filelibrary','reports','profile','roles'];
+
+function _firstAllowedPage(access) {
+    const first = (access || []).find(k => k !== 'roles' && _PAGE_KEYS.includes(k));
+    return first ? first + '.html' : 'index.html';
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // INACTIVITY AUTO-LOGOUT — 30 minutes
@@ -221,6 +231,7 @@ async function loadUserRole(uid) {
 
             const role = (data.role || 'observer').trim().toLowerCase();
             window._userRole = role;
+            window._userPageAccess = Array.isArray(data.pageAccess) ? data.pageAccess : null;
             console.log(`[Auth] ✅ Role resolved: "${role}"`);
 
         } else {
@@ -253,9 +264,20 @@ function enforceAccess(role) {
 
     const page           = _currentPage();
     const normalisedRole = BLOCKED_PAGES.hasOwnProperty(role) ? role : 'observer';
-    const blocked        = BLOCKED_PAGES[normalisedRole];
+    // If a Super Admin saved Page Access for this user, it replaces the role defaults
+    const access          = window._userPageAccess;
+    const useCustomAccess = normalisedRole !== 'superadmin' && Array.isArray(access);
+    const blocked         = useCustomAccess ? ['roles.html'] : BLOCKED_PAGES[normalisedRole];
 
     console.log(`[Auth] Enforcing — role: "${normalisedRole}", page: "${page}"`);
+
+    if (useCustomAccess) {
+        const key = page.replace('.html', '');
+        if (_PAGE_KEYS.includes(key) && !access.includes(key)) {
+            showAccessDenied(_firstAllowedPage(access));
+            return false;
+        }
+    }
 
     if (blocked.includes(page)) {
         showAccessDenied('dashboard.html');
@@ -294,7 +316,14 @@ function enforceAccess(role) {
 // Nav visibility
 // ─────────────────────────────────────────────────────────────────────────────
 function _applyNavVisibility(role) {
-    const blocked = BLOCKED_PAGES[role] || [];
+    // Reset first so live permission changes can re-show pages
+    document.querySelectorAll('.sidebar-menu a[href$=".html"]').forEach(el => el.style.display = '');
+
+    let blocked = BLOCKED_PAGES[role] || [];
+    const access = window._userPageAccess;
+    if (role !== 'superadmin' && Array.isArray(access)) {
+        blocked = ['roles.html', ..._PAGE_KEYS.filter(k => !access.includes(k)).map(k => k + '.html')];
+    }
     blocked.forEach(blockedPage => {
         document.querySelectorAll(`a[href="${blockedPage}"]`).forEach(el => el.style.display = 'none');
     });
@@ -503,16 +532,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
 
                     const newRole = (data.role || 'observer').trim().toLowerCase();
+                    window._userPageAccess = Array.isArray(data.pageAccess) ? data.pageAccess : null;
 
                     // Only re-enforce if something actually changed
                     if (newRole === window._userRole) {
                         // Role same — check if permissions changed
-                        const perms = JSON.stringify(data.permissions || {});
+                        const perms = JSON.stringify({ p: data.permissions || {}, a: data.pageAccess || null });
                         if (perms === window._lastPermsJson) return;
                         window._lastPermsJson = perms;
                     } else {
                         window._userRole = newRole;
-                        window._lastPermsJson = JSON.stringify(data.permissions || {});
+                        window._lastPermsJson = JSON.stringify({ p: data.permissions || {}, a: data.pageAccess || null });
                     }
 
                     console.log(`[Auth] 🔄 Role/permissions updated live → "${newRole}"`);
@@ -581,7 +611,8 @@ function _isLoginPage() {
 }
 
 function _currentPage() {
-    return window.location.pathname.split('/').pop() || 'dashboard.html';
+    const p = window.location.pathname.split('/').pop() || 'dashboard.html';
+    return p.endsWith('.html') ? p : p + '.html';
 }
 
 function adminEmailName(email) {
@@ -604,7 +635,7 @@ async function loadDisplayName(uid) {
 }
 
 function setCurrentNavActive() {
-    const current = window.location.pathname.split('/').pop() || 'dashboard.html';
+    const current = _currentPage();
     document.querySelectorAll('.menu-item').forEach(link => {
         link.getAttribute('href') === current
             ? link.classList.add('active')
