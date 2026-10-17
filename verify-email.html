@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>Verify e-mail – GTEC Guest Lodge</title>
+<link rel="icon" type="image/jpeg" href="img/logo1.jpg">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Segoe UI',sans-serif;background:#f0f4f8;min-height:100vh;display:flex;align-items:center;justify-content:center}
+  .card{background:#fff;border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,.12);padding:48px 40px;width:90%;max-width:420px;text-align:center}
+  .logo{font-size:22px;font-weight:700;color:#0b4a47;margin-bottom:32px;display:flex;align-items:center;justify-content:center;gap:8px}
+  .icon-wrap{width:72px;height:72px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 20px;font-size:28px}
+  .icon-wrap.loading{background:#dbeafe;color:#1e40af}
+  .icon-wrap.success{background:#dcfce7;color:#15803d}
+  .icon-wrap.error{background:#fef2f2;color:#ef4444}
+  h2{font-size:22px;font-weight:700;color:#1e293b;margin-bottom:10px}
+  p{font-size:14px;color:#64748b;line-height:1.6;margin-bottom:20px}
+  .btn{display:inline-block;width:100%;padding:13px;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;text-decoration:none;background:#0b4a47;color:#fff}
+  .btn:hover{opacity:.9}
+  .state{display:none}.state.active{display:block}
+  .spinner{animation:spin 1s linear infinite;display:inline-block}
+  @keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo"><img src="img/logo1.jpg" alt="" style="width:40px;height:40px;border-radius:6px;"> GTEC Guest Lodge</div>
+
+  <div id="s-loading" class="state active">
+    <div class="icon-wrap loading"><i class="fas fa-circle-notch spinner"></i></div>
+    <h2>Verifying your e-mail…</h2>
+    <p>Please wait a moment.</p>
+  </div>
+
+  <div id="s-ok" class="state">
+    <div class="icon-wrap success"><i class="fas fa-check"></i></div>
+    <h2>E-mail verified</h2>
+    <p>Thank you. Your account is ready and your bookings will now appear under <b>My stay</b>.</p>
+    <a class="btn" id="go-account" href="account.html">Continue to my account</a>
+  </div>
+
+  <div id="s-err" class="state">
+    <div class="icon-wrap error"><i class="fas fa-exclamation-circle"></i></div>
+    <h2 id="err-title">Link problem</h2>
+    <p id="err-msg"></p>
+    <a class="btn" id="go-account2" href="account.html">Go to my account</a>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+<script src="js/portal-config.js"></script>
+<script>
+(function () {
+  var paths = (window.PORTAL && PORTAL.paths) || {};
+  var account = paths.account || 'account.html';
+  document.getElementById('go-account').href = account;
+  document.getElementById('go-account2').href = account;
+
+  function show(id) {
+    ['s-loading', 's-ok', 's-err'].forEach(function (s) {
+      document.getElementById(s).classList.toggle('active', s === id);
+    });
+  }
+  function fail(title, msg) {
+    document.getElementById('err-title').textContent = title;
+    document.getElementById('err-msg').textContent = msg;
+    show('s-err');
+  }
+
+  var q = new URLSearchParams(location.search);
+  var mode = q.get('mode'), code = q.get('oobCode');
+
+  if (mode !== 'verifyEmail' || !code) {
+    return fail('Invalid link', 'This link is not valid. Sign in and press “Resend e-mail” to get a new one.');
+  }
+
+  if (!firebase.apps.length) firebase.initializeApp(PORTAL.firebaseConfig);
+  var auth = firebase.auth();
+
+  auth.applyActionCode(code).then(function () {
+    show('s-ok');
+    // If the guest is signed in on this browser, refresh their token so
+    // email_verified is true straight away (the Firestore rules check it).
+    var off = auth.onAuthStateChanged(function (u) {
+      off();
+      if (u) u.reload().then(function () { return u.getIdToken(true); }).catch(function () {});
+    });
+  }).catch(function (e) {
+    console.warn('[verify-email]', e);
+    if (e.code === 'auth/expired-action-code') {
+      fail('Link expired', 'This verification link has expired. Sign in and press “Resend e-mail”.');
+    } else if (e.code === 'auth/invalid-action-code') {
+      fail('Link already used', 'This link was already used or is no longer valid. If you have verified, just sign in. Otherwise press “Resend e-mail” in your account.');
+    } else {
+      fail('Something went wrong', 'We could not verify your e-mail. Please try again or request a new link.');
+    }
+  });
+})();
+</script>
+</body>
+</html>
