@@ -1,5 +1,7 @@
+// api/_lib/audit.js
 // Server-side audit writer. Every row lands in Firestore `auditLogs` (browsers can never write there;
-// only this Admin-SDK code can). Personal data is masked, IPs are stored as a salted hash.
+// only this Admin-SDK code can). Names, emails and phones are masked. The visitor's IP address is stored
+// in full (admin-only, deleted by the TTL policy), plus a salted hash used to group requests from one network.
 import crypto from 'node:crypto';
 import { getDb, FieldValue, Timestamp } from './firebase-admin.js';
 import { getIp } from './http.js';
@@ -7,6 +9,7 @@ import { getIp } from './http.js';
 const RETENTION_DAYS = 90; // pair with a Firestore TTL policy on auditLogs.expireAt
 
 const str = (v, max) => (v === undefined || v === null ? '' : String(v).slice(0, max));
+const num = (v) => (typeof v === 'number' && isFinite(v) && v > 0 ? v : null);
 
 function hmac(value) {
   const salt = process.env.AUDIT_SALT || 'change-me-set-AUDIT_SALT';
@@ -55,12 +58,21 @@ function parseUA(ua, env) {
     : 'desktop';
   return {
     browser,
+    browserVersion: str(env.browserVersion, 24),
     os,
+    osVersion: str(env.osVersion, 24),
+    model: str(env.model, 40),
     type,
     screen: str(env.screen, 20),
+    viewport: str(env.viewport, 20),
+    dpr: num(env.dpr),
+    touch: env.touch === true,
     lang: str(env.lang, 12),
     tz: str(env.tz, 40),
-    ua: ua.slice(0, 160),
+    cores: num(env.cores),
+    memory: num(env.memory),
+    conn: str(env.conn, 12),
+    ua: ua.slice(0, 300),
   };
 }
 
@@ -70,10 +82,14 @@ function netInfo(req) {
   let city = '';
   try { city = decodeURIComponent(h['x-vercel-ip-city'] || ''); } catch (_) { city = String(h['x-vercel-ip-city'] || ''); }
   return {
+    ip: str(ip, 45),
     ipHash: ip ? hmac(ip).slice(0, 12) : '',
     country: str(h['x-vercel-ip-country'], 4),
     region: str(h['x-vercel-ip-country-region'], 12),
     city: str(city, 60),
+    lat: str(h['x-vercel-ip-latitude'], 12),
+    lon: str(h['x-vercel-ip-longitude'], 12),
+    tz: str(h['x-vercel-ip-timezone'], 40),
   };
 }
 

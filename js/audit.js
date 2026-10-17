@@ -12,7 +12,9 @@
  *   });
  *
  * Fire-and-forget: it never throws and never blocks the booking flow.
- * The server adds the IP-derived location, a hashed IP, and parses the device from the User-Agent.
+ * The server adds the IP address, IP-derived location, and parses the device from the User-Agent.
+ * This file adds what the User-Agent no longer carries: device model and OS version (Chrome/Edge
+ * "client hints"), screen and window size, CPU cores, memory and connection type.
  * Names, emails and phones are masked on the server before they are stored.
  */
 (function () {
@@ -34,33 +36,60 @@
     } catch (e) { return ''; }
   }
 
+  // Client hints: async and Chromium-only (Chrome/Edge). Start fetching at load; never wait more than 800 ms.
+  var hints = {};
+  var hintsReady = (function () {
+    var p = Promise.resolve();
+    try {
+      var uad = navigator.userAgentData;
+      if (uad && uad.getHighEntropyValues) {
+        p = uad.getHighEntropyValues(['model', 'platformVersion', 'uaFullVersion'])
+          .then(function (h) { hints = h || {}; }, function () { /* ignore */ });
+      }
+    } catch (e) { /* ignore */ }
+    return Promise.race([p, new Promise(function (resolve) { setTimeout(resolve, 800); })]);
+  })();
+
   function env() {
     var tz = '';
     try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch (e) { /* ignore */ }
+    var conn = navigator.connection || {};
     return {
       screen: (screen.width || 0) + 'x' + (screen.height || 0),
+      viewport: (window.innerWidth || 0) + 'x' + (window.innerHeight || 0),
+      dpr: window.devicePixelRatio || 0,
       lang: navigator.language || '',
       tz: tz,
       touch: (navigator.maxTouchPoints || 0) > 0,
-      platform: (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || ''
+      platform: (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '',
+      model: hints.model || '',
+      osVersion: hints.platformVersion || '',
+      browserVersion: hints.uaFullVersion || '',
+      cores: navigator.hardwareConcurrency || 0,
+      memory: navigator.deviceMemory || 0,
+      conn: conn.effectiveType || ''
     };
+  }
+
+  function send(ev) {
+    var body = JSON.stringify(Object.assign({}, ev, {
+      deviceId: deviceId(),
+      env: env(),
+      page: location.pathname
+    }));
+    fetch(ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: body,
+      keepalive: true,
+      mode: 'cors'
+    }).catch(function () { /* logging must never break the page */ });
   }
 
   window.Audit = {
     report: function (ev) {
       try {
-        var body = JSON.stringify(Object.assign({}, ev, {
-          deviceId: deviceId(),
-          env: env(),
-          page: location.pathname
-        }));
-        fetch(ENDPOINT, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: body,
-          keepalive: true,
-          mode: 'cors'
-        }).catch(function () { /* logging must never break the page */ });
+        hintsReady.then(function () { try { send(ev); } catch (e) { /* ignore */ } });
       } catch (e) { /* ignore */ }
     }
   };

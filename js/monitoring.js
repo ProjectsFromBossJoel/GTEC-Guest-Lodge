@@ -2,6 +2,7 @@
  * Reads the `auditLogs` collection (written only by the server) and shows four tables:
  *   Bookings & devices · Email delivery · SMS delivery · Security events
  * plus a "Needs attention" list that flags anything unusual.
+ * Each table: search, status/source filters, 5-row pagination, CSV export, and a details modal (click a row or the eye).
  * Everything rendered from the database goes through esc() — audit rows contain text typed by the public.
  */
 (function () {
@@ -10,7 +11,7 @@
   var HOME_COUNTRY = 'GH';             // bookings from anywhere else are highlighted
   var ALLOWED_ROLES = ['superadmin', 'admin'];
   var MAX_DOCS = 500;
-  var PAGE_SIZE = 25;
+  var PAGE_SIZE = 5;
   var CACHE_TTL = 60 * 1000;
   var GRACE_MS = 3 * 60 * 1000;        // how long a booking may wait for its email/SMS before it is flagged
   var RANGES = { '1h': 36e5, '24h': 864e5, '7d': 6048e5, '30d': 2592e6 };
@@ -26,11 +27,55 @@
   var ctx = { email: new Map(), sms: new Map() };
   var flagged = new Set();
   var tstate = {};
+  var byId = {};
   var liveTimer = null;
+  var lastFocus = null;
+
+  /* ───────────── styles (injected so monitoring.html needs no change) ───────────── */
+  function injectStyles() {
+    var s = document.createElement('style');
+    s.textContent = [
+      '.mon-pager{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:12px;font-size:13px;color:#64748b}',
+      '.mon-pager .pg-btns{display:flex;align-items:center;gap:8px}',
+      '.mon-pager button:disabled{opacity:.45;cursor:not-allowed}',
+      '.mon-table-el tbody tr[data-id]{cursor:pointer}',
+      '.mon-table-el tbody tr[data-id]:hover td{background:#f8fafc}',
+      '.mon-eye{border:1px solid #cbd5e1;background:#fff;color:#475569;border-radius:8px;width:30px;height:30px;cursor:pointer}',
+      '.mon-eye:hover{background:#f1f5f9;color:#1e293b}',
+      '.mon-modal-bg{position:fixed;inset:0;background:rgba(15,23,42,.55);display:none;align-items:center;justify-content:center;z-index:9999;padding:16px}',
+      '.mon-modal-bg.open{display:flex}',
+      '.mon-modal{background:#fff;border-radius:16px;width:100%;max-width:720px;max-height:90vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)}',
+      '.mon-modal-h{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:18px 22px;border-bottom:1px solid #f1f5f9;position:sticky;top:0;background:#fff;z-index:1}',
+      '.mon-modal-h h3{margin:0;font-size:18px;color:#1e293b}',
+      '.mon-modal-h .sub{font-size:12px;color:#94a3b8;margin-top:3px}',
+      '.mon-modal-x{border:0;background:#f1f5f9;color:#475569;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:18px;line-height:1;flex-shrink:0}',
+      '.mon-modal-x:hover{background:#fee2e2;color:#dc2626}',
+      '.mon-modal-b{padding:4px 22px 22px}',
+      '.mon-sec{margin-top:18px}',
+      '.mon-sec h4{margin:0 0 8px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#64748b}',
+      '.mon-dl{display:grid;grid-template-columns:150px 1fr;gap:7px 14px;font-size:13px;margin:0}',
+      '.mon-dl dt{color:#64748b}',
+      '.mon-dl dd{margin:0;color:#1e293b;word-break:break-word}',
+      '.mon-dl code{font-size:12px;background:#f1f5f9;padding:1px 5px;border-radius:4px}',
+      '.mon-dl .sub{font-size:12px;color:#94a3b8}',
+      '.mon-pre{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px;font-size:12px;white-space:pre-wrap;word-break:break-word;margin:0;color:#334155}',
+      '.mon-rel{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:6px}',
+      '.mon-rel-btn{display:flex;gap:12px;align-items:center;justify-content:space-between;width:100%;border:1px solid #e2e8f0;background:#fff;border-radius:8px;padding:8px 10px;font-size:13px;cursor:pointer;text-align:left;color:#1e293b}',
+      '.mon-rel-btn:hover{background:#f8fafc}',
+      '.mon-rel-btn.current{background:#f1f5f9;border-color:#94a3b8}',
+      '@media(max-width:520px){.mon-dl{grid-template-columns:1fr;gap:2px 0}.mon-dl dd{margin-bottom:8px}}'
+    ].join('\n');
+    document.head.appendChild(s);
+  }
 
   /* ───────────── formatting helpers ───────────── */
   function fmtTime(ms) {
     return ms ? new Date(ms).toLocaleString([], { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '—';
+  }
+  function fmtFull(ms) {
+    if (!ms) return '';
+    return new Date(ms).toLocaleString([], { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }) +
+      ' (' + new Date(ms).toISOString() + ')';
   }
   function ago(ms) {
     if (!ms) return '';
@@ -54,26 +99,35 @@
 
   var EVENT_LABEL = {
     rate_limited: 'Rate limit hit', recaptcha_failed: 'reCAPTCHA failed', recaptcha_low: 'Low reCAPTCHA score',
-    double_submit_blocked: 'Double submit blocked', client_error: 'Browser error', sms_rejected: 'SMS rejected'
+    double_submit_blocked: 'Double submit blocked', client_error: 'Browser error', sms_rejected: 'SMS rejected',
+    booking_created: 'Booking created', booking_failed: 'Booking failed', booking_blocked: 'Booking blocked',
+    email_sent: 'Email sent', email_failed: 'Email failed', sms_sent: 'SMS sent', sms_failed: 'SMS failed'
   };
+  function eventName(r) {
+    return EVENT_LABEL[r.event] || String(r.event || '').replace(/_/g, ' ') || 'Event';
+  }
 
   function placeText(r) {
     var n = r.net || {};
     return [n.city, n.region, n.country].filter(Boolean).join(', ') || '—';
   }
+  function ipLabel(n) {
+    return n.ip ? 'IP ' + n.ip : (n.ipHash ? 'ip hash ' + n.ipHash : 'IP —');
+  }
   function placeCell(r) {
     var n = r.net || {};
     var foreign = n.country && n.country !== HOME_COUNTRY;
-    return '<div class="' + (foreign ? 'foreign' : '') + '">' + esc(placeText(r)) + '</div><div class="sub">ip ' + esc(n.ipHash || '—') + '</div>';
+    return '<div class="' + (foreign ? 'foreign' : '') + '">' + esc(placeText(r)) + '</div><div class="sub">' + esc(ipLabel(n)) + '</div>';
   }
   function deviceText(r) {
     var d = r.device || {};
-    return [d.browser, d.os, d.type, d.screen].filter(Boolean).join(' · ') + (r.deviceId ? ' id:' + r.deviceId : '');
+    return [d.model, d.browser, d.os, d.type, d.screen].filter(Boolean).join(' · ') + (r.deviceId ? ' id:' + r.deviceId : '');
   }
   function deviceCell(r) {
     var d = r.device || {};
-    var main = [d.browser, d.os].filter(Boolean).join(' · ') || 'Unknown';
-    var sub = [d.type, d.screen].filter(Boolean).join(' · ');
+    var base = [d.browser, d.os].filter(Boolean).join(' · ') || 'Unknown';
+    var main = d.model ? d.model : base;
+    var sub = [d.model ? base : '', d.type, d.screen].filter(Boolean).join(' · ');
     return '<div>' + esc(main) + '</div><div class="sub">' + esc(sub) + (r.deviceId ? ' · id ' + esc(r.deviceId.slice(0, 6)) : '') + '</div>';
   }
   function timeCell(r) {
@@ -122,9 +176,14 @@
   var cBid = { h: 'Booking ID', c: function (r) { return '<code>' + esc(r.bookingId || '—') + '</code>'; }, t: function (r) { return r.bookingId; } };
   var cStatus = { h: 'Status', c: function (r) { return badge(r.status); }, t: function (r) { return r.status; } };
   var cDevice = { h: 'Device', c: deviceCell, t: deviceText };
-  var cPlace = { h: 'Location', c: placeCell, t: function (r) { return placeText(r) + ' ip:' + ((r.net || {}).ipHash || ''); } };
+  var cPlace = { h: 'Location', c: placeCell, t: function (r) { return placeText(r) + ' ' + ((r.net || {}).ip || '') + ' hash:' + ((r.net || {}).ipHash || ''); } };
   var cSource = { h: 'Source', c: sourceCell, t: function (r) { return r.source; } };
   var cTo = { h: 'To', c: function (r) { return esc(r.contact || '—'); }, t: function (r) { return r.contact; } };
+  var cAct = {
+    h: 'Details', x: true,
+    c: function (r) { return '<button class="mon-eye" data-guard="off" data-id="' + esc(r.id) + '" title="View all details" aria-label="View all details"><i class="fas fa-eye"></i></button>'; },
+    t: function () { return ''; }
+  };
 
   var TABLES = {
     bookings: {
@@ -137,7 +196,7 @@
         cStatus,
         { h: 'Email', c: deliveryCell('email'), t: deliveryText('email') },
         { h: 'SMS', c: deliveryCell('sms'), t: deliveryText('sms') },
-        cDevice, cPlace, cSource
+        cDevice, cPlace, cSource, cAct
       ]
     },
     email: {
@@ -146,7 +205,7 @@
       cols: [
         cTime, cBid, cTo, cStatus,
         { h: 'Detail', c: function (r) { return '<span class="detail">' + esc(emailDetail(r)) + '</span>'; }, t: emailDetail },
-        cDevice, cPlace, cSource
+        cDevice, cPlace, cSource, cAct
       ]
     },
     sms: {
@@ -156,7 +215,7 @@
         cTime, cBid, cTo, cStatus,
         { h: 'Campaign ID', c: function (r) { return '<code>' + esc((r.meta || {}).campaignId || '—') + '</code>'; }, t: function (r) { return (r.meta || {}).campaignId; } },
         { h: 'Detail', c: function (r) { return '<span class="detail">' + esc(smsDetail(r)) + '</span>'; }, t: smsDetail },
-        cPlace, cSource
+        cPlace, cSource, cAct
       ]
     },
     security: {
@@ -164,10 +223,10 @@
       filter: function (r) { return r.type === 'security'; },
       cols: [
         cTime,
-        { h: 'Event', c: function (r) { return esc(EVENT_LABEL[r.event] || r.event); }, t: function (r) { return EVENT_LABEL[r.event] || r.event; } },
+        { h: 'Event', c: function (r) { return esc(eventName(r)); }, t: eventName },
         cStatus,
         { h: 'Detail', c: function (r) { return '<span class="detail">' + esc(r.detail || '—') + '</span>'; }, t: function (r) { return r.detail; } },
-        cDevice, cPlace, cSource
+        cDevice, cPlace, cSource, cAct
       ]
     }
   };
@@ -175,7 +234,7 @@
 
   /* ───────────── data ───────────── */
   function db() { return firebase.firestore(); }
-  function cacheKey() { return 'mon:v1:' + state.range; }
+  function cacheKey() { return 'mon:v2:' + state.range; }
 
   function normalize(id, d) {
     var ts = d.ts && d.ts.toMillis ? d.ts.toMillis() : 0;
@@ -183,7 +242,7 @@
       id: id, type: d.type || '', event: d.event || '', status: d.status || 'info', tsMs: ts,
       bookingId: d.bookingId || '', room: d.room || '', guest: d.guestName || '', contact: d.contact || '',
       detail: d.detail || '', meta: d.meta || {}, device: d.device || {}, net: d.net || {},
-      source: d.source || '', deviceId: d.deviceId || ''
+      source: d.source || '', deviceId: d.deviceId || '', page: d.page || ''
     };
   }
 
@@ -221,7 +280,7 @@
 
   function showError(e) {
     var msg = e && e.code === 'permission-denied'
-      ? 'Firestore refused the read. Deploy the auditLogs rule from MONITORING_SETUP.md, and check that your role is superadmin, admin or manager.'
+      ? 'Firestore refused the read. Deploy the auditLogs rule from MONITORING_SETUP.md, and check that your role is superadmin or admin.'
       : 'Could not load audit data: ' + (e && e.message ? e.message : e);
     $('mon-status').textContent = msg;
   }
@@ -330,18 +389,36 @@
     var T = TABLES[name], st = tstate[name], q = st.q.trim().toLowerCase();
     return state.rows.filter(T.filter)
       .filter(function (r) { return st.status === 'all' || r.status === st.status; })
+      .filter(function (r) { return st.source === 'all' || (r.source || 'server') === st.source; })
       .filter(function (r) {
         if (!q) return true;
         return T.cols.map(function (c) { return String(c.t(r) || ''); }).join(' ').toLowerCase().indexOf(q) !== -1;
       });
   }
 
+  function renderPager(name, total, pages) {
+    var st = tstate[name];
+    var el = $('pg-' + name);
+    if (!total) { el.innerHTML = '<span>No events</span>'; return; }
+    var from = (st.page - 1) * PAGE_SIZE + 1;
+    var to = Math.min(st.page * PAGE_SIZE, total);
+    el.innerHTML =
+      '<span>Showing ' + from + '–' + to + ' of ' + total + '</span>' +
+      '<span class="pg-btns">' +
+      '<button class="mon-btn" data-guard="off" data-act="prev"' + (st.page <= 1 ? ' disabled' : '') + '>‹ Prev</button>' +
+      '<span>Page ' + st.page + ' of ' + pages + '</span>' +
+      '<button class="mon-btn" data-guard="off" data-act="next"' + (st.page >= pages ? ' disabled' : '') + '>Next ›</button>' +
+      '</span>';
+  }
+
   function renderTable(name) {
     var T = TABLES[name], st = tstate[name];
     var all = rowsFor(name);
-    var shown = all.slice(0, st.limit);
+    var pages = Math.max(1, Math.ceil(all.length / PAGE_SIZE));
+    st.page = Math.min(Math.max(1, st.page), pages);
+    var shown = all.slice((st.page - 1) * PAGE_SIZE, st.page * PAGE_SIZE);
     $('cnt-' + name).textContent = '(' + all.length + ')';
-    $('more-' + name).style.display = all.length > shown.length ? '' : 'none';
+    renderPager(name, all.length, pages);
     if (!shown.length) {
       $('tb-' + name).innerHTML = '<tr><td class="empty" colspan="' + T.cols.length + '">No events match.</td></tr>';
       return;
@@ -349,13 +426,15 @@
     $('tb-' + name).innerHTML = shown.map(function (r) {
       var cls = r.status === 'failed' ? 'row-bad' : (r.status === 'blocked' || r.status === 'warning') ? 'row-warn' : '';
       if (r.type === 'booking' && flagged.has(r.deviceId || (r.net || {}).ipHash)) cls += ' row-flag';
-      return '<tr class="' + cls + '">' + T.cols.map(function (c) {
+      return '<tr class="' + cls + '" data-id="' + esc(r.id) + '">' + T.cols.map(function (c) {
         return '<td data-label="' + esc(c.h) + '">' + c.c(r) + '</td>';
       }).join('') + '</tr>';
     }).join('');
   }
 
   function renderAll() {
+    byId = {};
+    state.rows.forEach(function (r) { byId[r.id] = r; });
     buildCtx(state.rows);
     renderAlerts(computeAlerts(state.rows));
     renderCards(state.rows);
@@ -364,16 +443,143 @@
     $('mon-status').textContent = 'Loaded ' + state.rows.length + ' event(s) · newest ' + newest + ' · times shown in your local time zone';
   }
 
+  /* ───────────── details modal ───────────── */
+  function val(x) {
+    return (x === undefined || x === null || x === '') ? '<span class="sub">—</span>' : esc(x);
+  }
+  function dl(rows) {
+    return '<dl class="mon-dl">' + rows.map(function (p) { return '<dt>' + esc(p[0]) + '</dt><dd>' + p[1] + '</dd>'; }).join('') + '</dl>';
+  }
+  function sec(title, body) {
+    return '<div class="mon-sec"><h4>' + esc(title) + '</h4>' + body + '</div>';
+  }
+
+  function detailHtml(r) {
+    var d = r.device || {}, n = r.net || {}, m = r.meta || {};
+    var out = '';
+
+    out += sec('Event', dl([
+      ['Status', badge(r.status)],
+      ['Type', val(r.type)],
+      ['Event', val(eventName(r))],
+      ['When', val(fmtFull(r.tsMs)) + ' <span class="sub">(' + esc(ago(r.tsMs)) + ')</span>'],
+      ['Source', sourceCell(r) + ' <span class="sub">' + (r.source === 'client' ? 'reported by the guest\'s browser, can be forged' : 'written by the server') + '</span>'],
+      ['Page', val(r.page)],
+      ['Event ID', '<code>' + esc(r.id) + '</code>']
+    ]));
+
+    if (r.bookingId || r.room || r.guest || r.contact) {
+      var brows = [
+        ['Booking ID', r.bookingId ? '<code>' + esc(r.bookingId) + '</code>' : val('')],
+        ['Room', val(r.room)],
+        ['Guest', val(r.guest)],
+        ['Contact', val(r.contact)]
+      ];
+      if (r.type === 'booking') {
+        var e = deliveryOf(ctx.email, r), s = deliveryOf(ctx.sms, r);
+        brows.push(['Email delivery', e ? badge(e) : val('')], ['SMS delivery', s ? badge(s) : val('')]);
+      }
+      out += sec('Booking', dl(brows));
+    }
+
+    out += sec('Device', dl([
+      ['Model', d.model ? esc(d.model) : '<span class="sub">not shared by this browser (Chrome on Android shares it; Safari, Firefox and iPhones do not)</span>'],
+      ['Browser', val([d.browser, d.browserVersion].filter(Boolean).join(' '))],
+      ['Operating system', val([d.os, d.osVersion].filter(Boolean).join(' '))],
+      ['Device type', val(d.type)],
+      ['Screen', val(d.screen)],
+      ['Window size', val(d.viewport)],
+      ['Pixel ratio', val(d.dpr)],
+      ['Touch screen', d.touch === undefined ? val('') : (d.touch ? 'Yes' : 'No')],
+      ['Language', val(d.lang)],
+      ['Time zone', val(d.tz)],
+      ['CPU cores', val(d.cores)],
+      ['Memory', d.memory ? esc(d.memory + ' GB (approx.)') : val('')],
+      ['Connection', val(d.conn)],
+      ['Device ID', r.deviceId ? '<code>' + esc(r.deviceId) + '</code>' : val('')],
+      ['User agent', d.ua ? '<div class="mon-pre">' + esc(d.ua) + '</div>' : val('')]
+    ]));
+
+    var lat = parseFloat(n.lat), lon = parseFloat(n.lon);
+    var coords = (isFinite(lat) && isFinite(lon))
+      ? esc(lat.toFixed(4) + ', ' + lon.toFixed(4)) + ' · <a href="https://www.google.com/maps?q=' + lat + ',' + lon + '" target="_blank" rel="noopener noreferrer">Open in Maps</a> <span class="sub">(approximate)</span>'
+      : val('');
+    out += sec('Network & location', dl([
+      ['IP address', n.ip ? '<code>' + esc(n.ip) + '</code>' : '<span class="sub">not stored (logged before IP logging was added)</span>'],
+      ['IP fingerprint', n.ipHash ? '<code>' + esc(n.ipHash) + '</code>' : val('')],
+      ['Country', val(n.country)],
+      ['Region', val(n.region)],
+      ['City', val(n.city)],
+      ['Coordinates', coords],
+      ['Network time zone', val(n.tz)]
+    ]) + '<div class="mon-note" style="margin:8px 0 0;">Location is worked out from the IP address, so it is approximate: usually the city or the mobile carrier\'s hub, not the building.</div>');
+
+    var metaRows = Object.keys(m).map(function (k) { return [k, val(m[k])]; });
+    if (r.detail || metaRows.length) {
+      out += sec('Details', (r.detail ? '<div class="mon-pre">' + esc(r.detail) + '</div>' : '') +
+        (metaRows.length ? '<div style="margin-top:8px">' + dl(metaRows) + '</div>' : ''));
+    }
+
+    if (r.bookingId) {
+      var rel = state.rows.filter(function (x) { return x.bookingId === r.bookingId; })
+        .sort(function (a, b) { return a.tsMs - b.tsMs; });
+      if (rel.length > 1) {
+        out += sec('Everything for ' + r.bookingId, '<ul class="mon-rel">' + rel.map(function (x) {
+          return '<li><button class="mon-rel-btn' + (x.id === r.id ? ' current' : '') + '" data-guard="off" data-open="' + esc(x.id) + '">' +
+            '<span>' + esc(fmtTime(x.tsMs)) + '</span><span>' + esc(eventName(x)) + '</span>' + badge(x.status) + '</button></li>';
+        }).join('') + '</ul>');
+      }
+    }
+    return out;
+  }
+
+  function openDetail(id) {
+    var r = byId[id];
+    if (!r) return;
+    if (!$('mon-modal').classList.contains('open')) lastFocus = document.activeElement;
+    $('mon-modal-title').textContent = eventName(r);
+    $('mon-modal-sub').textContent = r.bookingId ? 'Booking ' + r.bookingId : fmtTime(r.tsMs);
+    $('mon-modal-body').innerHTML = detailHtml(r);
+    $('mon-modal').classList.add('open');
+    $('mon-modal-body').parentNode.scrollTop = 0;
+    $('mon-modal-x').focus();
+  }
+  function closeDetail() {
+    $('mon-modal').classList.remove('open');
+    if (lastFocus && lastFocus.focus) { try { lastFocus.focus(); } catch (_) { /* ignore */ } }
+  }
+  function buildModal() {
+    var el = document.createElement('div');
+    el.className = 'mon-modal-bg';
+    el.id = 'mon-modal';
+    el.setAttribute('role', 'dialog');
+    el.setAttribute('aria-modal', 'true');
+    el.setAttribute('aria-labelledby', 'mon-modal-title');
+    el.innerHTML =
+      '<div class="mon-modal"><div class="mon-modal-h"><div><h3 id="mon-modal-title"></h3><div class="sub" id="mon-modal-sub"></div></div>' +
+      '<button class="mon-modal-x" id="mon-modal-x" data-guard="off" aria-label="Close">&times;</button></div>' +
+      '<div class="mon-modal-b" id="mon-modal-body"></div></div>';
+    document.body.appendChild(el);
+    el.addEventListener('click', function (e) {
+      if (e.target === el) return closeDetail();
+      var rel = e.target.closest('[data-open]');
+      if (rel) openDetail(rel.getAttribute('data-open'));
+    });
+    $('mon-modal-x').addEventListener('click', closeDetail);
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && el.classList.contains('open')) closeDetail(); });
+  }
+
   /* ───────────── CSV export ───────────── */
   function exportCsv(name) {
     var T = TABLES[name];
+    var cols = T.cols.filter(function (c) { return !c.x; });
     var cell = function (v) {
       var s = String(v === undefined || v === null ? '' : v);
       if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;           // stop spreadsheet formula injection
       return '"' + s.replace(/"/g, '""') + '"';
     };
-    var lines = [T.cols.map(function (c) { return cell(c.h); }).join(',')]
-      .concat(rowsFor(name).map(function (r) { return T.cols.map(function (c) { return cell(c.t(r)); }).join(','); }));
+    var lines = [cols.map(function (c) { return cell(c.h); }).join(',')]
+      .concat(rowsFor(name).map(function (r) { return cols.map(function (c) { return cell(c.t(r)); }).join(','); }));
     var blob = new Blob([lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
     var a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -387,7 +593,7 @@
   function buildTables() {
     $('tables').innerHTML = Object.keys(TABLES).map(function (k) {
       var T = TABLES[k];
-      tstate[k] = { q: '', status: 'all', limit: PAGE_SIZE };
+      tstate[k] = { q: '', status: 'all', source: 'all', page: 1 };
       var opts = T.statuses.map(function (s) { return '<option value="' + s + '">' + STATUS_LABEL[s] + '</option>'; }).join('');
       var heads = T.cols.map(function (c) { return '<th>' + esc(c.h) + '</th>'; }).join('');
       return '<div class="card mon-table">' +
@@ -396,17 +602,29 @@
         '<div class="mon-tools">' +
         '<input type="search" id="q-' + k + '" placeholder="Search…" aria-label="Search ' + esc(T.title) + '">' +
         '<select id="st-' + k + '" aria-label="Filter by status"><option value="all">All statuses</option>' + opts + '</select>' +
+        '<select id="sr-' + k + '" aria-label="Filter by source"><option value="all">All sources</option><option value="server">Server</option><option value="client">Client</option></select>' +
         '<button class="mon-btn" id="csv-' + k + '"><i class="fas fa-download"></i> CSV</button>' +
         '</div></div>' +
         '<div class="card-body"><div class="mon-scroll"><table class="mon-table-el"><thead><tr>' + heads + '</tr></thead><tbody id="tb-' + k + '"></tbody></table></div>' +
-        '<div class="mon-more"><button class="mon-btn" id="more-' + k + '" data-guard="off">Show more</button></div></div></div>';
+        '<div class="mon-pager" id="pg-' + k + '"></div></div></div>';
     }).join('');
 
     Object.keys(TABLES).forEach(function (k) {
-      $('q-' + k).addEventListener('input', function (e) { tstate[k].q = e.target.value; tstate[k].limit = PAGE_SIZE; renderTable(k); });
-      $('st-' + k).addEventListener('change', function (e) { tstate[k].status = e.target.value; tstate[k].limit = PAGE_SIZE; renderTable(k); });
-      $('more-' + k).addEventListener('click', function () { tstate[k].limit += PAGE_SIZE; renderTable(k); });
+      $('q-' + k).addEventListener('input', function (e) { tstate[k].q = e.target.value; tstate[k].page = 1; renderTable(k); });
+      $('st-' + k).addEventListener('change', function (e) { tstate[k].status = e.target.value; tstate[k].page = 1; renderTable(k); });
+      $('sr-' + k).addEventListener('change', function (e) { tstate[k].source = e.target.value; tstate[k].page = 1; renderTable(k); });
       $('csv-' + k).addEventListener('click', function () { exportCsv(k); });
+      $('pg-' + k).addEventListener('click', function (e) {
+        var b = e.target.closest('button[data-act]');
+        if (!b || b.disabled) return;
+        tstate[k].page += b.getAttribute('data-act') === 'next' ? 1 : -1;
+        renderTable(k);
+      });
+      $('tb-' + k).addEventListener('click', function (e) {
+        if (window.getSelection && String(window.getSelection())) return;   // let people select and copy text
+        var tr = e.target.closest('tr[data-id]');
+        if (tr) openDetail(tr.getAttribute('data-id'));
+      });
     });
   }
 
@@ -434,9 +652,15 @@
   }
 
   function init() {
+    injectStyles();
     buildTables();
+    buildModal();
 
-    $('mon-range').addEventListener('change', function (e) { state.range = e.target.value; load(false); });
+    $('mon-range').addEventListener('change', function (e) {
+      state.range = e.target.value;
+      Object.keys(tstate).forEach(function (k) { tstate[k].page = 1; });
+      load(false);
+    });
     $('mon-refresh').addEventListener('click', function (e) {
       var btn = e.currentTarget;
       if (window.ButtonGuard) ButtonGuard.run(btn, function () { return load(true); });
