@@ -392,7 +392,7 @@ if (bookingForm) {
                 notes: notes || "None", time: formattedTime
             };
             const guestPayload = {
-                title:    `Booking Confirmed — Room ${roomNumber}`,
+                title:    `Booking Received — Room ${roomNumber}`,
                 name, phone, email, room: roomNumber,
                 checkin:  fmt(checkinDate),
                 checkout: fmt(expectedCheckout),
@@ -449,6 +449,7 @@ if (bookingForm) {
             if (rawPhone.startsWith('0')) rawPhone = rawPhone.slice(1);
             if (!rawPhone.startsWith('233')) rawPhone = '233' + rawPhone;
             const smsNumber = rawPhone;
+            let smsSent = false;
 
             try {
 
@@ -465,7 +466,7 @@ if (bookingForm) {
                     amount: totalAmount
                 };
 
-                const response = await fetch('https://gtec-whatsapp-api.vercel.app/api/send-whatsapp', {
+                const response = await fetch('https://gtec-whatsapp-api.vercel.app/api/send-sms', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -477,8 +478,9 @@ if (bookingForm) {
                 });
 
                 const data = await response.json();
-                if (response.ok) {
-                    console.log('[SMS] ✅ Request sent for', smsNumber);
+                if (response.ok && data.success) {
+                    smsSent = true;
+                    console.log('[SMS] ✅ SMS sent to', smsNumber);
                 } else {
                     console.error('[SMS] ❌ Server responded with error:', data);
                 }
@@ -489,9 +491,9 @@ if (bookingForm) {
 
             bookingForm.reset();
 
-            showSuccessOverlay(idNumber, { name, room: roomNumber, nights });
+            showSuccessOverlay(idNumber, { name, room: roomNumber, nights, smsSent });
 
-            if (typeof showToast === "function") showToast("Booking confirmed! ✅");
+            if (typeof showToast === "function") showToast("Booking received! ✅");
 
         } catch (err) {
             console.error("[Booking] Error:", err);
@@ -543,8 +545,10 @@ function showSuccessOverlay(idNumber, bookingData) {
     const mainEl = document.getElementById('successMsgMain');
     const subEl = document.getElementById('successMsgSub');
 
-    if (titleEl) titleEl.textContent = 'Booking Confirmed!';
-    if (mainEl) mainEl.innerHTML = 'Your room has been successfully reserved. A confirmation email has been sent to your inbox and an SMS has been sent to your phone.';
+    if (titleEl) titleEl.textContent = 'Booking Received!';
+    if (mainEl) mainEl.innerHTML = _lastBooking.smsSent
+        ? 'Your room has been reserved. A confirmation email has been sent to your inbox and an SMS has been sent to your phone.'
+        : 'Your room has been reserved. A confirmation email has been sent to your inbox. We could not send the SMS, so please keep the Booking ID shown below.';
     if (subEl) subEl.innerHTML = 'For check‑in, you will need your <strong>Guest ID</strong> and <strong>room number</strong> for verification, both are in your email and SMS.';
 
     const overlay = document.getElementById('bookingSuccessOverlay');

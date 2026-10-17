@@ -18,7 +18,7 @@ export default async function handler(req, res) {
     return res.status(403).json({ error: 'Origin not allowed' });
   }
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-api-key');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
@@ -93,13 +93,13 @@ export default async function handler(req, res) {
           ? (parseFloat(details.price) * parseInt(details.nights)).toFixed(2)
           : (details.amount || 'N/A');
       const smsMessage = 
-      `Hello ${details.guestName}, your booking at GTEC Guest Lodge is confirmed!\n\n` +
+      `Hello ${details.guestName}, we have received your booking at GTEC Guest Lodge and your room is reserved.\n\n` +
       `Booking ID: ${bookingId}\n` +
       `Room: ${details.room}${details.roomType ? ' (' + details.roomType + ')' : ''}\n` +
       `Check-in: ${details.checkIn}\n` +
       `Check-out: ${details.checkOut}\n` +
       `Nights: ${details.nights}\n\n` +
-      `Amount: GHS ${totalAmount}\n\n` +
+      `Total: GHS ${totalAmount}\n\n` +
       `Kindly check your email for Terms and Conditions. Thank you for choosing GTEC Guest Lodge!`;
       // MNotify expects local format: 024XXXXXXX (without country code)
       // Our customerPhone is already 233XXXXXXXXX
@@ -143,7 +143,10 @@ export default async function handler(req, res) {
     }
 
     const results = await Promise.allSettled(promises);
-    return res.status(200).json({ success: true, message: 'Notifications processed' });
+    const outcomes = results.map(r => r.status === 'fulfilled' ? r.value : { success: false, error: String(r.reason) });
+    const smsOk = outcomes.length > 0 && outcomes.every(o => o.success);
+    console.log('[Notify] Outcomes:', JSON.stringify(outcomes));
+    return res.status(200).json({ success: smsOk, message: smsOk ? 'SMS sent' : 'SMS not sent' });
 
   } catch (err) {
     console.error('Server error:', err);
