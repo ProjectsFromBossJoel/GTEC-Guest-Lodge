@@ -1,4 +1,4 @@
-// gtec-whatsapp-api/api/send-whatsapp.js
+// api/send-whatsapp.js
 // This is the Vercel serverless function that sends booking SMS messages (MNotify)
 // It will be called by your frontend (roomsui.js)
 
@@ -64,6 +64,7 @@ export default async function handler(req, res) {
         console.warn('[reCAPTCHA] Rejected:', { valid, actionOk, score, reason: rc.tokenProperties?.invalidReason, error: rc.error?.message });
         return res.status(403).json({ error: 'Security check failed' });
       }
+      console.log('[reCAPTCHA] ✅ Verified, score:', score);
     } catch (rcErr) {
       console.error('[reCAPTCHA] Verification error:', rcErr.message);
       return res.status(500).json({ error: 'Security verification unavailable' });
