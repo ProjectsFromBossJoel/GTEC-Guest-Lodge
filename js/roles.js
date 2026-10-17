@@ -257,7 +257,12 @@ function setupPendingModals() {
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Approving…';
 
         try {
-            await db.collection('users').doc(uid).update({ role, status: 'active' });
+            await db.collection('users').doc(uid).update({
+                role,
+                status: 'active',
+                permissions: ROLE_PERM_DEFAULTS[role] || ROLE_PERM_DEFAULTS.observer,
+                pageAccess:  ROLE_PAGE_DEFAULTS[role] || ['dashboard'],
+            });
             await addLog('User Approved', `${email} approved as ${ROLE_META[role]?.label || role}`);
             UI.showNotification(`✅ ${email} approved as ${ROLE_META[role]?.label || role}!`, 'success');
             closeModal('approve-modal');
@@ -403,6 +408,8 @@ function setupAddUserForm() {
                 name,
                 role,
                 status: 'active',
+                permissions: ROLE_PERM_DEFAULTS[role] || ROLE_PERM_DEFAULTS.observer,
+                pageAccess:  ROLE_PAGE_DEFAULTS[role] || ['dashboard'],
                 createdAt: firebase.firestore.FieldValue.serverTimestamp(),
             });
 
@@ -473,7 +480,7 @@ function setupRoleModal() {
             const pageAccess = newRole === 'superadmin' ? _ALL_PAGES : getPageAccess();
             await db.collection('users').doc(uid).update({ role: newRole, permissions, pageAccess });
             await addLog('Role Changed', `${email} → ${ROLE_META[newRole]?.label || newRole} | create:${permissions.canCreate} edit:${permissions.canEdit} delete:${permissions.canDelete}`);
-            UI.showNotification(`✅ Role updated to ${ROLE_META[newRole]?.label || newRole}`, 'success');
+            UI.showNotification(`Role updated to ${ROLE_META[newRole]?.label || newRole}`, 'success');
             closeModal('role-modal');
             loadAllData();
         } catch (err) {
@@ -508,10 +515,12 @@ const PAGE_LIST = [
     { key: 'logs',         label: 'Logs',            icon: 'fa-clipboard-list' },
     { key: 'chat',         label: 'Client Messages', icon: 'fa-comment' },
     { key: 'verification', label: 'Verification',    icon: 'fa-user-check' },
+    { key: 'invoice',      label: 'Invoice',         icon: 'fa-file-invoice' },
     { key: 'payments',     label: 'Payments',        icon: 'fa-credit-card' },
     { key: 'calendar',     label: 'Calendar',        icon: 'fa-calendar-alt' },
     { key: 'filelibrary',  label: 'File Library',    icon: 'fa-folder-open' },
     { key: 'reports',      label: 'Reports',         icon: 'fa-chart-bar' },
+    { key: 'monitoring',   label: 'Monitoring & Auditing', icon: 'fa-shield-halved' },
     { key: 'profile',      label: 'My Profile',      icon: 'fa-circle-user' },
     { key: 'roles',        label: 'User Roles',      icon: 'fa-shield-alt' },
 ];
@@ -523,8 +532,8 @@ const _without = (...omit) => _ALL_PAGES.filter(k => !omit.includes(k));
 const ROLE_PAGE_DEFAULTS = {
     superadmin:   _ALL_PAGES,
     manager:      _without('roles'),
-    receptionist: _without('roles', 'logs'),
-    observer:     _without('roles', 'verification', 'logs', 'chat', 'reports', 'payments', 'filelibrary', 'chatroom'),
+    receptionist: _without('roles', 'logs', 'monitoring'),
+    observer:     _without('roles', 'verification', 'logs', 'chat', 'reports', 'payments', 'filelibrary', 'chatroom', 'invoice', 'monitoring'),
 };
 
 function renderPageAccessGrid() {

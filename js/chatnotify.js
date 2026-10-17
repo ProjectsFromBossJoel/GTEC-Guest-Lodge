@@ -441,6 +441,78 @@ db.collection('liveChats')
 
     }
 
+    // ── Live access watcher: reacts instantly when the superadmin
+    //    changes this user's role / permissions / page access ─────
+    let _accessUnsub = null;
+    let _accessUid   = null;
+    const KNOWN_PAGES = ['dashboard','rooms','checkin','checkout','guests','chatroom','logs','chat',
+                         'verification','invoice','payments','calendar','filelibrary','reports',
+                         'monitoring','profile','roles'];
+
+    function currentPageKey() {
+        const file = (window.location.pathname.split('/').pop() || '').replace('.html', '');
+        return file.toLowerCase();
+    }
+
+    function startAccessWatcher(uid) {
+        if (_accessUid === uid) return;            // already watching this user
+        if (_accessUnsub) _accessUnsub();
+        _accessUid = uid;
+
+        let baseline = null;
+
+        _accessUnsub = db.collection('users').doc(uid).onSnapshot(snap => {
+            if (!snap.exists) return;
+            const d = snap.data();
+
+            const signature = JSON.stringify({
+                role:        d.role || null,
+                status:      d.status || 'active',
+                permissions: d.permissions || null,
+                pageAccess:  Array.isArray(d.pageAccess) ? [...d.pageAccess].sort() : null,
+            });
+
+            if (baseline === null) { baseline = signature; return; }   // first load
+            if (signature === baseline) return;                        // nothing relevant changed
+            baseline = signature;
+
+            const notify = (msg, type) => {
+                if (window.UI && UI.showNotification) UI.showNotification(msg, type);
+            };
+
+            // 1) Deactivated / rejected -> sign out
+            if ((d.status || 'active') !== 'active') {
+                notify('Your account access has been removed.', 'error');
+                setTimeout(() => firebase.auth().signOut().then(() => { window.location.href = 'index.html'; }), 1200);
+                return;
+            }
+
+            // 2) Clear any cached role/permission data so auth.js re-reads fresh values
+            [sessionStorage, localStorage].forEach(store => {
+                Object.keys(store).forEach(k => {
+                    if (/(role|permission|pageaccess|userprofile)/i.test(k)) store.removeItem(k);
+                });
+            });
+
+            // 3) Current page no longer allowed? -> redirect
+            const page = currentPageKey();
+            if (d.role !== 'superadmin' && Array.isArray(d.pageAccess)
+                && KNOWN_PAGES.includes(page) && !d.pageAccess.includes(page)) {
+                const target = d.pageAccess.includes('dashboard') ? 'dashboard' : d.pageAccess[0];
+                notify('Your page access was updated by an administrator.', 'error');
+                setTimeout(() => {
+                    if (target) window.location.href = target + '.html';
+                    else firebase.auth().signOut().then(() => { window.location.href = 'index.html'; });
+                }, 1200);
+                return;
+            }
+
+            // 4) Same page, new permissions/role -> reload so buttons & sidebar re-apply
+            notify('Your permissions were updated. Applying changes…', 'success');
+            setTimeout(() => window.location.reload(), 1000);
+        }, err => console.warn('chatnotify: access watcher error', err));
+    }
+
     // ── Bootstrap after Firebase is ready ────────────────────
     // Poll until firebase.auth and db are available (loaded async)
     function waitForFirebase() {
