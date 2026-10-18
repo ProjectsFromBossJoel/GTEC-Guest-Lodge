@@ -72,17 +72,92 @@
       });
 
       var list = root.querySelector('#f-list');
-      list.innerHTML = !ctx.faults.length ? '<div class="pt-empty">You haven’t reported anything.</div>' :
-        '<ul class="pt-list">' + ctx.faults.map(function (f) {
-          return '<li class="pt-item"><div class="pt-item-top"><div><b>' + esc(f.category) + '</b> <span class="pt-muted pt-small">· ' + esc(f.room) + ' · ' + esc(P.fmtDateTime(f._ts)) + '</span></div>' +
-            '<div>' + (f.urgency === 'Urgent' ? '<span class="pt-badge bad">Urgent</span> ' : '') + P.statusBadge(f.status) + '</div></div>' +
-            '<p>' + esc(f.description) + '</p>' + steps(['new', 'seen', 'in_progress', 'resolved'], f.status) +
-            (f.adminResponse ? '<div class="pt-reply"><b>Lodge reply:</b> ' + esc(f.adminResponse) + '</div>' : '') + '</li>';
-        }).join('') + '</ul>';
+      var drafts = {};      /* reply text being typed, kept while the list repaints */
+      var seen = null;      /* last known status/reply per report, to announce changes */
+      stopLive();
+
+      function paintList() {
+        var act = document.activeElement;
+        var actId = act && act.getAttribute ? act.getAttribute('data-freply') : null;
+        var pos = actId ? act.selectionStart : 0;
+
+        list.innerHTML = !ctx.faults.length ? '<div class="pt-empty">You haven’t reported anything.</div>' :
+          '<ul class="pt-list">' + ctx.faults.map(function (f) {
+            var open = f.status !== 'resolved' && f.status !== 'closed';
+            var reply = '';
+            if (f.adminResponse) {
+              reply = '<div class="pt-reply"><b>Lodge reply:</b> ' + esc(f.adminResponse) + '</div>';
+              if (open) {
+                var txt = drafts[f.id] !== undefined ? drafts[f.id] : (f.guestReply || '');
+                reply += '<div class="pt-replybox"><label class="pt-small pt-muted" for="fr-' + esc(f.id) + '">' + (f.guestReply ? 'Your reply (you can edit it)' : 'Reply to the lodge') + '</label>' +
+                  '<textarea class="pt-textarea" id="fr-' + esc(f.id) + '" data-freply="' + esc(f.id) + '" maxlength="300" placeholder="Type your reply…">' + esc(txt) + '</textarea>' +
+                  '<div><button class="pt-btn pt-btn-sm" type="button" data-send-freply="' + esc(f.id) + '">' + (f.guestReply ? 'Update reply' : 'Send reply') + '</button></div></div>';
+              } else if (f.guestReply) {
+                reply += '<div class="pt-reply"><b>Your reply:</b> ' + esc(f.guestReply) + '</div>';
+              }
+            }
+            return '<li class="pt-item"><div class="pt-item-top"><div><b>' + esc(f.category) + '</b> <span class="pt-muted pt-small">· ' + esc(f.room) + ' · ' + esc(P.fmtDateTime(f._ts)) + '</span></div>' +
+              '<div>' + (f.urgency === 'Urgent' ? '<span class="pt-badge bad">Urgent</span> ' : '') + P.statusBadge(f.status) + '</div></div>' +
+              '<p>' + esc(f.description) + '</p>' + steps(['new', 'seen', 'in_progress', 'resolved'], f.status) +
+              reply + '</li>';
+          }).join('') + '</ul>';
+
+        if (actId) {
+          var ta = list.querySelector('textarea[data-freply="' + actId + '"]');
+          if (ta) { ta.focus(); try { ta.setSelectionRange(pos, pos); } catch (e) {} }
+        }
+      }
+
+      list.addEventListener('input', function (e) {
+        var id = e.target.getAttribute && e.target.getAttribute('data-freply');
+        if (id) drafts[id] = e.target.value;
+      });
+
+      list.addEventListener('click', function (e) {
+        var s = e.target.closest('[data-send-freply]');
+        if (!s) return;
+        var id = s.getAttribute('data-send-freply');
+        var ta = list.querySelector('textarea[data-freply="' + id + '"]');
+        var text = ta ? ta.value.trim().slice(0, 300) : '';
+        if (!text) return P.toast('Type your reply first.', 'err');
+        var wait = P.cooldown('fault-reply', 5); if (wait) return P.toast('Please wait ' + wait + 's.', 'err');
+        P.busy(s, function () {
+          return P.db.collection('faultReports').doc(id).update({
+            guestReply: text, guestReplyAt: FV().serverTimestamp(), updatedAt: FV().serverTimestamp()
+          }).then(function () { delete drafts[id]; P.toast('Reply sent.', 'ok'); });
+        }).catch(fail);
+      });
+
+      paintList();   /* show what we already have, then go live */
+
+      liveUnsub = P.db.collection('faultReports').where('uid', '==', ctx.user.uid).limit(100).onSnapshot(function (qs) {
+        var rows = [], map = {};
+        qs.forEach(function (d) {
+          var x = d.data({ serverTimestamps: 'estimate' }); x.id = d.id; x._ts = P.toDate(x.createdAt);
+          rows.push(x); map[x.id] = { status: x.status, reply: x.adminResponse || '' };
+        });
+        rows.sort(function (a, b) { return (b._ts || 0) - (a._ts || 0); });
+        if (seen && !qs.metadata.hasPendingWrites) {
+          var changed = rows.some(function (r) { var p = seen[r.id]; return p && (p.status !== r.status || p.reply !== (r.adminResponse || '')); });
+          if (changed) P.toast('The lodge updated your fault report.', 'ok');
+        }
+        seen = map;
+        ctx.faults = rows;
+        paintList();
+        if (P.renderNav) P.renderNav();
+      }, function (e) {
+        if (window.console) console.warn('[portal] fault listener:', e.code || e.message);
+        list.innerHTML = '<div class="pt-alert warn">Live updates are unavailable. Refresh the page to see changes.</div>';
+      });
     }
   };
 
   /* =========================================================== LAUNDRY */
+  var liveUnsub = null;   /* live Firestore listener for the open list (faults or laundry) */
+  function stopLive() { if (liveUnsub) { liveUnsub(); liveUnsub = null; } }
+  window.addEventListener('hashchange', stopLive);
+  window.addEventListener('pagehide', stopLive);
+
   P.sections.laundry = {
     intro: 'We collect from your room and bring it back clean.',
     render: function (ctx, root) {
@@ -140,28 +215,98 @@
       });
 
       var list = root.querySelector('#l-list');
-      list.innerHTML = !ctx.laundry.length ? '<div class="pt-empty">No laundry requests yet.</div>' :
-        '<ul class="pt-list">' + ctx.laundry.map(function (l) {
-          var pieces = (l.items || []).map(function (i) { return esc(i.qty) + '× ' + esc(i.type); }).join(', ');
-          return '<li class="pt-item"><div class="pt-item-top"><div><b>' + esc(l.service) + '</b> <span class="pt-muted pt-small">· ' + esc(l.room) + ' · ' + esc(P.fmtDateTime(l._ts)) + '</span></div>' + P.statusBadge(l.status) + '</div>' +
-            '<p>' + pieces + '<br><span class="pt-muted pt-small">Collection: ' + esc(l.slot) + '</span></p>' +
-            (l.price != null && l.price !== '' ? '<p><b>Charge:</b> ' + esc(P.money(l.price)) + '</p>' : '') +
-            steps(['requested', 'collected', 'processing', 'ready', 'delivered'], l.status) +
-            (l.adminNote ? '<div class="pt-reply"><b>Lodge note:</b> ' + esc(l.adminNote) + '</div>' : '') +
-            (l.status === 'requested' ? '<p><button class="pt-btn pt-btn-danger pt-btn-sm" data-cancel="' + esc(l.id) + '" type="button">Cancel request</button></p>' : '') + '</li>';
-        }).join('') + '</ul>';
-      list.querySelectorAll('[data-cancel]').forEach(function (b) {
-        b.addEventListener('click', function () {
+      var drafts = {};      /* reply text being typed, kept while the list repaints */
+      var seen = null;      /* last known status/note per request, to announce changes */
+      stopLive();
+
+      function paintList() {
+        var act = document.activeElement;
+        var actId = act && act.getAttribute ? act.getAttribute('data-reply') : null;
+        var pos = actId ? act.selectionStart : 0;
+
+        list.innerHTML = !ctx.laundry.length ? '<div class="pt-empty">No laundry requests yet.</div>' :
+          '<ul class="pt-list">' + ctx.laundry.map(function (l) {
+            var pieces = (l.items || []).map(function (i) { return esc(i.qty) + '× ' + esc(i.type); }).join(', ');
+            var open = l.status !== 'delivered' && l.status !== 'cancelled';
+            var reply = '';
+            if (l.adminNote) {
+              reply = '<div class="pt-reply"><b>Lodge note:</b> ' + esc(l.adminNote) + '</div>';
+              if (open) {
+                var txt = drafts[l.id] !== undefined ? drafts[l.id] : (l.guestReply || '');
+                reply += '<div class="pt-replybox"><label class="pt-small pt-muted" for="rp-' + esc(l.id) + '">' + (l.guestReply ? 'Your reply (you can edit it)' : 'Reply to the lodge') + '</label>' +
+                  '<textarea class="pt-textarea" id="rp-' + esc(l.id) + '" data-reply="' + esc(l.id) + '" maxlength="300" placeholder="Type your reply…">' + esc(txt) + '</textarea>' +
+                  '<div><button class="pt-btn pt-btn-sm" type="button" data-send-reply="' + esc(l.id) + '">' + (l.guestReply ? 'Update reply' : 'Send reply') + '</button></div></div>';
+              } else if (l.guestReply) {
+                reply += '<div class="pt-reply"><b>Your reply:</b> ' + esc(l.guestReply) + '</div>';
+              }
+            }
+            return '<li class="pt-item"><div class="pt-item-top"><div><b>' + esc(l.service) + '</b> <span class="pt-muted pt-small">· ' + esc(l.room) + ' · ' + esc(P.fmtDateTime(l._ts)) + '</span></div>' + P.statusBadge(l.status) + '</div>' +
+              '<p>' + pieces + '<br><span class="pt-muted pt-small">Collection: ' + esc(l.slot) + '</span></p>' +
+              (l.price != null && l.price !== '' ? '<p><b>Charge:</b> ' + esc(P.money(l.price)) + '</p>' : '') +
+              steps(['requested', 'collected', 'processing', 'ready', 'delivered'], l.status) +
+              reply +
+              (l.status === 'requested' ? '<p><button class="pt-btn pt-btn-danger pt-btn-sm" data-cancel="' + esc(l.id) + '" type="button">Cancel request</button></p>' : '') + '</li>';
+          }).join('') + '</ul>';
+
+        if (actId) {
+          var ta = list.querySelector('textarea[data-reply="' + actId + '"]');
+          if (ta) { ta.focus(); try { ta.setSelectionRange(pos, pos); } catch (e) {} }
+        }
+      }
+
+      list.addEventListener('input', function (e) {
+        var id = e.target.getAttribute && e.target.getAttribute('data-reply');
+        if (id) drafts[id] = e.target.value;
+      });
+
+      list.addEventListener('click', function (e) {
+        var c = e.target.closest('[data-cancel]');
+        if (c) {
           if (!window.confirm('Cancel this laundry request?')) return;
-          P.busy(b, function () {
-            return P.db.collection('laundryRequests').doc(b.getAttribute('data-cancel')).update({ status: 'cancelled', updatedAt: FV().serverTimestamp() })
-              .then(function () { return ctx.reload('laundry'); }).then(function () { P.toast('Request cancelled.', 'ok'); P.rerender(); });
+          P.busy(c, function () {
+            return P.db.collection('laundryRequests').doc(c.getAttribute('data-cancel')).update({ status: 'cancelled', updatedAt: FV().serverTimestamp() })
+              .then(function () { P.toast('Request cancelled.', 'ok'); });
           }).catch(fail);
+          return;
+        }
+        var s = e.target.closest('[data-send-reply]');
+        if (s) {
+          var id = s.getAttribute('data-send-reply');
+          var ta = list.querySelector('textarea[data-reply="' + id + '"]');
+          var text = ta ? ta.value.trim().slice(0, 300) : '';
+          if (!text) return P.toast('Type your reply first.', 'err');
+          var wait = P.cooldown('laundry-reply', 5); if (wait) return P.toast('Please wait ' + wait + 's.', 'err');
+          P.busy(s, function () {
+            return P.db.collection('laundryRequests').doc(id).update({
+              guestReply: text, guestReplyAt: FV().serverTimestamp(), updatedAt: FV().serverTimestamp()
+            }).then(function () { delete drafts[id]; P.toast('Reply sent.', 'ok'); });
+          }).catch(fail);
+        }
+      });
+
+      paintList();   /* show what we already have, then go live */
+
+      liveUnsub = P.db.collection('laundryRequests').where('uid', '==', ctx.user.uid).limit(100).onSnapshot(function (qs) {
+        var rows = [], map = {};
+        qs.forEach(function (d) {
+          var x = d.data({ serverTimestamps: 'estimate' }); x.id = d.id; x._ts = P.toDate(x.createdAt);
+          rows.push(x); map[x.id] = { status: x.status, note: x.adminNote || '', price: x.price };
         });
+        rows.sort(function (a, b) { return (b._ts || 0) - (a._ts || 0); });
+        if (seen && !qs.metadata.hasPendingWrites) {
+          var changed = rows.some(function (r) { var p = seen[r.id]; return p && (p.status !== r.status || p.note !== (r.adminNote || '') || p.price !== r.price); });
+          if (changed) P.toast('The lodge updated your laundry request.', 'ok');
+        }
+        seen = map;
+        ctx.laundry = rows;
+        paintList();
+        if (P.renderNav) P.renderNav();
+      }, function (e) {
+        if (window.console) console.warn('[portal] laundry listener:', e.code || e.message);
+        list.innerHTML = '<div class="pt-alert warn">Live updates are unavailable. Refresh the page to see changes.</div>';
       });
     }
   };
-  /* the phone field id is shared; laundry validation reads #f-phone */
 
   /* =========================================================== FEEDBACK */
   var CATS = [['cleanliness', 'Cleanliness'], ['comfort', 'Comfort'], ['staff', 'Staff & service'], ['location', 'Location'], ['value', 'Value for money']];

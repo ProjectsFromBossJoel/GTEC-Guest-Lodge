@@ -343,3 +343,6 @@ body.pt-body { margin: 0; background: var(--pt-bg); color: var(--pt-ink); font: 
 .pt-checks .pt-check { display: flex; align-items: center; gap: .6rem; padding: .65rem .85rem; border: 1px solid #d9dfe3; border-radius: 10px; cursor: pointer; background: #fff; }
 .pt-checks .pt-check input { width: 1.1rem; height: 1.1rem; flex: none; }
 .pt-checks .pt-check:has(input:checked) { background: #e6f2ef; border-color: #0b4a45; }
+
+.pt-replybox { margin-top: .6rem; display: grid; gap: .5rem; }
+.pt-replybox .pt-textarea { min-height: 64px; }

@@ -28,6 +28,14 @@
   function who(r) { return '<b>' + esc(r.name || '—') + '</b><div class="pt-small pt-muted">' + esc(r.email || '') + '</div>'; }
   function pieces(r) { return (r.items || []).reduce(function (n, i) { return n + (Number(i.qty) || 0); }, 0); }
   function when(r) { return P.fmtDateTime(r._ts); }
+  function hasNewReply(r) {          /* guest replied and staff haven't saved since */
+    var g = P.toDate(r.guestReplyAt), u = P.toDate(r.updatedAt);
+    return !!(r.guestReply && g && (!u || +g >= +u));
+  }
+  function statusCell(r) { return P.statusBadge(r.status) + (hasNewReply(r) ? ' <span class="pt-badge bad">Guest replied</span>' : ''); }
+  function guestReplyBlock(r) {
+    return r.guestReply ? '<div class="pt-label">Guest’s reply <span class="pt-muted pt-small">(' + esc(P.fmtDateTime(P.toDate(r.guestReplyAt))) + ')</span></div><div class="pt-quote">' + esc(r.guestReply) + '</div>' : '';
+  }
 
   /* ---------- tab definitions: one config drives the table, search, filter and CSV ---------- */
   var TABS = {
@@ -38,7 +46,7 @@
         ['Received', when], ['Guest', who], ['Room', function (r) { return esc(r.room); }],
         ['Category', function (r) { return esc(r.category); }],
         ['Urgency', function (r) { return r.urgency === 'Urgent' ? '<span class="pt-badge bad">Urgent</span>' : esc(r.urgency || ''); }],
-        ['Status', function (r) { return P.statusBadge(r.status); }],
+        ['Status', statusCell],
         ['Problem', function (r) { return esc(r.description); }, 'clip']
       ],
       text: function (r) { return [r.name, r.email, r.phone, r.room, r.category, r.description, r.bookingRef].join(' '); },
@@ -53,7 +61,7 @@
         ['Received', when], ['Guest', who], ['Room', function (r) { return esc(r.room); }],
         ['Items', function (r) { return pieces(r) + ' piece' + (pieces(r) === 1 ? '' : 's'); }],
         ['Service', function (r) { return esc(r.service); }], ['Collection', function (r) { return esc(r.slot); }],
-        ['Status', function (r) { return P.statusBadge(r.status); }]
+        ['Status', statusCell]
       ],
       text: function (r) { return [r.name, r.email, r.phone, r.room, r.service, r.note, r.bookingRef].join(' '); },
       csv: [['Received', function (r) { return when(r); }], ['Guest', function (r) { return r.name; }], ['Email', function (r) { return r.email; }], ['Phone', function (r) { return r.phone; }],
@@ -117,7 +125,7 @@
   }
 
   function rows() { return data[tab]; }
-  function fresh(k) { return data[k].filter(function (r) { return TABS[k].fresh.indexOf(r.status) !== -1; }).length; }
+  function fresh(k) { return data[k].filter(function (r) { return TABS[k].fresh.indexOf(r.status) !== -1 || hasNewReply(r); }).length; }
 
   function renderKpis() {
     var f = data.faults, l = data.laundry, fb = data.feedback;
@@ -159,7 +167,7 @@
     $('cr-status').value = s.status;
     $('cr-head').innerHTML = '<tr>' + T.cols.map(function (c) { return '<th>' + esc(c[0]) + '</th>'; }).join('') + '</tr>';
     $('cr-body').innerHTML = slice.length ? slice.map(function (r) {
-      var isNew = T.fresh.indexOf(r.status) !== -1;
+      var isNew = T.fresh.indexOf(r.status) !== -1 || hasNewReply(r);
       return '<tr data-id="' + esc(r.id) + '" tabindex="0" class="' + (isNew ? 'new' : '') + '">' + T.cols.map(function (c) {
         return '<td' + (c[2] ? ' class="' + c[2] + '"' : '') + '>' + c[1](r) + '</td>';
       }).join('') + '</tr>';
@@ -222,7 +230,7 @@
     if (tab === 'faults') {
       m = openModal(r.category + ' · ' + r.room, esc(when(r)) + ' · ' + P.statusBadge(r.status),
         kv([['Guest', r.name], ['E-mail', r.email], ['Phone', r.phone], ['Booking', r.bookingRef], ['Urgency', r.urgency]]) +
-        '<div class="pt-label">Problem</div><div class="pt-quote">' + esc(r.description) + '</div>' +
+        '<div class="pt-label">Problem</div><div class="pt-quote">' + esc(r.description) + '</div>' + guestReplyBlock(r) +
         '<div class="pt-row cols-2"><div class="pt-field"><label for="cr-m-status">Status</label>' + statusSelect(T, r.status) + '</div></div>' +
         '<div class="pt-field"><label for="cr-m-reply">Reply to guest <span class="pt-muted">(they see this in their account)</span></label><textarea class="pt-textarea" id="cr-m-reply" maxlength="500">' + esc(r.adminResponse || '') + '</textarea></div>',
         '<span style="margin-right:auto">' + contactLinks(r) + '</span><button class="pt-btn" id="cr-m-save" type="button">Save</button>');
@@ -234,7 +242,7 @@
     if (tab === 'laundry') {
       m = openModal(r.service + ' · ' + r.room, esc(when(r)) + ' · ' + P.statusBadge(r.status),
         kv([['Guest', r.name], ['E-mail', r.email], ['Phone', r.phone], ['Booking', r.bookingRef], ['Collection', r.slot], ['Guest note', r.note]]) +
-        '<div class="pt-label">Items</div><div class="pt-quote">' + ((r.items || []).map(function (i) { return esc(i.qty) + ' × ' + esc(i.type); }).join('\n') || '—') + '</div>' +
+        guestReplyBlock(r) + '<div class="pt-label">Items</div><div class="pt-quote">' + ((r.items || []).map(function (i) { return esc(i.qty) + ' × ' + esc(i.type); }).join('\n') || '—') + '</div>' +
         '<div class="pt-row cols-2"><div class="pt-field"><label for="cr-m-status">Status</label>' + statusSelect(T, r.status) + '</div>' +
         '<div class="pt-field"><label for="cr-m-price">Charge (' + esc(P.CFG.lodge.currency) + ')</label><input class="pt-input" id="cr-m-price" type="number" min="0" step="0.01" value="' + esc(r.price != null ? r.price : '') + '"></div></div>' +
         '<div class="pt-field"><label for="cr-m-reply">Note to guest</label><textarea class="pt-textarea" id="cr-m-reply" style="min-height:80px" maxlength="300">' + esc(r.adminNote || '') + '</textarea></div>',

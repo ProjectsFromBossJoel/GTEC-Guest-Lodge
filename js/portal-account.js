@@ -106,6 +106,7 @@
   }
   P.go = function (id) { location.hash = '#' + id; };
   P.rerender = route;
+  P.renderNav = renderNav;
 
   /* ---------- boot ---------- */
   function boot() {
