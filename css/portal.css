@@ -346,3 +346,10 @@ body.pt-body { margin: 0; background: var(--pt-bg); color: var(--pt-ink); font: 
 
 .pt-replybox { margin-top: .6rem; display: grid; gap: .5rem; }
 .pt-replybox .pt-textarea { min-height: 64px; }
+
+.pt-chat { display: flex; flex-direction: column; gap: .5rem; margin: .7rem 0; }
+.pt-modal .pt-chat { max-height: 260px; overflow-y: auto; }
+.pt-msg { max-width: 85%; padding: .55rem .8rem; border-radius: 14px; word-wrap: break-word; white-space: pre-wrap; }
+.pt-msg .pt-msg-who { font-size: .72rem; opacity: .7; margin-bottom: .15rem; }
+.pt-msg.them { align-self: flex-start; background: #e6f2ef; color: #1a1a1a; border-bottom-left-radius: 4px; }
+.pt-msg.me { align-self: flex-end; background: #0b4a45; color: #fff; border-bottom-right-radius: 4px; }

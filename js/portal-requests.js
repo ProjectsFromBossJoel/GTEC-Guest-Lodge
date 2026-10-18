@@ -26,6 +26,21 @@
   }
   function fail(e) { P.toast(e && e.code === 'permission-denied' ? 'Not allowed. Please sign in again and retry.' : 'Couldn’t save. Check your connection and try again.', 'err'); if (window.console) console.warn(e); }
 
+  /* ---------- chat thread (shared by fault + laundry) ---------- */
+  function chatMsgs(r, field) {
+    var t = Array.isArray(r.thread) ? r.thread.slice() : [];
+    var pre = [];
+    if (!t.some(function (m) { return m.from === 'staff'; }) && r[field]) pre.push({ from: 'staff', text: r[field], at: null });
+    if (!t.length && r.guestReply) { var g = P.toDate(r.guestReplyAt); pre.push({ from: 'guest', text: r.guestReply, at: g ? +g : null }); }
+    return pre.concat(t);
+  }
+  function chatHtml(list) {
+    return '<div class="pt-chat">' + list.map(function (m) {
+      var me = m.from === 'guest';
+      return '<div class="pt-msg ' + (me ? 'me' : 'them') + '"><div class="pt-msg-who">' + (me ? 'You' : 'Lodge') + (m.at ? ' · ' + esc(P.fmtDateTime(new Date(m.at))) : '') + '</div>' + esc(m.text) + '</div>';
+    }).join('') + '</div>';
+  }
+
   /* =========================================================== FAULT */
   P.sections.fault = {
     intro: 'Something not working? Tell us and the team will take care of it.',
@@ -85,15 +100,13 @@
           '<ul class="pt-list">' + ctx.faults.map(function (f) {
             var open = f.status !== 'resolved' && f.status !== 'closed';
             var reply = '';
-            if (f.adminResponse) {
-              reply = '<div class="pt-reply"><b>Lodge reply:</b> ' + esc(f.adminResponse) + '</div>';
-              if (open) {
-                var txt = drafts[f.id] !== undefined ? drafts[f.id] : (f.guestReply || '');
-                reply += '<div class="pt-replybox"><label class="pt-small pt-muted" for="fr-' + esc(f.id) + '">' + (f.guestReply ? 'Your reply (you can edit it)' : 'Reply to the lodge') + '</label>' +
-                  '<textarea class="pt-textarea" id="fr-' + esc(f.id) + '" data-freply="' + esc(f.id) + '" maxlength="300" placeholder="Type your reply…">' + esc(txt) + '</textarea>' +
-                  '<div><button class="pt-btn pt-btn-sm" type="button" data-send-freply="' + esc(f.id) + '">' + (f.guestReply ? 'Update reply' : 'Send reply') + '</button></div></div>';
-              } else if (f.guestReply) {
-                reply += '<div class="pt-reply"><b>Your reply:</b> ' + esc(f.guestReply) + '</div>';
+            var cm = chatMsgs(f, 'adminResponse');
+            if (cm.length) {
+              reply = chatHtml(cm);
+              if (open && cm.some(function (m) { return m.from === 'staff'; })) {
+                reply += '<div class="pt-replybox"><label class="pt-small pt-muted" for="fr-' + esc(f.id) + '">Reply to the lodge</label>' +
+                  '<textarea class="pt-textarea" id="fr-' + esc(f.id) + '" data-freply="' + esc(f.id) + '" maxlength="300" placeholder="Type your message…">' + esc(drafts[f.id] || '') + '</textarea>' +
+                  '<div><button class="pt-btn pt-btn-sm" type="button" data-send-freply="' + esc(f.id) + '">Send</button></div></div>';
               }
             }
             return '<li class="pt-item"><div class="pt-item-top"><div><b>' + esc(f.category) + '</b> <span class="pt-muted pt-small">· ' + esc(f.room) + ' · ' + esc(P.fmtDateTime(f._ts)) + '</span></div>' +
@@ -123,7 +136,7 @@
         var wait = P.cooldown('fault-reply', 5); if (wait) return P.toast('Please wait ' + wait + 's.', 'err');
         P.busy(s, function () {
           return P.db.collection('faultReports').doc(id).update({
-            guestReply: text, guestReplyAt: FV().serverTimestamp(), updatedAt: FV().serverTimestamp()
+            thread: FV().arrayUnion({ from: 'guest', text: text, at: Date.now() }), guestReply: text, guestReplyAt: FV().serverTimestamp(), updatedAt: FV().serverTimestamp()
           }).then(function () { delete drafts[id]; P.toast('Reply sent.', 'ok'); });
         }).catch(fail);
       });
@@ -229,15 +242,13 @@
             var pieces = (l.items || []).map(function (i) { return esc(i.qty) + '× ' + esc(i.type); }).join(', ');
             var open = l.status !== 'delivered' && l.status !== 'cancelled';
             var reply = '';
-            if (l.adminNote) {
-              reply = '<div class="pt-reply"><b>Lodge note:</b> ' + esc(l.adminNote) + '</div>';
-              if (open) {
-                var txt = drafts[l.id] !== undefined ? drafts[l.id] : (l.guestReply || '');
-                reply += '<div class="pt-replybox"><label class="pt-small pt-muted" for="rp-' + esc(l.id) + '">' + (l.guestReply ? 'Your reply (you can edit it)' : 'Reply to the lodge') + '</label>' +
-                  '<textarea class="pt-textarea" id="rp-' + esc(l.id) + '" data-reply="' + esc(l.id) + '" maxlength="300" placeholder="Type your reply…">' + esc(txt) + '</textarea>' +
-                  '<div><button class="pt-btn pt-btn-sm" type="button" data-send-reply="' + esc(l.id) + '">' + (l.guestReply ? 'Update reply' : 'Send reply') + '</button></div></div>';
-              } else if (l.guestReply) {
-                reply += '<div class="pt-reply"><b>Your reply:</b> ' + esc(l.guestReply) + '</div>';
+            var cm = chatMsgs(l, 'adminNote');
+            if (cm.length) {
+              reply = chatHtml(cm);
+              if (open && cm.some(function (m) { return m.from === 'staff'; })) {
+                reply += '<div class="pt-replybox"><label class="pt-small pt-muted" for="rp-' + esc(l.id) + '">Reply to the lodge</label>' +
+                  '<textarea class="pt-textarea" id="rp-' + esc(l.id) + '" data-reply="' + esc(l.id) + '" maxlength="300" placeholder="Type your message…">' + esc(drafts[l.id] || '') + '</textarea>' +
+                  '<div><button class="pt-btn pt-btn-sm" type="button" data-send-reply="' + esc(l.id) + '">Send</button></div></div>';
               }
             }
             return '<li class="pt-item"><div class="pt-item-top"><div><b>' + esc(l.service) + '</b> <span class="pt-muted pt-small">· ' + esc(l.room) + ' · ' + esc(P.fmtDateTime(l._ts)) + '</span></div>' + P.statusBadge(l.status) + '</div>' +
@@ -278,7 +289,7 @@
           var wait = P.cooldown('laundry-reply', 5); if (wait) return P.toast('Please wait ' + wait + 's.', 'err');
           P.busy(s, function () {
             return P.db.collection('laundryRequests').doc(id).update({
-              guestReply: text, guestReplyAt: FV().serverTimestamp(), updatedAt: FV().serverTimestamp()
+              thread: FV().arrayUnion({ from: 'guest', text: text, at: Date.now() }), guestReply: text, guestReplyAt: FV().serverTimestamp(), updatedAt: FV().serverTimestamp()
             }).then(function () { delete drafts[id]; P.toast('Reply sent.', 'ok'); });
           }).catch(fail);
         }

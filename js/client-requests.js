@@ -34,12 +34,37 @@ var openRef = null;                               // request currently open in t
     return !!(r.guestReply && g && (!u || +g >= +u));
   }
   function statusCell(r) { return P.statusBadge(r.status) + (hasNewReply(r) ? ' <span class="pt-badge bad">Guest replied</span>' : ''); }
-  function guestBlockInner(r) {
+  function guestBlockInnerOld(r) {
     return r.guestReply
       ? '<div class="pt-label" style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap">Guest’s reply <span class="pt-muted pt-small">(' + esc(P.fmtDateTime(P.toDate(r.guestReplyAt))) + ')</span><button class="pt-btn pt-btn-sm" id="cr-m-replybtn" type="button" style="margin-left:auto">Reply</button></div><div class="pt-quote">' + esc(r.guestReply) + '</div>'
       : '';
   }
+  function chatField(k) { return k === 'faults' ? 'adminResponse' : 'adminNote'; }
+  function chatMsgs(r, field) {
+    var t = Array.isArray(r.thread) ? r.thread.slice() : [];
+    var pre = [];
+    if (!t.some(function (m) { return m.from === 'staff'; }) && r[field]) pre.push({ from: 'staff', text: r[field], at: null });
+    if (!t.length && r.guestReply) { var g = P.toDate(r.guestReplyAt); pre.push({ from: 'guest', text: r.guestReply, at: g ? +g : null }); }
+    return pre.concat(t);
+  }
+  function withStaff(r, field, text) { return chatMsgs(r, field).concat([{ from: 'staff', text: text, at: Date.now() }]); }
+  function chatHtml(list) {
+    return '<div class="pt-chat">' + list.map(function (m) {
+      var me = m.from === 'staff';
+      return '<div class="pt-msg ' + (me ? 'me' : 'them') + '"><div class="pt-msg-who">' + (me ? 'You' : 'Guest') + (m.at ? ' · ' + esc(P.fmtDateTime(new Date(m.at))) : '') + '</div>' + esc(m.text) + '</div>';
+    }).join('') + '</div>';
+  }
+  function guestBlockInner(r, k) {
+    var list = chatMsgs(r, chatField(k));
+    return '<div class="pt-label" style="display:flex;align-items:center;gap:.6rem">Conversation<button class="pt-btn pt-btn-sm" id="cr-m-replybtn" type="button" style="margin-left:auto">Reply</button></div>' +
+      (list.length ? chatHtml(list) : '<div class="pt-muted pt-small" style="margin-bottom:.8rem">No messages yet.</div>');
+  }
   function guestReplyBlock(r) {
+    return '<div id="cr-m-guest">' + guestBlockInner(r, tab) + '</div>' +
+      '<div id="cr-m-compose" class="pt-hide"><div class="pt-field"><label for="cr-m-compose-text">Your message to the guest</label><textarea class="pt-textarea" id="cr-m-compose-text" style="min-height:80px" maxlength="' + (tab === 'faults' ? 500 : 300) + '"></textarea></div>' +
+      '<div style="display:flex;gap:.5rem;justify-content:flex-end;margin-bottom:1rem"><button class="pt-btn pt-btn-ghost pt-btn-sm" id="cr-m-compose-cancel" type="button">Cancel</button><button class="pt-btn pt-btn-sm" id="cr-m-compose-send" type="button">Send</button></div></div>';
+  }
+  function guestReplyBlockOld(r) {
     return '<div id="cr-m-guest">' + guestBlockInner(r) + '</div>' +
       '<div id="cr-m-compose" class="pt-hide"><div class="pt-field"><label for="cr-m-compose-text">Your reply to the guest <span class="pt-muted">(replaces the note they currently see)</span></label><textarea class="pt-textarea" id="cr-m-compose-text" style="min-height:80px" maxlength="' + (tab === 'faults' ? 500 : 300) + '"></textarea></div>' +
       '<div style="display:flex;gap:.5rem;justify-content:flex-end;margin-bottom:1rem"><button class="pt-btn pt-btn-ghost pt-btn-sm" id="cr-m-compose-cancel" type="button">Cancel</button><button class="pt-btn pt-btn-sm" id="cr-m-compose-send" type="button">Send reply</button></div></div>';
@@ -237,12 +262,55 @@ var openRef = null;                               // request currently open in t
     var g = $('cr-m-guest'), sub = $('cr-m-sub');
     if (sub) sub.innerHTML = esc(when(r)) + ' · ' + P.statusBadge(r.status);
     if (g) {
+      var list = chatMsgs(r, chatField(k)), last = list[list.length - 1];
+      g.innerHTML = guestBlockInner(r, k);
+      var c = g.querySelector('.pt-chat'); if (c) c.scrollTop = c.scrollHeight;
+      if (list.length > openRef.n && last && last.from === 'guest') P.toast('The guest just replied.', 'ok');
+      openRef.n = list.length;
+    }
+  }
+  function refreshModalOld(k) {
+    if (!openRef || openRef.tab !== k || !$('cr-modal')) return;
+    var r = data[k].filter(function (x) { return x.id === openRef.id; })[0]; if (!r) return;
+    var g = $('cr-m-guest'), sub = $('cr-m-sub');
+    if (sub) sub.innerHTML = esc(when(r)) + ' · ' + P.statusBadge(r.status);
+    if (g) {
       var before = g.textContent;
       g.innerHTML = guestBlockInner(r);
       if (r.guestReply && g.textContent !== before) P.toast('The guest just replied.', 'ok');
     }
   }
   function openDetail(id) {
+    openDetailCore(id);
+    var mm = $('cr-modal');
+    if (!mm || tab === 'feedback') return;
+    var k = tab, f = chatField(k);
+    var r0 = data[k].filter(function (x) { return x.id === id; })[0] || {};
+    openRef = { tab: k, id: id, n: chatMsgs(r0, f).length };
+    var c0 = $('cr-m-guest') && $('cr-m-guest').querySelector('.pt-chat'); if (c0) c0.scrollTop = c0.scrollHeight;
+    mm.addEventListener('click', function (e) {
+      var b = e.target.closest('button'); if (!b) return;
+      if (b.id === 'cr-m-replybtn') { $('cr-m-compose').classList.remove('pt-hide'); $('cr-m-compose-text').focus(); }
+      else if (b.id === 'cr-m-compose-cancel') { $('cr-m-compose').classList.add('pt-hide'); }
+      else if (b.id === 'cr-m-compose-send') {
+        var ta = $('cr-m-compose-text'), text = ta.value.trim();
+        if (!text) return P.toast('Type your message first.', 'err');
+        text = text.slice(0, k === 'faults' ? 500 : 300);
+        var cur = data[k].filter(function (x) { return x.id === id; })[0] || {};
+        var upd = { thread: withStaff(cur, f, text), handledBy: actor(), updatedAt: FV().serverTimestamp() };
+        upd[f] = text;
+        P.busy(b, function () { return P.db.collection(TABS[k].coll).doc(id).update(upd); }).then(function () {
+          var note = $('cr-m-reply'); if (note) note.value = text;
+          ta.value = ''; $('cr-m-compose').classList.add('pt-hide');
+          P.toast('Message sent to the guest.', 'ok');
+        }).catch(function (err) {
+          P.toast(err && err.code === 'permission-denied' ? 'Permission denied. Check your Firestore rules.' : 'Couldn’t send. Try again.', 'err');
+          if (window.console) console.warn(err);
+        });
+      }
+    });
+  }
+  function openDetailOld(id) {
     openDetailCore(id);
     var mm = $('cr-modal');
     if (!mm || tab === 'feedback') return;
@@ -281,7 +349,10 @@ var openRef = null;                               // request currently open in t
         '<div class="pt-field"><label for="cr-m-reply">Reply to guest <span class="pt-muted">(they see this in their account)</span></label><textarea class="pt-textarea" id="cr-m-reply" maxlength="500">' + esc(r.adminResponse || '') + '</textarea></div>',
         '<span style="margin-right:auto">' + contactLinks(r) + '</span><button class="pt-btn" id="cr-m-save" type="button">Save</button>');
       $('cr-m-save').addEventListener('click', function () {
-        save(this, function () { return ref.update({ status: $('cr-m-status').value, adminResponse: $('cr-m-reply').value.trim().slice(0, 500), handledBy: actor(), updatedAt: FV().serverTimestamp() }); }, 'Report updated.');
+        var cur = data.faults.filter(function (x) { return x.id === id; })[0] || r;
+        var txt = $('cr-m-reply').value.trim().slice(0, 500), upd = { status: $('cr-m-status').value, adminResponse: txt, handledBy: actor(), updatedAt: FV().serverTimestamp() };
+        if (txt && txt !== (cur.adminResponse || '')) upd.thread = withStaff(cur, 'adminResponse', txt);
+        save(this, function () { return ref.update(upd); }, 'Report updated.');
       });
     }
 
@@ -295,6 +366,8 @@ var openRef = null;                               // request currently open in t
         '<span style="margin-right:auto">' + contactLinks(r) + '</span><button class="pt-btn" id="cr-m-save" type="button">Save</button>');
       $('cr-m-save').addEventListener('click', function () {
         var pr = $('cr-m-price').value, upd = { status: $('cr-m-status').value, adminNote: $('cr-m-reply').value.trim().slice(0, 300), handledBy: actor(), updatedAt: FV().serverTimestamp() };
+        var cur = data.laundry.filter(function (x) { return x.id === id; })[0] || r;
+        if (upd.adminNote && upd.adminNote !== (cur.adminNote || '')) upd.thread = withStaff(cur, 'adminNote', upd.adminNote);
         if (pr !== '') { if (!(Number(pr) >= 0)) return P.toast('Enter a valid charge.', 'err'); upd.price = Math.round(Number(pr) * 100) / 100; }
         save(this, function () { return ref.update(upd); }, 'Laundry request updated.');
       });
