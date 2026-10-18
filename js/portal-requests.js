@@ -41,6 +41,23 @@
     }).join('') + '</div>';
   }
 
+  /* ---------- WhatsApp-style conversation box (same look as the admin modal) ---------- */
+  function waBox(pin, cm, canReply, taAttr, sendAttr, id, draft) {
+    return '<div class="pt-wa"><div class="pt-wa-head">Conversation with the Lodge</div>' + pin +
+      '<div class="pt-wa-body">' + (cm.length ? chatHtml(cm) : '<div class="pt-muted pt-small" style="text-align:center;padding:2rem 0">No messages yet.</div>') + '</div>' +
+      (canReply
+        ? '<div class="pt-wa-compose"><textarea id="' + taAttr + '-' + esc(id) + '" data-' + taAttr + '="' + esc(id) + '" rows="1" maxlength="300" placeholder="Type a message">' + esc(draft || '') + '</textarea>' +
+          '<button class="pt-wa-send" type="button" data-' + sendAttr + '="' + esc(id) + '" aria-label="Send">➤</button></div>'
+        : '') +
+      '</div>';
+  }
+  document.addEventListener('keydown', function (e) {          /* Enter sends, Shift+Enter = new line */
+    if (e.key === 'Enter' && !e.shiftKey && e.target.tagName === 'TEXTAREA' && e.target.closest && e.target.closest('.pt-wa-compose')) {
+      e.preventDefault();
+      var b = e.target.parentNode.querySelector('.pt-wa-send'); if (b) b.click();
+    }
+  });
+
   /* =========================================================== FAULT */
   P.sections.fault = {
     intro: 'Something not working? Tell us and the team will take care of it.',
@@ -102,12 +119,7 @@
             var reply = '';
             var cm = chatMsgs(f, 'adminResponse'); var pin = f.adminResponse ? '<div class="pt-pin">📌 <b>Lodge note:</b> ' + esc(f.adminResponse) + '</div>' : '';
             if (cm.length || pin) {
-              reply = pin + (cm.length ? chatHtml(cm) : '');
-              if (open && (pin || cm.some(function (m) { return m.from === 'staff'; }))) {
-                reply += '<div class="pt-replybox"><label class="pt-small pt-muted" for="fr-' + esc(f.id) + '">Reply to the lodge</label>' +
-                  '<textarea class="pt-textarea" id="fr-' + esc(f.id) + '" data-freply="' + esc(f.id) + '" maxlength="300" placeholder="Type your message…">' + esc(drafts[f.id] || '') + '</textarea>' +
-                  '<div><button class="pt-btn pt-btn-sm" type="button" data-send-freply="' + esc(f.id) + '">Send</button></div></div>';
-              }
+              reply = waBox(pin, cm, open && (pin || cm.some(function (m) { return m.from === 'staff'; })), 'freply', 'send-freply', f.id, drafts[f.id]);
             }
             return '<li class="pt-item"><div class="pt-item-top"><div><b>' + esc(f.category) + '</b> <span class="pt-muted pt-small">· ' + esc(f.room) + ' · ' + esc(P.fmtDateTime(f._ts)) + '</span></div>' +
               '<div>' + (f.urgency === 'Urgent' ? '<span class="pt-badge bad">Urgent</span> ' : '') + P.statusBadge(f.status) + '</div></div>' +
@@ -115,6 +127,7 @@
               reply + '</li>';
           }).join('') + '</ul>';
 
+        list.querySelectorAll('.pt-wa-body').forEach(function (b) { b.scrollTop = b.scrollHeight; });
         if (actId) {
           var ta = list.querySelector('textarea[data-freply="' + actId + '"]');
           if (ta) { ta.focus(); try { ta.setSelectionRange(pos, pos); } catch (e) {} }
@@ -244,12 +257,7 @@
             var reply = '';
             var cm = chatMsgs(l, 'adminNote'); var pin = l.adminNote ? '<div class="pt-pin">📌 <b>Lodge note:</b> ' + esc(l.adminNote) + '</div>' : '';
             if (cm.length || pin) {
-              reply = pin + (cm.length ? chatHtml(cm) : '');
-              if (open && (pin || cm.some(function (m) { return m.from === 'staff'; }))) {
-                reply += '<div class="pt-replybox"><label class="pt-small pt-muted" for="rp-' + esc(l.id) + '">Reply to the lodge</label>' +
-                  '<textarea class="pt-textarea" id="rp-' + esc(l.id) + '" data-reply="' + esc(l.id) + '" maxlength="300" placeholder="Type your message…">' + esc(drafts[l.id] || '') + '</textarea>' +
-                  '<div><button class="pt-btn pt-btn-sm" type="button" data-send-reply="' + esc(l.id) + '">Send</button></div></div>';
-              }
+              reply = waBox(pin, cm, open && (pin || cm.some(function (m) { return m.from === 'staff'; })), 'reply', 'send-reply', l.id, drafts[l.id]);
             }
             return '<li class="pt-item"><div class="pt-item-top"><div><b>' + esc(l.service) + '</b> <span class="pt-muted pt-small">· ' + esc(l.room) + ' · ' + esc(P.fmtDateTime(l._ts)) + '</span></div>' + P.statusBadge(l.status) + '</div>' +
               '<p>' + pieces + '<br><span class="pt-muted pt-small">Collection: ' + esc(l.slot) + '</span></p>' +
@@ -259,6 +267,7 @@
               (l.status === 'requested' ? '<p><button class="pt-btn pt-btn-danger pt-btn-sm" data-cancel="' + esc(l.id) + '" type="button">Cancel request</button></p>' : '') + '</li>';
           }).join('') + '</ul>';
 
+        list.querySelectorAll('.pt-wa-body').forEach(function (b) { b.scrollTop = b.scrollHeight; });
         if (actId) {
           var ta = list.querySelector('textarea[data-reply="' + actId + '"]');
           if (ta) { ta.focus(); try { ta.setSelectionRange(pos, pos); } catch (e) {} }
