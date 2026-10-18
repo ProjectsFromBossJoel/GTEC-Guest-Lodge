@@ -11,6 +11,7 @@
   var FV = function () { return firebase.firestore.FieldValue; };
   var data = { faults: [], laundry: [], feedback: [] };
   var tab = 'faults';
+var openRef = null;                               // request currently open in the modal
   var ts = {};                                      // per-tab UI state
 
   /* ---------- helpers ---------- */
@@ -33,8 +34,15 @@
     return !!(r.guestReply && g && (!u || +g >= +u));
   }
   function statusCell(r) { return P.statusBadge(r.status) + (hasNewReply(r) ? ' <span class="pt-badge bad">Guest replied</span>' : ''); }
+  function guestBlockInner(r) {
+    return r.guestReply
+      ? '<div class="pt-label" style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap">Guest’s reply <span class="pt-muted pt-small">(' + esc(P.fmtDateTime(P.toDate(r.guestReplyAt))) + ')</span><button class="pt-btn pt-btn-sm" id="cr-m-replybtn" type="button" style="margin-left:auto">Reply</button></div><div class="pt-quote">' + esc(r.guestReply) + '</div>'
+      : '';
+  }
   function guestReplyBlock(r) {
-    return r.guestReply ? '<div class="pt-label">Guest’s reply <span class="pt-muted pt-small">(' + esc(P.fmtDateTime(P.toDate(r.guestReplyAt))) + ')</span></div><div class="pt-quote">' + esc(r.guestReply) + '</div>' : '';
+    return '<div id="cr-m-guest">' + guestBlockInner(r) + '</div>' +
+      '<div id="cr-m-compose" class="pt-hide"><div class="pt-field"><label for="cr-m-compose-text">Your reply to the guest <span class="pt-muted">(replaces the note they currently see)</span></label><textarea class="pt-textarea" id="cr-m-compose-text" style="min-height:80px" maxlength="' + (tab === 'faults' ? 500 : 300) + '"></textarea></div>' +
+      '<div style="display:flex;gap:.5rem;justify-content:flex-end;margin-bottom:1rem"><button class="pt-btn pt-btn-ghost pt-btn-sm" id="cr-m-compose-cancel" type="button">Cancel</button><button class="pt-btn pt-btn-sm" id="cr-m-compose-send" type="button">Send reply</button></div></div>';
   }
 
   /* ---------- tab definitions: one config drives the table, search, filter and CSV ---------- */
@@ -190,7 +198,7 @@
   }
 
   /* ---------- detail modal ---------- */
-  function closeModal() { var m = $('cr-modal'); if (m) m.remove(); document.removeEventListener('keydown', onKey); }
+  function closeModal() { openRef = null; var m = $('cr-modal'); if (m) m.remove(); document.removeEventListener('keydown', onKey); }
   function onKey(e) { if (e.key === 'Escape') closeModal(); }
   function contactLinks(r) {
     var wa = waNumber(r.phone), h = '';
@@ -210,7 +218,7 @@
   function openModal(title, sub, body, footer) {
     closeModal();
     var bg = document.createElement('div'); bg.className = 'pt-modalbg'; bg.id = 'cr-modal';
-    bg.innerHTML = '<div class="pt-modal" role="dialog" aria-modal="true" aria-label="' + esc(title) + '"><header><div><h2>' + esc(title) + '</h2><div class="pt-muted pt-small">' + sub + '</div></div>' +
+    bg.innerHTML = '<div class="pt-modal" role="dialog" aria-modal="true" aria-label="' + esc(title) + '"><header><div><h2>' + esc(title) + '</h2><div class="pt-muted pt-small" id="cr-m-sub">' + sub + '</div></div>' +
       '<button class="pt-btn pt-btn-ghost pt-btn-sm" id="cr-m-x" type="button" aria-label="Close">✕</button></header><div class="mb">' + body + '</div><footer>' + footer + '</footer></div>';
     document.body.appendChild(bg);
     bg.addEventListener('mousedown', function (e) { if (e.target === bg) closeModal(); });
@@ -223,7 +231,45 @@
       .catch(function (e) { P.toast(e && e.code === 'permission-denied' ? 'Permission denied. Check your Firestore rules.' : 'Couldn’t save. Try again.', 'err'); if (window.console) console.warn(e); });
   }
 
+  function refreshModal(k) {
+    if (!openRef || openRef.tab !== k || !$('cr-modal')) return;
+    var r = data[k].filter(function (x) { return x.id === openRef.id; })[0]; if (!r) return;
+    var g = $('cr-m-guest'), sub = $('cr-m-sub');
+    if (sub) sub.innerHTML = esc(when(r)) + ' · ' + P.statusBadge(r.status);
+    if (g) {
+      var before = g.textContent;
+      g.innerHTML = guestBlockInner(r);
+      if (r.guestReply && g.textContent !== before) P.toast('The guest just replied.', 'ok');
+    }
+  }
   function openDetail(id) {
+    openDetailCore(id);
+    var mm = $('cr-modal');
+    if (!mm || tab === 'feedback') return;
+    var k = tab;
+    openRef = { tab: k, id: id };
+    mm.addEventListener('click', function (e) {
+      var b = e.target.closest('button'); if (!b) return;
+      if (b.id === 'cr-m-replybtn') { $('cr-m-compose').classList.remove('pt-hide'); $('cr-m-compose-text').focus(); }
+      else if (b.id === 'cr-m-compose-cancel') { $('cr-m-compose').classList.add('pt-hide'); }
+      else if (b.id === 'cr-m-compose-send') {
+        var ta = $('cr-m-compose-text'), text = ta.value.trim();
+        if (!text) return P.toast('Type your reply first.', 'err');
+        text = text.slice(0, k === 'faults' ? 500 : 300);
+        var upd = { guestReply: FV().delete(), guestReplyAt: FV().delete(), handledBy: actor(), updatedAt: FV().serverTimestamp() };
+        upd[k === 'faults' ? 'adminResponse' : 'adminNote'] = text;
+        P.busy(b, function () { return P.db.collection(TABS[k].coll).doc(id).update(upd); }).then(function () {
+          var note = $('cr-m-reply'); if (note) note.value = text;
+          ta.value = ''; $('cr-m-compose').classList.add('pt-hide');
+          P.toast('Reply sent to the guest.', 'ok');
+        }).catch(function (err) {
+          P.toast(err && err.code === 'permission-denied' ? 'Permission denied. Check your Firestore rules.' : 'Couldn’t send. Try again.', 'err');
+          if (window.console) console.warn(err);
+        });
+      }
+    });
+  }
+  function openDetailCore(id) {
     var r = data[tab].filter(function (x) { return x.id === id; })[0]; if (!r) return;
     var T = TABS[tab], ref = P.db.collection(T.coll).doc(id), m;
 
@@ -300,7 +346,7 @@
     Object.keys(TABS).forEach(function (k) {
       P.db.collection(TABS[k].coll).orderBy('createdAt', 'desc').limit(MAX_DOCS).onSnapshot(function (qs) {
         var out = []; qs.forEach(function (d) { var x = d.data(); x.id = d.id; x._ts = P.toDate(x.createdAt); out.push(x); });
-        data[k] = out; $('cr-err').innerHTML = ''; renderAll();
+        data[k] = out; $('cr-err').innerHTML = ''; renderAll(); refreshModal(k);
       }, function (e) {
         $('cr-err').innerHTML = '<div class="pt-alert err">Couldn’t read ' + esc(TABS[k].label.toLowerCase()) + ' (' + esc(e.code || 'error') + '). Deploy the portal rules from PORTAL_SETUP.md and check your role.</div>';
       });
