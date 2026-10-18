@@ -257,8 +257,37 @@
                     }
                 </style>
 
+                <style>
+                    .vf-layout { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(280px, 1fr); gap: 24px; align-items: start; max-width: 1100px; }
+                    .vf-layout .containerr { margin: 0; max-width: none; text-align: left; padding: 28px; position: sticky; top: 16px; }
+                    .vf-layout .containerr > p { color: #64748b; margin-bottom: 12px; }
+                    .vf-tips { background: #fff; border-radius: 10px; box-shadow: 0 5px 20px rgba(0,0,0,0.2); padding: 26px 18px 26px 26px;
+           max-height: calc(100vh - 290px); min-height: 440px; overflow-y: auto; overscroll-behavior: contain;
+           scrollbar-width: thin; scrollbar-color: #cbd5e1 transparent; }
+.vf-tips::-webkit-scrollbar { width: 8px; }
+.vf-tips::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 8px; }
+.vf-tips::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+                    .vf-tips h3 { font-size: 1.05rem; color: #1f3b57; margin-bottom: 14px; }
+                    .vf-tips ol { list-style: none; counter-reset: vf; margin: 0 0 18px; padding: 0; }
+                    .vf-tips li { counter-increment: vf; position: relative; padding: 0 0 14px 40px; font-size: .88rem; color: #475569; line-height: 1.5; }
+                    .vf-tips li b { display: block; color: #1e293b; font-size: .92rem; }
+                    .vf-tips li::before { content: counter(vf); position: absolute; left: 0; top: 0; width: 28px; height: 28px; border-radius: 50%; background: #dbeafe; color: #1e40af; font-weight: 700; font-size: .85rem; display: flex; align-items: center; justify-content: center; }
+                    .vf-tips .vf-note { background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 10px 12px; font-size: .82rem; color: #92400e; line-height: 1.5; margin-top: 6px; }
+                    .vf-tips .vf-label { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: #94a3b8; margin: 4px 0 8px; }
+                    @media (max-width: 900px) {
+    .vf-layout { grid-template-columns: 1fr; }
+    .vf-layout .containerr { position: static; }
+    .vf-tips { max-height: none; overflow: visible; }
+}
+                </style>
+
+                <div class="page-header">
+                    <h1 class="page-title">Guest Verification</h1>
+                </div>
+
+                <div class="vf-layout">
                 <div class="containerr">
-                    <h2>Guest Verification</h2>
+                    <h2>Verify a guest</h2>
                     <div id="qrScanner"></div>
                     <p>Enter details below:</p>
                     <div class="field-group">
@@ -267,11 +296,36 @@
                     </div>
                     <div class="field-group">
                         <label for="guestID">Guest ID</label>
-                        <input type="text" id="guestID" placeholder="Guest ID">
+                        <style>
+                            .field-group .id-wrap { display: flex; align-items: stretch; width: 100%; }
+                            .field-group .id-prefix { display: flex; align-items: center; padding: 0 14px; background: #eef2f7; border: 1px solid #ccc; border-right: 0; border-radius: 5px 0 0 5px; font-weight: 700; color: #1f3b57; letter-spacing: .5px; }
+                            .field-group .id-wrap input { flex: 1; width: auto; min-width: 0; border-radius: 0 5px 5px 0; }
+                        </style>
+                        <div class="id-wrap">
+                            <span class="id-prefix">GH-</span>
+                            <input type="text" id="guestID" inputmode="numeric" autocomplete="off" placeholder="12345">
+                        </div>
                     </div>
                     <button id="verifyBtn">Verify Guest</button>
                     <div id="statusBox"></div>
                     <button id="checkinBtn">Check In Guest</button>
+                </div>
+
+                <aside class="vf-tips">
+                    <h3><i class="fas fa-circle-info"></i> How verification works</h3>
+                    <ol>
+                        <li><b>Get the Guest ID and room</b>The guest has both in their booking e-mail and SMS. Coming from the Check-In page, they are filled in for you.</li>
+                        <li><b>Scan or type</b>If the guest shows a QR code, hold it to the camera and the fields fill in by themselves.</li>
+                        <li><b>Press Verify Guest</b>This confirms the ID and room match and marks the guest as verified.</li>
+                        <li><b>Press Check In Guest</b>The guest becomes <i>Checked In</i> and the room turns <i>Occupied</i>.</li>
+                    </ol>
+                    <div class="vf-label">Good to know</div>
+                    <div class="vf-note">
+                        Guest IDs look like <b>GH-12345</b>. <b>GH-</b> is already in the box, so type only the numbers. The room number must match the booking exactly.<br><br>
+                        “Already Verified” means this guest was verified earlier. You can still check them in.<br><br>
+                        The camera needs your permission, and works only on a secure page (https or localhost).
+                    </div>
+                </aside>
                 </div>
 
             </div>
@@ -304,6 +358,14 @@
             const checkinBtn = document.getElementById("checkinBtn");
             const verifyBtn = document.getElementById("verifyBtn");
 
+            // Guest ID: "GH-" is fixed in the page, so keep only the digits
+            // (strips gh / GH / Gh / gH, dashes, spaces, even a pasted "GH-12345").
+            function cleanId(v) { return String(v || "").replace(/\D/g, "").slice(0, 6); }
+            guestIDInput.addEventListener("input", () => {
+                const c = cleanId(guestIDInput.value);
+                if (guestIDInput.value !== c) guestIDInput.value = c;
+            });
+
             // =====================
             // CARD NOTIFICATION HELPER
             // =====================
@@ -326,7 +388,7 @@
             const id = params.get("id");
             const room = params.get("room");
 
-            if (id && guestIDInput) guestIDInput.value = id.toUpperCase();
+            if (id && guestIDInput) guestIDInput.value = cleanId(id);
             if (room && guestRoomInput) guestRoomInput.value = room;
 
             // =====================
@@ -344,7 +406,7 @@
                                 try {
                                     if (!qrMessage.includes("?")) return;
                                     const qrParams = new URLSearchParams(qrMessage.split("?")[1]);
-                                    guestIDInput.value = (qrParams.get("id") || "").toUpperCase();
+                                    guestIDInput.value = cleanId(qrParams.get("id"));
                                     guestRoomInput.value = qrParams.get("room") || "";
                                 } catch (err) {
                                     console.warn("Invalid QR format");
@@ -361,7 +423,8 @@
             if (verifyBtn) {
                 verifyBtn.addEventListener("click", async () => {
 
-                    const guestID = guestIDInput.value.trim().toUpperCase();
+                    const digits = cleanId(guestIDInput.value);
+                    const guestID = digits ? "GH-" + digits : "";
                     const guestRoom = guestRoomInput.value.trim();
 
                     if (!guestID || !guestRoom) {

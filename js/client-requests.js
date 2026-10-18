@@ -79,7 +79,7 @@
         ['Status', function (r) { return r.status; }], ['Comment', function (r) { return r.comment; }]]
     }
   };
-  Object.keys(TABS).forEach(function (k) { ts[k] = { q: '', status: 'open', page: 1 }; });
+  Object.keys(TABS).forEach(function (k) { ts[k] = { q: '', status: 'all', page: 1 }; });
 
   /* ---------- shell ---------- */
   function build() {
@@ -145,7 +145,7 @@
     var from = (s.page - 1) * PAGE, slice = list.slice(from, from + PAGE);
 
     $('cr-q').value = s.q;
-    $('cr-status').innerHTML = '<option value="open">Needs attention</option><option value="all">All statuses</option>' +
+    $('cr-status').innerHTML = '<option value="all">All statuses</option><option value="open">Needs attention</option>' +
       T.statuses.map(function (x) { return '<option value="' + x + '">' + esc(x.replace('_', ' ')) + '</option>'; }).join('');
     $('cr-status').value = s.status;
     $('cr-head').innerHTML = '<tr>' + T.cols.map(function (c) { return '<th>' + esc(c[0]) + '</th>'; }).join('') + '</tr>';

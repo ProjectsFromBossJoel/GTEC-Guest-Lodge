@@ -16,9 +16,9 @@
   function run() {
     var box = document.getElementById('guest-reviews');
     if (!box || typeof firebase === 'undefined' || !firebase.apps.length) return;
-    firebase.firestore().collection('publicReviews').orderBy('publishedAt', 'desc').limit(MAX).get().then(function (qs) {
+    firebase.firestore().collection('publicReviews').orderBy('publishedAt', 'desc').limit(MAX).onSnapshot(function (qs) {
       var items = []; qs.forEach(function (d) { var x = d.data(); if (x.text && x.rating) items.push(x); });
-      if (!items.length) return;                                    // nothing published yet → section stays hidden
+      if (!items.length) { box.hidden = true; box.innerHTML = ''; return; }                                    // nothing published yet → section stays hidden
       var avg = items.reduce(function (a, r) { return a + r.rating; }, 0) / items.length;
       ensureCss();
       box.innerHTML = '<h2>What our guests say</h2><p class="sum">' + stars(Math.round(avg)) + ' <b>' + avg.toFixed(1) + '</b> from ' + items.length + ' recent review' + (items.length > 1 ? 's' : '') + '</p>' +
@@ -27,7 +27,7 @@
           return '<blockquote>' + stars(r.rating) + '<p>“' + esc(r.text) + '”</p><cite>' + esc(r.name || 'Guest') + '</cite>' + (dt ? '<small>' + esc(dt) + '</small>' : '') + '</blockquote>';
         }).join('') + '</div>';
       box.hidden = false;
-    }).catch(function () { /* reviews are optional; never break the page */ });
+    }, function () { /* reviews are optional; never break the page */ });
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run); else run();
 })();
