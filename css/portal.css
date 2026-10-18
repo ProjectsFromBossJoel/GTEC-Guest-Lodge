@@ -353,3 +353,15 @@ body.pt-body { margin: 0; background: var(--pt-bg); color: var(--pt-ink); font: 
 .pt-msg .pt-msg-who { font-size: .72rem; opacity: .7; margin-bottom: .15rem; }
 .pt-msg.them { align-self: flex-start; background: #e6f2ef; color: #1a1a1a; border-bottom-left-radius: 4px; }
 .pt-msg.me { align-self: flex-end; background: #0b4a45; color: #fff; border-bottom-right-radius: 4px; }
+
+.pt-wa { border: 1px solid #d9dfe3; border-radius: 12px; overflow: hidden; margin: .8rem 0 1rem; background: #efeae2; }
+.pt-wa-head { background: #0b4a45; color: #fff; padding: .65rem .9rem; font-weight: 600; }
+.pt-wa-body { height: 280px; overflow-y: auto; padding: .8rem; background: #efeae2; }
+.pt-modal .pt-wa-body .pt-chat { max-height: none; overflow: visible; margin: 0; }
+.pt-wa .pt-msg { box-shadow: 0 1px 1px rgba(0,0,0,.12); }
+.pt-wa .pt-msg.me { background: #d9fdd3; color: #111; }
+.pt-wa .pt-msg.them { background: #fff; color: #111; }
+.pt-wa .pt-msg .pt-msg-who { opacity: .6; }
+.pt-wa-compose { display: flex; gap: .5rem; align-items: flex-end; padding: .6rem; background: #f0f2f5; }
+.pt-wa-compose textarea { flex: 1; border: 1px solid #d9dfe3; border-radius: 20px; padding: .6rem .95rem; resize: none; min-height: 42px; max-height: 110px; font: inherit; background: #fff; }
+.pt-wa-send { flex: none; width: 42px; height: 42px; border-radius: 50%; border: 0; background: #0b4a45; color: #fff; font-size: 1.1rem; cursor: pointer; }

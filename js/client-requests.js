@@ -56,10 +56,20 @@ var openRef = null;                               // request currently open in t
   }
   function guestBlockInner(r, k) {
     var list = chatMsgs(r, chatField(k));
+    return list.length ? chatHtml(list) : '<div class="pt-muted pt-small" style="text-align:center;padding:2rem 0">No messages yet.</div>';
+  }
+  function guestBlockInnerV1(r, k) {
+    var list = chatMsgs(r, chatField(k));
     return '<div class="pt-label" style="display:flex;align-items:center;gap:.6rem">Conversation<button class="pt-btn pt-btn-sm" id="cr-m-replybtn" type="button" style="margin-left:auto">Reply</button></div>' +
       (list.length ? chatHtml(list) : '<div class="pt-muted pt-small" style="margin-bottom:.8rem">No messages yet.</div>');
   }
   function guestReplyBlock(r) {
+    return '<div class="pt-wa"><div class="pt-wa-head">Conversation with ' + esc(r.name || 'guest') + '</div>' +
+      '<div id="cr-m-guest" class="pt-wa-body">' + guestBlockInner(r, tab) + '</div>' +
+      '<div class="pt-wa-compose"><textarea id="cr-m-compose-text" rows="1" placeholder="Type a message" maxlength="' + (tab === 'faults' ? 500 : 300) + '"></textarea>' +
+      '<button class="pt-wa-send" id="cr-m-compose-send" type="button" aria-label="Send">➤</button></div></div>';
+  }
+  function guestReplyBlockV1(r) {
     return '<div id="cr-m-guest">' + guestBlockInner(r, tab) + '</div>' +
       '<div id="cr-m-compose" class="pt-hide"><div class="pt-field"><label for="cr-m-compose-text">Your message to the guest</label><textarea class="pt-textarea" id="cr-m-compose-text" style="min-height:80px" maxlength="' + (tab === 'faults' ? 500 : 300) + '"></textarea></div>' +
       '<div style="display:flex;gap:.5rem;justify-content:flex-end;margin-bottom:1rem"><button class="pt-btn pt-btn-ghost pt-btn-sm" id="cr-m-compose-cancel" type="button">Cancel</button><button class="pt-btn pt-btn-sm" id="cr-m-compose-send" type="button">Send</button></div></div>';
@@ -264,7 +274,7 @@ var openRef = null;                               // request currently open in t
     if (g) {
       var list = chatMsgs(r, chatField(k)), last = list[list.length - 1];
       g.innerHTML = guestBlockInner(r, k);
-      var c = g.querySelector('.pt-chat'); if (c) c.scrollTop = c.scrollHeight;
+      g.scrollTop = g.scrollHeight;
       if (list.length > openRef.n && last && last.from === 'guest') P.toast('The guest just replied.', 'ok');
       openRef.n = list.length;
     }
@@ -287,7 +297,8 @@ var openRef = null;                               // request currently open in t
     var k = tab, f = chatField(k);
     var r0 = data[k].filter(function (x) { return x.id === id; })[0] || {};
     openRef = { tab: k, id: id, n: chatMsgs(r0, f).length };
-    var c0 = $('cr-m-guest') && $('cr-m-guest').querySelector('.pt-chat'); if (c0) c0.scrollTop = c0.scrollHeight;
+    var c0 = $('cr-m-guest'); if (c0) c0.scrollTop = c0.scrollHeight;
+    mm.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKey && e.target.id === 'cr-m-compose-text') { e.preventDefault(); var sb = $('cr-m-compose-send'); if (sb) sb.click(); } });
     mm.addEventListener('click', function (e) {
       var b = e.target.closest('button'); if (!b) return;
       if (b.id === 'cr-m-replybtn') { $('cr-m-compose').classList.remove('pt-hide'); $('cr-m-compose-text').focus(); }
@@ -301,7 +312,7 @@ var openRef = null;                               // request currently open in t
         upd[f] = text;
         P.busy(b, function () { return P.db.collection(TABS[k].coll).doc(id).update(upd); }).then(function () {
           var note = $('cr-m-reply'); if (note) note.value = text;
-          ta.value = ''; $('cr-m-compose').classList.add('pt-hide');
+          ta.value = '';
           P.toast('Message sent to the guest.', 'ok');
         }).catch(function (err) {
           P.toast(err && err.code === 'permission-denied' ? 'Permission denied. Check your Firestore rules.' : 'Couldn’t send. Try again.', 'err');
@@ -316,6 +327,7 @@ var openRef = null;                               // request currently open in t
     if (!mm || tab === 'feedback') return;
     var k = tab;
     openRef = { tab: k, id: id };
+    mm.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKey && e.target.id === 'cr-m-compose-text') { e.preventDefault(); var sb = $('cr-m-compose-send'); if (sb) sb.click(); } });
     mm.addEventListener('click', function (e) {
       var b = e.target.closest('button'); if (!b) return;
       if (b.id === 'cr-m-replybtn') { $('cr-m-compose').classList.remove('pt-hide'); $('cr-m-compose-text').focus(); }
@@ -328,7 +340,7 @@ var openRef = null;                               // request currently open in t
         upd[k === 'faults' ? 'adminResponse' : 'adminNote'] = text;
         P.busy(b, function () { return P.db.collection(TABS[k].coll).doc(id).update(upd); }).then(function () {
           var note = $('cr-m-reply'); if (note) note.value = text;
-          ta.value = ''; $('cr-m-compose').classList.add('pt-hide');
+          ta.value = '';
           P.toast('Reply sent to the guest.', 'ok');
         }).catch(function (err) {
           P.toast(err && err.code === 'permission-denied' ? 'Permission denied. Check your Firestore rules.' : 'Couldn’t send. Try again.', 'err');
