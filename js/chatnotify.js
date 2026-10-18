@@ -664,6 +664,113 @@ db.collection('liveChats')
         }, 100);
     }
 
+    // ══════════════════════════════════════════════════════════
+    //  WEATHER CHIP (Accra): top bar of every admin page
+    //  Skipped on Check-In, which already has its own full weather card.
+    // ══════════════════════════════════════════════════════════
+    (function weatherChip() {
+        const GW_URL = 'https://api.open-meteo.com/v1/forecast?latitude=5.6037&longitude=-0.1870' +
+            '&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m' +
+            '&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max' +
+            '&timezone=Africa%2FAccra&forecast_days=1';
+        const GW_KEY = 'gw-weather-cache';
+        const GW_TTL = 15 * 60 * 1000;            // refresh every 15 minutes
+
+        function wx(code) {
+            if (code === 0) return { text: 'Clear sky',     icon: 'fa-sun',                 color: '#f59e0b' };
+            if (code === 1) return { text: 'Mostly clear',  icon: 'fa-sun',                 color: '#f59e0b' };
+            if (code === 2) return { text: 'Partly cloudy', icon: 'fa-cloud-sun',           color: '#f59e0b' };
+            if (code === 3) return { text: 'Overcast',      icon: 'fa-cloud',               color: '#64748b' };
+            if (code === 45 || code === 48) return { text: 'Foggy',        icon: 'fa-smog',                color: '#64748b' };
+            if (code >= 51 && code <= 57)   return { text: 'Drizzle',      icon: 'fa-cloud-rain',          color: '#3b82f6' };
+            if (code >= 61 && code <= 67)   return { text: 'Rain',         icon: 'fa-cloud-showers-heavy', color: '#3b82f6' };
+            if (code >= 71 && code <= 77)   return { text: 'Snow',         icon: 'fa-snowflake',           color: '#0ea5e9' };
+            if (code >= 80 && code <= 82)   return { text: 'Rain showers', icon: 'fa-cloud-showers-heavy', color: '#3b82f6' };
+            if (code === 85 || code === 86) return { text: 'Snow showers', icon: 'fa-snowflake',           color: '#0ea5e9' };
+            if (code >= 95)                 return { text: 'Thunderstorm', icon: 'fa-bolt',                color: '#7c3aed' };
+            return { text: 'Weather', icon: 'fa-cloud', color: '#64748b' };
+        }
+
+        function render(els, d) {
+            const c = d.current, day = d.daily || {}, info = wx(c.weather_code);
+            const hi   = day.temperature_2m_max ? Math.round(day.temperature_2m_max[0]) : '\u2014';
+            const lo   = day.temperature_2m_min ? Math.round(day.temperature_2m_min[0]) : '\u2014';
+            const rain = day.precipitation_probability_max ? day.precipitation_probability_max[0] : null;
+            els.icon.innerHTML   = '<i class="fas ' + info.icon + '"></i>';
+            els.icon.style.color = info.color;
+            els.temp.textContent = Math.round(c.temperature_2m) + '\u00B0C';
+            els.desc.textContent = info.text;
+            els.meta.textContent = 'Feels ' + Math.round(c.apparent_temperature) + '\u00B0 \u00B7 H ' + hi + '\u00B0 \u00B7 L ' + lo + '\u00B0' +
+                                   (rain !== null ? ' \u00B7 Rain ' + rain + '%' : '');
+            els.root.title = 'Humidity ' + Math.round(c.relative_humidity_2m) + '% \u00B7 Wind ' + Math.round(c.wind_speed_10m) + ' km/h';
+        }
+
+        function load(els, force) {
+            try {                                            // reuse the last reading while navigating between pages
+                const cached = JSON.parse(sessionStorage.getItem(GW_KEY));
+                if (!force && cached && Date.now() - cached.t < GW_TTL) { render(els, cached.d); return; }
+            } catch (e) {}
+            fetch(GW_URL)
+                .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+                .then(d => {
+                    try { sessionStorage.setItem(GW_KEY, JSON.stringify({ t: Date.now(), d: d })); } catch (e) {}
+                    render(els, d);
+                })
+                .catch(err => {
+                    console.warn('chatnotify: weather unavailable', err);
+                    els.icon.innerHTML   = '<i class="fas fa-cloud"></i>';
+                    els.icon.style.color = '#94a3b8';
+                    els.temp.textContent = '\u2014';
+                    els.desc.textContent = 'Weather unavailable';
+                    els.meta.textContent = '';
+                });
+        }
+
+        function build() {
+            if (document.getElementById('ci-weather') || document.getElementById('gw-chip')) return;
+            const bar = document.querySelector('.header .header-right');
+            if (!bar) return;
+
+            const css = document.createElement('style');
+            css.textContent = `
+                .gw-chip { display:flex; align-items:center; gap:10px; padding:6px 12px; margin-right:6px; border-radius:12px;
+                           background:linear-gradient(135deg,#eff6ff,#e0f2fe); border:1px solid #bfdbfe; }
+                .gw-icon { width:34px; height:34px; border-radius:10px; flex-shrink:0; background:#fff;
+                           box-shadow:0 1px 4px rgba(0,0,0,.06); display:flex; align-items:center; justify-content:center;
+                           font-size:16px; color:#f59e0b; }
+                .gw-body { min-width:0; }
+                .gw-top  { display:flex; align-items:baseline; gap:6px; }
+                .gw-temp { font-size:18px; font-weight:800; color:#1f3b57; line-height:1; }
+                .gw-desc { font-size:11px; font-weight:600; color:#475569; white-space:nowrap; }
+                .gw-meta { font-size:10px; color:#64748b; margin-top:3px; white-space:nowrap; }
+                .gw-loc  { align-self:flex-start; font-size:9px; font-weight:700; color:#3b82f6; text-transform:uppercase; letter-spacing:.06em; }
+                @media (max-width:1100px) { .gw-meta, .gw-loc { display:none; } }
+                @media (max-width:700px)  { .gw-chip { display:none; } }`;
+            document.head.appendChild(css);
+
+            const chip = document.createElement('div');
+            chip.id = 'gw-chip';
+            chip.className = 'gw-chip';
+            chip.setAttribute('aria-label', 'Weather in Accra');
+            chip.innerHTML =
+                '<div class="gw-icon" id="gw-icon"><i class="fas fa-cloud-sun"></i></div>' +
+                '<div class="gw-body"><div class="gw-top"><span class="gw-temp" id="gw-temp">\u2014</span>' +
+                '<span class="gw-desc" id="gw-desc">Loading\u2026</span></div><div class="gw-meta" id="gw-meta"></div></div>' +
+                '<div class="gw-loc">Accra</div>';
+            bar.insertBefore(chip, bar.firstChild);
+
+            const els = {
+                root: chip, icon: document.getElementById('gw-icon'), temp: document.getElementById('gw-temp'),
+                desc: document.getElementById('gw-desc'), meta: document.getElementById('gw-meta')
+            };
+            load(els, false);
+            setInterval(function () { load(els, true); }, GW_TTL);
+        }
+
+        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', build);
+        else build();
+    })();
+
     function waitForFirebase() {
         if (typeof firebase === 'undefined' || typeof db === 'undefined') {
             setTimeout(waitForFirebase, 150);

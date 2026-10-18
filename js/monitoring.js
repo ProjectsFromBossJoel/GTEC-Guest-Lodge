@@ -23,7 +23,7 @@
     });
   };
 
-  var state = { range: '24h', rows: [], live: false };
+  var state = { range: '30d', rows: [], live: false };
   var ctx = { email: new Map(), sms: new Map() };
   var flagged = new Set();
   var tstate = {};
@@ -692,6 +692,7 @@
     buildTables();
     buildModal();
 
+    $('mon-range').value = state.range;
     $('mon-range').addEventListener('change', function (e) {
       state.range = e.target.value;
       Object.keys(tstate).forEach(function (k) { tstate[k].page = 1; });
