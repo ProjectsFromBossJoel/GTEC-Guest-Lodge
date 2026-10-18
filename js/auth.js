@@ -5,10 +5,10 @@
 
 const BLOCKED_PAGES = {
     superadmin:   [],
-    manager:      ['roles.html', 'monitoring.html'],
+    manager:      ['roles.html', 'monitoring.html', 'client-requests.html'],
     admin:        ['roles.html'],
-    receptionist: ['roles.html', 'logs.html', 'monitoring.html'],
-    observer:     ['roles.html', 'verification.html', 'logs.html', 'chat.html', 'reports.html', 'payments.html', 'invoice.html', 'filelibrary.html', 'chatroom.html', 'monitoring.html'],
+    receptionist: ['roles.html', 'logs.html', 'monitoring.html', 'client-requests.html'],
+    observer:     ['roles.html', 'verification.html', 'logs.html', 'chat.html', 'reports.html', 'payments.html', 'invoice.html', 'filelibrary.html', 'chatroom.html', 'monitoring.html', 'client-requests.html'],
 };
 
 // Roles with write restrictions (buttons will be disabled with tooltip)
@@ -20,7 +20,7 @@ window._userPageAccess = null;   // array of page keys, or null = use role defau
 
 // Page keys = html file name without ".html" (must match PAGE_LIST in roles.js)
 const _PAGE_KEYS = ['dashboard','rooms','checkin','checkout','guests','chatroom','logs','chat',
-                    'verification','invoice','payments','calendar','filelibrary','reports','monitoring','profile','roles'];
+                    'verification','invoice','payments','calendar','filelibrary','reports','monitoring','profile','roles','client-requests'];
 
 function _firstAllowedPage(access) {
     const first = (access || []).find(k => k !== 'roles' && _PAGE_KEYS.includes(k));

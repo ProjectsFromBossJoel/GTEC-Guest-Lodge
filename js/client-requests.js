@@ -4,13 +4,16 @@
   'use strict';
   var P = window.Portal, $ = P.$, esc = P.esc;
 
-  var ALLOWED_ROLES = ['superadmin', 'admin'];     // who may use this page (must match your Firestore rules)
+  var ALLOWED_ROLES = ['superadmin', 'admin', 'manager', 'receptionist', 'observer'];   // real gate = Page Access (auth.js)     // who may use this page (must match your Firestore rules)
   var PAGE = 10;                                    // rows per page
   var MAX_DOCS = 300;                               // newest N documents per list
 
   var FV = function () { return firebase.firestore.FieldValue; };
   var data = { faults: [], laundry: [], feedback: [] };
-  var tab = 'faults';
+  var tab = (function () {                          // popup click can ask for a specific tab
+    var t = null; try { t = sessionStorage.getItem('cr_open_tab'); sessionStorage.removeItem('cr_open_tab'); } catch (e) {}
+    return ['faults', 'laundry', 'feedback'].indexOf(t) !== -1 ? t : 'faults';
+  })();
 var openRef = null;                               // request currently open in the modal
   var ts = {};                                      // per-tab UI state
 

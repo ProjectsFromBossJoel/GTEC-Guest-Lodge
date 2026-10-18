@@ -516,13 +516,161 @@ db.collection('liveChats')
 
     // ── Bootstrap after Firebase is ready ────────────────────
     // Poll until firebase.auth and db are available (loaded async)
+    // ══════════════════════════════════════════════════════════
+    //  CLIENT REQUESTS: fault reports, laundry, feedback (+ guest replies)
+    //  Pop-up on every admin page + red badge on the "Client Requests" menu item
+    // ══════════════════════════════════════════════════════════
+    const REQ_ROLES = ['superadmin', 'admin'];     // keep in sync with ALLOWED_ROLES in client-requests.js
+    const REQ_KEY   = 'cr-notify-requests';       // localStorage: last-seen timestamps
+    const REQ_SOURCES = {
+        faults:   { coll: 'faultReports',    label: 'Fault Report',    icon: 'fa-screwdriver-wrench', bg: 'linear-gradient(135deg,#b91c1c,#f97316)', fresh: ['new'] },
+        laundry:  { coll: 'laundryRequests', label: 'Laundry Request', icon: 'fa-shirt',              bg: 'linear-gradient(135deg,#0e7490,#22d3ee)', fresh: ['requested'] },
+        feedback: { coll: 'feedback',        label: 'Feedback',        icon: 'fa-star',               bg: 'linear-gradient(135deg,#b45309,#f59e0b)', fresh: ['draft'] }
+    };
+    const reqCounts = { faults: 0, laundry: 0, feedback: 0 };
+    let reqStarted = false;
+
+    function reqSeen() { try { return JSON.parse(localStorage.getItem(REQ_KEY)) || {}; } catch (e) { return {}; } }
+    function reqSetSeen(k, millis) { const d = reqSeen(); d[k] = millis; localStorage.setItem(REQ_KEY, JSON.stringify(d)); }
+    function tsMs(ts) { return ts && ts.toMillis ? ts.toMillis() : 0; }
+    function reqAllowed() {                              // same rule as auth.js / Page Access
+        const role = window._userRole;
+        if (!role) return false;
+        if (role === 'superadmin') return true;
+        const access = window._userPageAccess;
+        if (Array.isArray(access)) return access.indexOf('client-requests') !== -1;
+        return REQ_ROLES.indexOf(role) !== -1;           // no saved Page Access: role defaults
+    }
+    function onRequestsPage() { return window.location.pathname.endsWith('client-requests.html'); }
+
+    function hasNewGuestReply(d) {      // same rule as client-requests.js
+        const g = tsMs(d.guestReplyAt), u = tsMs(d.updatedAt);
+        return !!(d.guestReply && g && (!u || g >= u));
+    }
+
+    function reqSummary(kind, d) {
+        if (kind === 'faults') return [d.category, d.description].filter(Boolean).join(' – ');
+        if (kind === 'laundry') {
+            const n = (d.items || []).reduce((a, i) => a + (Number(i.qty) || 0), 0);
+            return n + ' piece' + (n === 1 ? '' : 's') + (d.service ? ' · ' + d.service : '');
+        }
+        return (d.rating ? '★'.repeat(d.rating) + ' ' : '') + (d.comment || '(no comment)');
+    }
+
+    function showRequestNotification(kind, d, isReply) {
+        const S = REQ_SOURCES[kind];
+        const existing = stack.querySelectorAll('.cr-notif-card');
+        if (existing.length >= MAX_STACK) dismissCard(existing[existing.length - 1], true);
+
+        const card = document.createElement('div');
+        card.className = 'cr-notif-card';
+        card.id = 'notif-' + (++_notifCount);
+        card.style.borderLeftColor = '#b91c1c';
+
+        const tag  = isReply ? 'Guest replied' : (kind === 'faults' && d.urgency === 'Urgent' ? 'New · URGENT' : 'New');
+        const text = isReply ? d.guestReply : reqSummary(kind, d);
+        const where = d.room ? ' · ' + d.room : '';
+
+        card.innerHTML = `
+            <div class="cr-notif-avatar" style="background:${S.bg}"><i class="fas ${S.icon}"></i></div>
+            <div class="cr-notif-body">
+                <div class="cr-notif-header">
+                    <span class="cr-notif-app">${S.label}</span>
+                    <span class="cr-notif-channel">· ${tag}</span>
+                </div>
+                <div class="cr-notif-name">${escHtml(d.name || 'Guest')}${escHtml(where)}</div>
+                <div class="cr-notif-text">${escHtml(text)}</div>
+                <div class="cr-notif-time">${fmtTime(isReply ? d.guestReplyAt : d.createdAt)}</div>
+                <span class="cr-notif-reply"><i class="fas fa-concierge-bell" style="font-size:10px;"></i> View request</span>
+            </div>
+            <button class="cr-notif-close" title="Dismiss">✕</button>`;
+
+        card.addEventListener('click', (e) => {
+            if (e.target.closest('.cr-notif-close')) return;
+            dismissCard(card, false);
+            try { sessionStorage.setItem('cr_open_tab', kind); } catch (err) {}
+            window.location.href = 'client-requests.html';
+        });
+        card.querySelector('.cr-notif-close').addEventListener('click', (e) => { e.stopPropagation(); dismissCard(card, false); });
+
+        stack.prepend(card);
+        requestAnimationFrame(() => requestAnimationFrame(() => card.classList.add('show')));
+        card._dismissTimer = setTimeout(() => dismissCard(card, false), 8000);
+    }
+
+    function updateReqBadge() {
+        const link = document.querySelector('a.menu-item[href="client-requests.html"]');
+        if (!link) return;
+        let b = document.getElementById('nav-requests-count');
+        if (!b) {
+            b = document.createElement('span');
+            b.className = 'nav-badge';
+            b.id = 'nav-requests-count';
+            b.style.display = 'none';
+            link.appendChild(b);
+        }
+        const n = reqAllowed() ? reqCounts.faults + reqCounts.laundry + reqCounts.feedback : 0;
+        b.textContent = n > 99 ? '99+' : (n || '');
+        b.style.display = n ? 'inline-flex' : 'none';
+    }
+
+    function attachRequestListeners() {
+        const saved = reqSeen(), seed = Date.now();
+        Object.keys(REQ_SOURCES).forEach(function (kind) {
+            const S = REQ_SOURCES[kind];
+            // first run: start from "now" so old requests don't flood the screen
+            if (!saved[kind])            reqSetSeen(kind, seed);
+            if (!saved[kind + 'Reply'])  reqSetSeen(kind + 'Reply', seed);
+
+            db.collection(S.coll).orderBy('createdAt', 'desc').limit(100).onSnapshot(function (snap) {
+                const docs = [], news = [], replies = [];
+                const seenNew = reqSeen()[kind] || 0, seenReply = reqSeen()[kind + 'Reply'] || 0;
+
+                snap.forEach(function (x) { docs.push(x.data()); });
+                snap.docChanges().forEach(function (c) {
+                    if (c.type === 'removed') return;
+                    const d = c.doc.data(), created = tsMs(d.createdAt), replied = tsMs(d.guestReplyAt);
+                    if (c.type === 'added' && created > seenNew) news.push({ d: d, t: created });
+                    if (replied > seenReply) replies.push({ d: d, t: replied });
+                });
+                news.sort((a, b) => a.t - b.t);
+                replies.sort((a, b) => a.t - b.t);
+
+                // sidebar badge: items still waiting for staff
+                reqCounts[kind] = docs.filter(d => S.fresh.indexOf(d.status) !== -1 || hasNewGuestReply(d)).length;
+                updateReqBadge();
+
+                if (!reqAllowed()) return;
+                if (news.length)    reqSetSeen(kind, news[news.length - 1].t);
+                if (replies.length) reqSetSeen(kind + 'Reply', replies[replies.length - 1].t);
+                if (onRequestsPage()) return;          // already on the page, it updates live
+
+                news.slice(-3).forEach(n => showRequestNotification(kind, n.d, false));       // max 3 at once
+                replies.slice(-3).forEach(r => showRequestNotification(kind, r.d, true));
+            }, function (err) {
+                console.warn('chatnotify: ' + S.coll + ' listener error', err.code || err);
+            });
+        });
+    }
+
+    function startRequestListeners() {
+        if (reqStarted) return;
+        reqStarted = true;
+        let tries = 0;
+        const t = setInterval(function () {               // wait until auth.js has resolved the role
+            tries++;
+            if (window._userRole && reqAllowed()) { clearInterval(t); attachRequestListeners(); }
+            else if (tries > 100 && !window._userRole) clearInterval(t);
+        }, 100);
+    }
+
     function waitForFirebase() {
         if (typeof firebase === 'undefined' || typeof db === 'undefined') {
             setTimeout(waitForFirebase, 150);
             return;
         }
         firebase.auth().onAuthStateChanged(user => {
-            if (user) startListeners(user.uid);
+            if (user) { startListeners(user.uid); startRequestListeners(); }
         });
     }
 

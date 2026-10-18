@@ -517,6 +517,7 @@ const PAGE_LIST = [
     { key: 'chatroom',     label: 'Chat Room',       icon: 'fa-comments' },
     { key: 'logs',         label: 'Logs',            icon: 'fa-clipboard-list' },
     { key: 'chat',         label: 'Client Messages', icon: 'fa-comment' },
+    { key: 'client-requests', label: 'Client Requests', icon: 'fa-concierge-bell' },
     { key: 'verification', label: 'Verification',    icon: 'fa-user-check' },
     { key: 'invoice',      label: 'Invoice',         icon: 'fa-file-invoice' },
     { key: 'payments',     label: 'Payments',        icon: 'fa-credit-card' },
@@ -535,9 +536,9 @@ const _without = (...omit) => _ALL_PAGES.filter(k => !omit.includes(k));
 const ROLE_PAGE_DEFAULTS = {
     superadmin:   _ALL_PAGES,
     admin:        _without('roles'),
-    manager:      _without('roles', 'monitoring'),
-    receptionist: _without('roles', 'logs', 'monitoring'),
-    observer:     _without('roles', 'verification', 'logs', 'chat', 'reports', 'payments', 'filelibrary', 'chatroom', 'invoice', 'monitoring'),
+    manager:      _without('roles', 'monitoring', 'client-requests'),
+    receptionist: _without('roles', 'logs', 'monitoring', 'client-requests'),
+    observer:     _without('roles', 'verification', 'logs', 'chat', 'reports', 'payments', 'filelibrary', 'chatroom', 'invoice', 'monitoring', 'client-requests'),
 };
 
 function renderPageAccessGrid() {
