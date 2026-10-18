@@ -308,3 +308,38 @@ body.pt-body { margin: 0; background: var(--pt-bg); color: var(--pt-ink); font: 
   #pt-who { display: none; }
   .pt-stars button { min-width: 28px; }
 }
+
+/* ═════════ SIGN-IN / SIGN-UP HERO ═════════ */
+.pt-auth-brand { position: relative; isolation: isolate; overflow: hidden; background: var(--pt-brand-dark); }
+.pt-auth-brand::before {
+  content: ""; position: absolute; inset: -4%; z-index: -1;
+  background:
+    radial-gradient(circle at 88% 12%, rgba(243, 201, 122, .28), transparent 42%),   /* gold glow */
+    linear-gradient(180deg, rgba(10, 67, 65, .45) 0%, rgba(10, 67, 65, .92) 100%),    /* keeps text readable */
+    url("../img/lodge-hero.jpg") center / cover no-repeat;                              /* your photo */
+  animation: pt-hero-pan 22s ease-in-out infinite alternate;
+}
+@keyframes pt-hero-pan { from { transform: scale(1); } to { transform: scale(1.08) translate(-1.5%, -1%); } }
+
+.pt-auth-brand h1 { text-shadow: 0 2px 14px rgba(0, 0, 0, .35); }
+.pt-auth-brand h1::after {
+  content: "Accra, Ghana"; display: block; margin-top: .55rem;
+  font: 600 .78rem var(--pt-sans); letter-spacing: .18em; text-transform: uppercase;
+  color: #f3c97a; text-shadow: none;
+}
+
+@media (max-width: 899px) {
+  .pt-auth-brand {
+    min-height: 240px; justify-content: flex-end;
+    padding: 1.4rem 1.25rem 2.2rem;
+    border-radius: 0 0 28px 28px;
+    box-shadow: 0 10px 30px rgba(10, 67, 65, .25);
+  }
+  .pt-auth-brand h1 { font-size: 2rem; }
+  .pt-auth-main { padding-top: 1.6rem; }
+}
+
+.pt-checks { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: .5rem; }
+.pt-checks .pt-check { display: flex; align-items: center; gap: .6rem; padding: .65rem .85rem; border: 1px solid #d9dfe3; border-radius: 10px; cursor: pointer; background: #fff; }
+.pt-checks .pt-check input { width: 1.1rem; height: 1.1rem; flex: none; }
+.pt-checks .pt-check:has(input:checked) { background: #e6f2ef; border-color: #0b4a45; }

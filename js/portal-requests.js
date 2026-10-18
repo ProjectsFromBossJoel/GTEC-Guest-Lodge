@@ -35,8 +35,8 @@
         '<div class="pt-card"><h2>New report</h2><form id="f-form" novalidate>' +
         '<div class="pt-row cols-2"><div class="pt-field"><label for="f-stay">Booking</label><select class="pt-select" id="f-stay">' + stayOptions(ctx) + '</select></div>' +
         '<div class="pt-field"><label for="f-room">Room / location</label><input class="pt-input" id="f-room" maxlength="60" placeholder="e.g. Room 4, corridor, lounge"><div class="pt-err" id="f-room-err"></div></div></div>' +
-        '<div class="pt-row cols-2"><div class="pt-field"><label for="f-cat">What is it about?</label><select class="pt-select" id="f-cat">' + C.categories.map(function (c) { return '<option>' + esc(c) + '</option>'; }).join('') + '</select></div>' +
-        '<div class="pt-field"><label for="f-urg">How urgent?</label><select class="pt-select" id="f-urg">' + C.urgencies.map(function (c) { return '<option' + (c === 'Normal' ? ' selected' : '') + '>' + esc(c) + '</option>'; }).join('') + '</select><div class="pt-hint">Choose Urgent only for safety problems or no water/power.</div></div></div>' +
+        '<div class="pt-field"><span class="pt-label">What is it about? (tick all that apply)</span><div class="pt-checks">' + C.categories.map(function (c) { return '<label class="pt-check"><input type="checkbox" name="f-cat" value="' + esc(c) + '"> <span>' + esc(c) + '</span></label>'; }).join('') + '</div><div class="pt-err" id="f-cat-err"></div></div>' +
+        '<div class="pt-field"><label for="f-urg">How urgent?</label><select class="pt-select" id="f-urg">' + C.urgencies.map(function (c) { return '<option' + (c === 'Normal' ? ' selected' : '') + '>' + esc(c) + '</option>'; }).join('') + '</select><div class="pt-hint">Choose Urgent only for safety problems or no water/power.</div></div>' +
         '<div class="pt-field"><label for="f-desc">Describe the problem</label><textarea class="pt-textarea" id="f-desc" maxlength="1000" placeholder="What happened, and when did you notice it?"></textarea><div class="pt-hint"><span id="f-count">0</span>/1000</div><div class="pt-err" id="f-desc-err"></div></div>' +
         phoneField(ctx) +
         '<button class="pt-btn" id="f-submit" type="submit">Send report</button></form></div>' +
@@ -54,6 +54,8 @@
         var ok = setErr('f-room-err', r ? '' : 'Tell us where the problem is.');
         ok = setErr('f-desc-err', d.length >= 10 ? '' : 'Please describe the problem (at least 10 characters).') && ok;
         ok = setErr('f-phone-err', ph ? '' : 'Enter a valid phone number.') && ok;
+        var cats = Array.prototype.map.call(root.querySelectorAll('input[name="f-cat"]:checked'), function (x) { return x.value; });
+        ok = setErr('f-cat-err', cats.length ? '' : 'Choose at least one category.') && ok;
         if (!ok) return;
         var wait = P.cooldown('fault', 20); if (wait) return P.toast('Please wait ' + wait + 's before sending another report.', 'err');
         var s = stayById(ctx, stay.value), w = who(ctx);
@@ -61,7 +63,7 @@
           return P.db.collection('faultReports').add({
             uid: ctx.user.uid, name: w.name, email: w.email, phone: ph,
             bookingRef: s ? s.ref : '', room: r.slice(0, 60),
-            category: root.querySelector('#f-cat').value, urgency: root.querySelector('#f-urg').value,
+            category: cats.join(', ').slice(0, 200), urgency: root.querySelector('#f-urg').value,
             description: d, status: 'new', createdAt: FV().serverTimestamp()
           }).then(function () { return ctx.reload('faults'); }).then(function () {
             P.toast('Report sent. We’ll update the status here.', 'ok'); P.rerender();
@@ -93,8 +95,8 @@
         C.items.map(function (it, i) {
           return '<div class="pt-rate-row"><span>' + esc(it) + '</span><span class="pt-qty"><button type="button" data-q="' + i + '" data-d="-1" aria-label="Less ' + esc(it) + '">–</button><output id="q' + i + '">0</output><button type="button" data-q="' + i + '" data-d="1" aria-label="More ' + esc(it) + '">+</button></span></div>';
         }).join('') + '<div class="pt-err" id="l-items-err"></div></div>' +
-        '<div class="pt-row cols-2"><div class="pt-field"><label for="l-svc">Service</label><select class="pt-select" id="l-svc">' + C.services.map(function (c) { return '<option>' + esc(c) + '</option>'; }).join('') + '</select></div>' +
-        '<div class="pt-field"><label for="l-slot">Collect from my room</label><select class="pt-select" id="l-slot">' + C.slots.map(function (c) { return '<option>' + esc(c) + '</option>'; }).join('') + '</select></div></div>' +
+        '<div class="pt-field"><span class="pt-label">Service (tick all that apply)</span><div class="pt-checks">' + C.services.map(function (c) { return '<label class="pt-check"><input type="checkbox" name="l-svc" value="' + esc(c) + '"> <span>' + esc(c) + '</span></label>'; }).join('') + '</div><div class="pt-err" id="l-svc-err"></div></div>' +
+        '<div class="pt-field"><label for="l-slot">Collect from my room</label><select class="pt-select" id="l-slot">' + C.slots.map(function (c) { return '<option>' + esc(c) + '</option>'; }).join('') + '</select></div>' +
         '<div class="pt-field"><label for="l-note">Notes (optional)</label><textarea class="pt-textarea" id="l-note" style="min-height:80px" maxlength="300" placeholder="e.g. delicate fabric, no starch"></textarea></div>' +
         phoneField(ctx) +
         (C.note ? '<p class="pt-small pt-muted">' + esc(C.note) + '</p>' : '') +
@@ -118,6 +120,8 @@
         var ph = cleanPhone(root.querySelector('#l-phone') ? root.querySelector('#l-phone').value : root.querySelector('#f-phone').value);
         var ok = setErr('l-room-err', room.value.trim() ? '' : 'Enter your room.');
         ok = setErr('l-items-err', items.length ? '' : 'Add at least one item.') && ok;
+        var svcs = Array.prototype.map.call(root.querySelectorAll('input[name="l-svc"]:checked'), function (x) { return x.value; });
+        ok = setErr('l-svc-err', svcs.length ? '' : 'Choose at least one service.') && ok;
         ok = setErr('f-phone-err', ph ? '' : 'Enter a valid phone number.') && ok;
         if (!ok) return;
         var wait = P.cooldown('laundry', 20); if (wait) return P.toast('Please wait ' + wait + 's before sending another request.', 'err');
@@ -126,7 +130,7 @@
           return P.db.collection('laundryRequests').add({
             uid: ctx.user.uid, name: w.name, email: w.email, phone: ph,
             bookingRef: s ? s.ref : '', room: room.value.trim().slice(0, 60),
-            items: items, service: root.querySelector('#l-svc').value, slot: root.querySelector('#l-slot').value,
+            items: items, service: svcs.join(', ').slice(0, 200), slot: root.querySelector('#l-slot').value,
             note: root.querySelector('#l-note').value.trim().slice(0, 300),
             status: 'requested', createdAt: FV().serverTimestamp()
           }).then(function () { return ctx.reload('laundry'); }).then(function () {
