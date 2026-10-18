@@ -52,11 +52,24 @@
         if (P.auth.currentUser.emailVerified) location.reload(); else say('Not verified yet. Open the link in the e-mail first.', 'warn');
       }).catch(function (e) { say(P.authError(e), 'err'); });
     });
-    $('gate-resend').addEventListener('click', function () {
+    var rbtn = $('gate-resend'), rlabel = rbtn.textContent, rtimer = null;
+    function countdown(secs) {
+      clearInterval(rtimer);
+      var end = Date.now() + secs * 1000;
+      function tick() {
+        var left = Math.ceil((end - Date.now()) / 1000);
+        if (left <= 0) { clearInterval(rtimer); rbtn.disabled = false; rbtn.textContent = rlabel; return; }
+        rbtn.disabled = true; rbtn.textContent = rlabel + ' (' + left + 's)';
+      }
+      tick(); rtimer = setInterval(tick, 250);
+    }
+    rbtn.addEventListener('click', function () {
       var wait = P.cooldown('verify', 60);
-      if (wait) return say('Please wait ' + wait + ' seconds before requesting another e-mail.', 'warn');
-      P.busy(this, function () { return u.sendEmailVerification(); }).then(function () { say('Verification e-mail sent.', 'ok'); })
-        .catch(function (e) { say(P.authError(e), 'err'); });
+      if (wait) { countdown(wait); return say('Almost there. You can request another e-mail when the timer ends.', 'warn'); }
+      P.busy(this, function () { return u.sendEmailVerification(); }).then(function () {
+        say('Verification e-mail sent. Check your inbox and spam folder.', 'ok');
+        countdown(60);
+      }).catch(function (e) { say(P.authError(e), 'err'); });
     });
   }
 
