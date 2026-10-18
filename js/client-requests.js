@@ -43,8 +43,9 @@ var openRef = null;                               // request currently open in t
   function chatMsgs(r, field) {
     var t = Array.isArray(r.thread) ? r.thread.slice() : [];
     var pre = [];
-    /* the 'Note to guest' is now a pinned message, not part of the chat */
-return '<div class="pt-msg ' + (me ? 'me' : 'them') + '"><div class="pt-msg-who">' + (me ? 'You' : 'Guest') + (m.at ? ' · ' + esc(P.fmtDateTime(new Date(m.at))) : '') + (m.edited ? ' · edited' : '') + (me && m.at ? '<button type="button" class="pt-msg-edit" data-edit="' + m.at + '">✎ Edit</button>' : '') + '</div>' + esc(m.text) + '</div>';    return pre.concat(t);
+    /* the note is now a pinned message, not part of the chat */
+    if (!t.length && r.guestReply) { var g = P.toDate(r.guestReplyAt); pre.push({ from: 'guest', text: r.guestReply, at: g ? +g : null }); }
+    return pre.concat(t);
   }
   function withStaff(r, field, text) { return chatMsgs(r, field).concat([{ from: 'staff', text: text, at: Date.now() }]); }
   function editStaff(r, field, at, text) { return chatMsgs(r, field).map(function (m) { return (m.from === 'staff' && m.at === at) ? { from: 'staff', text: text, at: m.at, edited: true } : m; }); }
@@ -52,7 +53,7 @@ return '<div class="pt-msg ' + (me ? 'me' : 'them') + '"><div class="pt-msg-who"
   function chatHtml(list) {
     return '<div class="pt-chat">' + list.map(function (m) {
       var me = m.from === 'staff';
-      return '<div class="pt-msg ' + (me ? 'me' : 'them') + '"><div class="pt-msg-who">' + (me ? 'You' : 'Guest') + (m.at ? ' · ' + esc(P.fmtDateTime(new Date(m.at))) : '') + '</div>' + esc(m.text) + '</div>';
+      return '<div class="pt-msg ' + (me ? 'me' : 'them') + '"><div class="pt-msg-who">' + (me ? 'You' : 'Guest') + (m.at ? ' · ' + esc(P.fmtDateTime(new Date(m.at))) : '') + (m.edited ? ' · edited' : '') + (me && m.at ? '<button type="button" class="pt-msg-edit" data-edit="' + m.at + '">✎ Edit</button>' : '') + '</div>' + esc(m.text) + '</div>';
     }).join('') + '</div>';
   }
   function guestBlockInner(r, k) {
