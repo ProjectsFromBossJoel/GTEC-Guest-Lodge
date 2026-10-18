@@ -43,11 +43,12 @@ var openRef = null;                               // request currently open in t
   function chatMsgs(r, field) {
     var t = Array.isArray(r.thread) ? r.thread.slice() : [];
     var pre = [];
-    if (!t.some(function (m) { return m.from === 'staff'; }) && r[field]) pre.push({ from: 'staff', text: r[field], at: null });
-    if (!t.length && r.guestReply) { var g = P.toDate(r.guestReplyAt); pre.push({ from: 'guest', text: r.guestReply, at: g ? +g : null }); }
-    return pre.concat(t);
+    /* the 'Note to guest' is now a pinned message, not part of the chat */
+return '<div class="pt-msg ' + (me ? 'me' : 'them') + '"><div class="pt-msg-who">' + (me ? 'You' : 'Guest') + (m.at ? ' · ' + esc(P.fmtDateTime(new Date(m.at))) : '') + (m.edited ? ' · edited' : '') + (me && m.at ? '<button type="button" class="pt-msg-edit" data-edit="' + m.at + '">✎ Edit</button>' : '') + '</div>' + esc(m.text) + '</div>';    return pre.concat(t);
   }
   function withStaff(r, field, text) { return chatMsgs(r, field).concat([{ from: 'staff', text: text, at: Date.now() }]); }
+  function editStaff(r, field, at, text) { return chatMsgs(r, field).map(function (m) { return (m.from === 'staff' && m.at === at) ? { from: 'staff', text: text, at: m.at, edited: true } : m; }); }
+  function pinHtml(r, k) { var t = r[chatField(k)]; return t ? '<div class="pt-pin">📌 <b>Pinned:</b> ' + esc(t) + '</div>' : ''; }
   function chatHtml(list) {
     return '<div class="pt-chat">' + list.map(function (m) {
       var me = m.from === 'staff';
@@ -64,9 +65,9 @@ var openRef = null;                               // request currently open in t
       (list.length ? chatHtml(list) : '<div class="pt-muted pt-small" style="margin-bottom:.8rem">No messages yet.</div>');
   }
   function guestReplyBlock(r) {
-    return '<div class="pt-wa"><div class="pt-wa-head">Conversation with ' + esc(r.name || 'guest') + '</div>' +
+    return '<div class="pt-wa"><div class="pt-wa-head">Conversation with ' + esc(r.name || 'guest') + '</div><div id="cr-m-pin">' + pinHtml(r, tab) + '</div>' +
       '<div id="cr-m-guest" class="pt-wa-body">' + guestBlockInner(r, tab) + '</div>' +
-      '<div class="pt-wa-compose"><textarea id="cr-m-compose-text" rows="1" placeholder="Type a message" maxlength="' + (tab === 'faults' ? 500 : 300) + '"></textarea>' +
+      '<div id="cr-m-editbar" class="pt-wa-edit pt-hide"><span>Editing message</span><button type="button" id="cr-m-editcancel">Cancel</button></div><div class="pt-wa-compose"><textarea id="cr-m-compose-text" rows="1" placeholder="Type a message" maxlength="' + (tab === 'faults' ? 500 : 300) + '"></textarea>' +
       '<button class="pt-wa-send" id="cr-m-compose-send" type="button" aria-label="Send">➤</button></div></div>';
   }
   function guestReplyBlockV1(r) {
@@ -274,7 +275,7 @@ var openRef = null;                               // request currently open in t
     if (g) {
       var list = chatMsgs(r, chatField(k)), last = list[list.length - 1];
       g.innerHTML = guestBlockInner(r, k);
-      g.scrollTop = g.scrollHeight;
+      g.scrollTop = g.scrollHeight; var pn = $('cr-m-pin'); if (pn) pn.innerHTML = pinHtml(r, k);
       if (list.length > openRef.n && last && last.from === 'guest') P.toast('The guest just replied.', 'ok');
       openRef.n = list.length;
     }
@@ -301,17 +302,18 @@ var openRef = null;                               // request currently open in t
     mm.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKey && e.target.id === 'cr-m-compose-text') { e.preventDefault(); var sb = $('cr-m-compose-send'); if (sb) sb.click(); } });
     mm.addEventListener('click', function (e) {
       var b = e.target.closest('button'); if (!b) return;
-      if (b.id === 'cr-m-replybtn') { $('cr-m-compose').classList.remove('pt-hide'); $('cr-m-compose-text').focus(); }
+      if (b.hasAttribute('data-edit')) { var at = +b.getAttribute('data-edit'); var em = chatMsgs(data[k].filter(function (x) { return x.id === id; })[0] || {}, f).filter(function (m) { return m.from === 'staff' && m.at === at; })[0]; if (em) { openRef.editAt = at; var et = $('cr-m-compose-text'); et.value = em.text; et.focus(); $('cr-m-editbar').classList.remove('pt-hide'); } }
+      else if (b.id === 'cr-m-editcancel') { openRef.editAt = null; $('cr-m-compose-text').value = ''; $('cr-m-editbar').classList.add('pt-hide'); }
       else if (b.id === 'cr-m-compose-cancel') { $('cr-m-compose').classList.add('pt-hide'); }
       else if (b.id === 'cr-m-compose-send') {
         var ta = $('cr-m-compose-text'), text = ta.value.trim();
         if (!text) return P.toast('Type your message first.', 'err');
         text = text.slice(0, k === 'faults' ? 500 : 300);
         var cur = data[k].filter(function (x) { return x.id === id; })[0] || {};
-        var upd = { thread: withStaff(cur, f, text), handledBy: actor(), updatedAt: FV().serverTimestamp() };
-        upd[f] = text;
+        var upd = { thread: (openRef && openRef.editAt) ? editStaff(cur, f, openRef.editAt, text) : withStaff(cur, f, text), handledBy: actor(), updatedAt: FV().serverTimestamp() };
+        /* the pinned note is saved separately */
         P.busy(b, function () { return P.db.collection(TABS[k].coll).doc(id).update(upd); }).then(function () {
-          var note = $('cr-m-reply'); if (note) note.value = text;
+          if (openRef) openRef.editAt = null; var eb = $('cr-m-editbar'); if (eb) eb.classList.add('pt-hide');
           ta.value = '';
           P.toast('Message sent to the guest.', 'ok');
         }).catch(function (err) {
@@ -330,7 +332,8 @@ var openRef = null;                               // request currently open in t
     mm.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKey && e.target.id === 'cr-m-compose-text') { e.preventDefault(); var sb = $('cr-m-compose-send'); if (sb) sb.click(); } });
     mm.addEventListener('click', function (e) {
       var b = e.target.closest('button'); if (!b) return;
-      if (b.id === 'cr-m-replybtn') { $('cr-m-compose').classList.remove('pt-hide'); $('cr-m-compose-text').focus(); }
+      if (b.hasAttribute('data-edit')) { var at = +b.getAttribute('data-edit'); var em = chatMsgs(data[k].filter(function (x) { return x.id === id; })[0] || {}, f).filter(function (m) { return m.from === 'staff' && m.at === at; })[0]; if (em) { openRef.editAt = at; var et = $('cr-m-compose-text'); et.value = em.text; et.focus(); $('cr-m-editbar').classList.remove('pt-hide'); } }
+      else if (b.id === 'cr-m-editcancel') { openRef.editAt = null; $('cr-m-compose-text').value = ''; $('cr-m-editbar').classList.add('pt-hide'); }
       else if (b.id === 'cr-m-compose-cancel') { $('cr-m-compose').classList.add('pt-hide'); }
       else if (b.id === 'cr-m-compose-send') {
         var ta = $('cr-m-compose-text'), text = ta.value.trim();
@@ -339,7 +342,7 @@ var openRef = null;                               // request currently open in t
         var upd = { guestReply: FV().delete(), guestReplyAt: FV().delete(), handledBy: actor(), updatedAt: FV().serverTimestamp() };
         upd[k === 'faults' ? 'adminResponse' : 'adminNote'] = text;
         P.busy(b, function () { return P.db.collection(TABS[k].coll).doc(id).update(upd); }).then(function () {
-          var note = $('cr-m-reply'); if (note) note.value = text;
+          if (openRef) openRef.editAt = null; var eb = $('cr-m-editbar'); if (eb) eb.classList.add('pt-hide');
           ta.value = '';
           P.toast('Reply sent to the guest.', 'ok');
         }).catch(function (err) {
@@ -358,12 +361,12 @@ var openRef = null;                               // request currently open in t
         kv([['Guest', r.name], ['E-mail', r.email], ['Phone', r.phone], ['Booking', r.bookingRef], ['Urgency', r.urgency]]) +
         '<div class="pt-label">Problem</div><div class="pt-quote">' + esc(r.description) + '</div>' + guestReplyBlock(r) +
         '<div class="pt-row cols-2"><div class="pt-field"><label for="cr-m-status">Status</label>' + statusSelect(T, r.status) + '</div></div>' +
-        '<div class="pt-field"><label for="cr-m-reply">Reply to guest <span class="pt-muted">(they see this in their account)</span></label><textarea class="pt-textarea" id="cr-m-reply" maxlength="500">' + esc(r.adminResponse || '') + '</textarea></div>',
+        '<div class="pt-field"><label for="cr-m-reply">📌 Pinned note to guest <span class="pt-muted">(shown at the top of the chat, press Save)</span></label><textarea class="pt-textarea" id="cr-m-reply" maxlength="500">' + esc(r.adminResponse || '') + '</textarea></div>',
         '<span style="margin-right:auto">' + contactLinks(r) + '</span><button class="pt-btn" id="cr-m-save" type="button">Save</button>');
       $('cr-m-save').addEventListener('click', function () {
         var cur = data.faults.filter(function (x) { return x.id === id; })[0] || r;
         var txt = $('cr-m-reply').value.trim().slice(0, 500), upd = { status: $('cr-m-status').value, adminResponse: txt, handledBy: actor(), updatedAt: FV().serverTimestamp() };
-        if (txt && txt !== (cur.adminResponse || '')) upd.thread = withStaff(cur, 'adminResponse', txt);
+        /* pinned note: not added to the chat */
         save(this, function () { return ref.update(upd); }, 'Report updated.');
       });
     }
@@ -374,12 +377,12 @@ var openRef = null;                               // request currently open in t
         guestReplyBlock(r) + '<div class="pt-label">Items</div><div class="pt-quote">' + ((r.items || []).map(function (i) { return esc(i.qty) + ' × ' + esc(i.type); }).join('\n') || '—') + '</div>' +
         '<div class="pt-row cols-2"><div class="pt-field"><label for="cr-m-status">Status</label>' + statusSelect(T, r.status) + '</div>' +
         '<div class="pt-field"><label for="cr-m-price">Charge (' + esc(P.CFG.lodge.currency) + ')</label><input class="pt-input" id="cr-m-price" type="number" min="0" step="0.01" value="' + esc(r.price != null ? r.price : '') + '"></div></div>' +
-        '<div class="pt-field"><label for="cr-m-reply">Note to guest</label><textarea class="pt-textarea" id="cr-m-reply" style="min-height:80px" maxlength="300">' + esc(r.adminNote || '') + '</textarea></div>',
+        '<div class="pt-field"><label for="cr-m-reply">📌 Pinned note to guest <span class="pt-muted">(shown at the top of the chat, press Save)</span></label><textarea class="pt-textarea" id="cr-m-reply" style="min-height:80px" maxlength="300">' + esc(r.adminNote || '') + '</textarea></div>',
         '<span style="margin-right:auto">' + contactLinks(r) + '</span><button class="pt-btn" id="cr-m-save" type="button">Save</button>');
       $('cr-m-save').addEventListener('click', function () {
         var pr = $('cr-m-price').value, upd = { status: $('cr-m-status').value, adminNote: $('cr-m-reply').value.trim().slice(0, 300), handledBy: actor(), updatedAt: FV().serverTimestamp() };
         var cur = data.laundry.filter(function (x) { return x.id === id; })[0] || r;
-        if (upd.adminNote && upd.adminNote !== (cur.adminNote || '')) upd.thread = withStaff(cur, 'adminNote', upd.adminNote);
+        /* pinned note: not added to the chat */
         if (pr !== '') { if (!(Number(pr) >= 0)) return P.toast('Enter a valid charge.', 'err'); upd.price = Math.round(Number(pr) * 100) / 100; }
         save(this, function () { return ref.update(upd); }, 'Laundry request updated.');
       });

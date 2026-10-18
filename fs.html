@@ -43,6 +43,21 @@ service cloud.firestore {
     function changed(k) {
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly(k);
     }
+    // Guest adds exactly one new chat message to the thread, earlier messages untouched
+    function oneGuestMessage() {
+      return request.resource.data.thread is list
+        && request.resource.data.thread.size() == resource.data.get('thread', []).size() + 1
+        && request.resource.data.thread.size() <= 100
+        && request.resource.data.thread[0:resource.data.get('thread', []).size()] == resource.data.get('thread', [])
+        && request.resource.data.thread[request.resource.data.thread.size() - 1].keys().hasOnly(['from', 'text', 'at'])
+        && request.resource.data.thread[request.resource.data.thread.size() - 1]['from'] == 'guest'
+        && request.resource.data.thread[request.resource.data.thread.size() - 1]['text'] is string
+        && request.resource.data.thread[request.resource.data.thread.size() - 1]['text'].size() >= 1
+        && request.resource.data.thread[request.resource.data.thread.size() - 1]['text'].size() <= 300
+        && request.resource.data.guestReply is string
+        && request.resource.data.guestReply.size() <= 300
+        && request.resource.data.guestReplyAt == request.time;
+    }
 
     // ── Hub helper functions ──────────────────────────────────────────────
     function hubMe() {
@@ -97,8 +112,6 @@ service cloud.firestore {
         && request.resource.data.guestsCount >= 1
         && request.resource.data.guestsCount <= 20;
 
-      // Staff read all. A verified guest reads only their own bookings
-      // (the query must filter on emailLower == their lower-case e-mail).
       allow read: if isStaff()
         || (verified()
             && (resource.data.emailLower == request.auth.token.email.lower()
@@ -201,7 +214,13 @@ service cloud.firestore {
         && request.resource.data.description is string
         && request.resource.data.description.size() >= 10
         && request.resource.data.description.size() <= 1000;
-      allow update: if isStaff();
+      allow update: if isStaff()
+        // guest adds one chat message (only after staff wrote, only while open)
+        || (verified() && resource.data.uid == request.auth.uid
+            && (resource.data.get('adminResponse', '') != '' || resource.data.get('thread', []).size() > 0)
+            && !(resource.data.status in ['resolved', 'closed'])
+            && changed(['thread', 'guestReply', 'guestReplyAt', 'updatedAt'])
+            && oneGuestMessage());
       allow delete: if false;
     }
 
@@ -219,10 +238,17 @@ service cloud.firestore {
         && request.resource.data['service'] is string && request.resource.data['service'].size() <= 200
         && request.resource.data.note is string && request.resource.data.note.size() <= 300;
       allow update: if isStaff()
+        // guest cancels a request that is still "requested"
         || (verified() && resource.data.uid == request.auth.uid
             && resource.data.status == 'requested'
             && request.resource.data.status == 'cancelled'
-            && changed(['status', 'updatedAt', 'cancelledAt']));
+            && changed(['status', 'updatedAt', 'cancelledAt']))
+        // guest adds one chat message (only after staff wrote, only while open)
+        || (verified() && resource.data.uid == request.auth.uid
+            && (resource.data.get('adminNote', '') != '' || resource.data.get('thread', []).size() > 0)
+            && !(resource.data.status in ['delivered', 'cancelled'])
+            && changed(['thread', 'guestReply', 'guestReplyAt', 'updatedAt'])
+            && oneGuestMessage());
       allow delete: if false;
     }
 
@@ -262,7 +288,6 @@ service cloud.firestore {
       allow delete: if isStaff();
     }
 
-
     // Website display settings (public read, staff write)
     match /publicSettings/{id} {
       allow read: if true;
@@ -270,7 +295,6 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(['scroll', 'updatedAt', 'updatedBy'])
         && request.resource.data.scroll is bool;
     }
-
 
     // ── Hub Users ─────────────────────────────────────────────────────────
     match /hubUsers/{userId} {

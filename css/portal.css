@@ -365,3 +365,11 @@ body.pt-body { margin: 0; background: var(--pt-bg); color: var(--pt-ink); font: 
 .pt-wa-compose { display: flex; gap: .5rem; align-items: flex-end; padding: .6rem; background: #f0f2f5; }
 .pt-wa-compose textarea { flex: 1; border: 1px solid #d9dfe3; border-radius: 20px; padding: .6rem .95rem; resize: none; min-height: 42px; max-height: 110px; font: inherit; background: #fff; }
 .pt-wa-send { flex: none; width: 42px; height: 42px; border-radius: 50%; border: 0; background: #0b4a45; color: #fff; font-size: 1.1rem; cursor: pointer; }
+
+.pt-pin { background: #fff8d6; border: 1px solid #eadf9a; border-radius: 10px; padding: .55rem .8rem; margin: .6rem 0; font-size: .92rem; }
+.pt-wa .pt-pin { border-radius: 0; border-width: 0 0 1px; margin: 0; }
+.pt-msg-edit { background: none; border: 0; cursor: pointer; font-size: .72rem; color: inherit; opacity: .65; margin-left: .5rem; padding: 0; }
+.pt-msg-edit:hover { opacity: 1; text-decoration: underline; }
+.pt-wa-edit { display: flex; justify-content: space-between; align-items: center; background: #e7f3ff; padding: .35rem .9rem; font-size: .85rem; }
+.pt-wa-edit.pt-hide { display: none; }
+.pt-wa-edit button { background: none; border: 0; cursor: pointer; color: #0b4a45; font-weight: 600; }
