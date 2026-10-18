@@ -88,6 +88,8 @@
       '<div class="pt-kpis" id="cr-kpis"></div>' +
       '<div class="pt-tabs" role="tablist" id="cr-tabs"></div>' +
       '<div id="cr-err"></div>' +
+      '<div class="cr-scrollbar pt-hide" id="cr-scrollbar"><label class="cr-switch" title="Scroll reviews on website"><input type="checkbox" id="cr-scroll" aria-label="Scroll reviews on the website"><span class="cr-knob"></span></label>' +
+      '<div><b>Scrolling reviews on the website</b><div class="pt-small pt-muted">On: reviews slide across the homepage (shows up to 30). Off: a fixed grid of the latest 9.</div></div></div>' +
       '<div class="pt-tools"><input class="pt-input grow" id="cr-q" type="search" placeholder="Search name, e-mail, room, text…" aria-label="Search">' +
       '<select class="pt-select" id="cr-status" aria-label="Filter by status"></select>' +
       '<button class="pt-btn pt-btn-ghost pt-btn-sm" id="cr-csv" type="button">Export CSV</button></div>' +
@@ -99,6 +101,13 @@
     $('cr-prev').addEventListener('click', function () { ts[tab].page--; renderTable(); });
     $('cr-next').addEventListener('click', function () { ts[tab].page++; renderTable(); });
     $('cr-csv').addEventListener('click', exportCsv);
+    $('cr-scroll').addEventListener('change', function () {
+      var box = this, on = box.checked; box.disabled = true;
+      P.db.collection('publicSettings').doc('reviews').set({ scroll: on, updatedAt: FV().serverTimestamp(), updatedBy: actor() }, { merge: true })
+        .then(function () { P.toast(on ? 'Reviews now scroll on the website.' : 'Reviews are now static on the website.', 'ok'); })
+        .catch(function (e) { box.checked = !on; P.toast(e && e.code === 'permission-denied' ? 'Permission denied. Publish the updated Firestore rules.' : 'Couldn’t save. Try again.', 'err'); })
+        .then(function () { box.disabled = false; });
+    });
     $('cr-tabs').addEventListener('click', function (e) { var b = e.target.closest('[data-tab]'); if (b) { tab = b.getAttribute('data-tab'); renderAll(); } });
     $('cr-body').addEventListener('click', function (e) {
       if (window.getSelection && String(window.getSelection())) return;
@@ -158,7 +167,7 @@
     $('cr-count').textContent = list.length ? (from + 1) + '–' + (from + slice.length) + ' of ' + list.length : '0 results';
     $('cr-prev').disabled = s.page <= 1; $('cr-next').disabled = s.page >= pages;
   }
-  function renderAll() { renderKpis(); renderTabs(); renderTable(); }
+  function renderAll() { renderKpis(); renderTabs(); renderTable(); $('cr-scrollbar').classList.toggle('pt-hide', tab !== 'feedback'); }
 
   function exportCsv() {
     var T = TABS[tab], list = filtered();
@@ -277,6 +286,9 @@
 
   /* ---------- data (live) ---------- */
   function listen() {
+    P.db.collection('publicSettings').doc('reviews').onSnapshot(function (d) {
+      var box = $('cr-scroll'); if (box) box.checked = !!(d.exists && d.data().scroll);
+    }, function () {});
     Object.keys(TABS).forEach(function (k) {
       P.db.collection(TABS[k].coll).orderBy('createdAt', 'desc').limit(MAX_DOCS).onSnapshot(function (qs) {
         var out = []; qs.forEach(function (d) { var x = d.data(); x.id = d.id; x._ts = P.toDate(x.createdAt); out.push(x); });

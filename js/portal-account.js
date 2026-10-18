@@ -89,6 +89,8 @@
     $('pt-nav').innerHTML = NAV.map(function (n) {
       return '<a href="#' + n.id + '"' + (n.id === cur ? ' aria-current="page"' : '') + '><span aria-hidden="true">' + n.icon + '</span> ' + esc(n.label) + badgeFor(n.id) + '</a>';
     }).join('');
+    var nv = $('pt-nav'), on = nv.querySelector('[aria-current]');
+    if (on && nv.scrollWidth > nv.clientWidth) nv.scrollLeft = on.offsetLeft - (nv.clientWidth - on.offsetWidth) / 2;
   }
   function route() {
     var id = currentId(), sec = P.sections[id], main = $('pt-main');

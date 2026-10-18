@@ -262,3 +262,49 @@ body.pt-body { margin: 0; background: var(--pt-bg); color: var(--pt-ink); font: 
 
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 @media print { .pt-top, .pt-nav, .pt-btn { display: none !important; } }
+
+/* ═════════ MOBILE POLISH (phones & small tablets) ═════════ */
+@media (max-width: 899px) {
+  /* the green header scrolls away; only the section menu stays pinned (saves ~56px of a small screen) */
+  .pt-top  { position: static; padding-left: max(1rem, env(safe-area-inset-left)); padding-right: max(1rem, env(safe-area-inset-right)); }
+  .pt-nav  { top: 0; box-shadow: 0 2px 8px rgba(20, 30, 28, .08); -webkit-overflow-scrolling: touch;
+             padding-left: max(1rem, env(safe-area-inset-left)); padding-right: max(1rem, env(safe-area-inset-right)); }
+  .pt-nav a { flex: 0 0 auto; min-height: 40px; border-radius: 999px; padding: .5rem .95rem; }
+  .pt-main { padding-left: max(1rem, env(safe-area-inset-left)); padding-right: max(1rem, env(safe-area-inset-right)); }
+  .pt-body h1 { font-size: 1.6rem; }
+}
+
+@media (max-width: 600px) {
+  .pt-card { padding: 1rem; }
+  .pt-stay { padding: 1.1rem; }
+  .pt-stay h2 { font-size: 1.35rem; }
+  .pt-stars button { min-width: 32px; font-size: 1.6rem; }          /* label + 5 stars fit on one line */
+
+  /* calendar */
+  .pt-cal { gap: 2px; }
+  .pt-day { min-height: 40px; padding: 3px; font-size: .8rem; }
+  .pt-day .tags { font-size: .55rem; }
+  .pt-cal-head h3 { font-size: 1.05rem; }
+
+  /* pop-ups become a bottom sheet, with the buttons pinned at the bottom */
+  .pt-modalbg { padding: 0; align-items: flex-end; }
+  .pt-modal { max-width: none; max-height: 92vh; overflow-y: auto; border-radius: 16px 16px 0 0; }
+  .pt-modal footer { position: sticky; bottom: 0; border-radius: 0; padding-bottom: calc(1rem + env(safe-area-inset-bottom)); }
+  .pt-modal footer .pt-btn { flex: 1 1 auto; }
+  #pt-toasts { bottom: calc(16px + env(safe-area-inset-bottom)); }
+
+  /* verification screen */
+  #pt-gate .pt-btn { flex: 1 1 100%; }
+
+  /* admin page on a phone */
+  .pt-admin { padding: .75rem; }
+  .pt-kpis { grid-template-columns: repeat(2, 1fr); }
+  .pt-tabs button { padding: .7rem .8rem; }
+  .pt-table td.clip { max-width: 200px; }
+  .pt-reviews h2 { font-size: 1.5rem; }
+}
+
+@media (max-width: 360px) {
+  #pt-who { display: none; }
+  .pt-stars button { min-width: 28px; }
+}

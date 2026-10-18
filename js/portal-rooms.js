@@ -31,7 +31,10 @@
       '.ra-num{font-size:1.25rem;font-weight:700}' +
       '.ra-meta{color:#6b7280;font-size:.88rem}' +
       '.ra-badge{align-self:flex-start;border-radius:999px;padding:.25rem .7rem;font-size:.8rem;font-weight:700}' +
-      '.ra-empty{grid-column:1/-1;text-align:center;color:#6b7280;padding:2rem 0}';
+      '.ra-empty{grid-column:1/-1;text-align:center;color:#6b7280;padding:2rem 0}' +
+      '@media(max-width:600px){.ra-bar{flex-direction:column;align-items:stretch}.ra-bar .pt-btn{width:100%}' +
+      '.ra-filter{width:100%}.ra-filter button{flex:1 1 0}.ra-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}' +
+      '@media(max-width:360px){.ra-grid{grid-template-columns:1fr}}';
     document.head.appendChild(s);
   }
 

@@ -15,6 +15,16 @@
 
         .pt-admin { padding: 0; max-width: none; margin: 0; }
         .pt-admin, .pt-admin * { font-family: inherit !important; }
+
+        .cr-scrollbar { display: flex; align-items: center; gap: .9rem; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: .8rem 1rem; margin-bottom: 1rem; }
+        .cr-switch { position: relative; display: inline-block; width: 46px; height: 26px; flex-shrink: 0; }
+        .cr-switch input { opacity: 0; width: 0; height: 0; position: absolute; }
+        .cr-switch .cr-knob { position: absolute; inset: 0; background: #cbd5e1; border-radius: 26px; cursor: pointer; transition: background .2s; }
+        .cr-switch .cr-knob::before { content: ""; position: absolute; width: 20px; height: 20px; left: 3px; top: 3px; background: #fff; border-radius: 50%; transition: transform .2s; box-shadow: 0 1px 3px rgba(0,0,0,.3); }
+        .cr-switch input:checked + .cr-knob { background: #15803d; }
+        .cr-switch input:checked + .cr-knob::before { transform: translateX(20px); }
+        .cr-switch input:focus-visible + .cr-knob { outline: 2px solid #1e40af; outline-offset: 2px; }
+        .cr-switch input:disabled + .cr-knob { opacity: .6; cursor: wait; }
     </style>
 </head>
 <body>
