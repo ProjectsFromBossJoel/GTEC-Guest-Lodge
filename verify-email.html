@@ -1,3 +1,4 @@
+<!-- Verify Email -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -21,6 +22,9 @@
   .btn{display:inline-block;width:100%;padding:13px;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;text-decoration:none;background:#0b4a47;color:#fff}
   .btn:hover{opacity:.9}
   .state{display:none}.state.active{display:block}
+  .rp-in{width:100%;padding:12px 14px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:14px;margin-bottom:12px;background:#f8fafc;outline:none}
+  .rp-in:focus{border-color:#0b4a47;background:#fff}
+  .rp-msg{color:#dc2626;font-size:13px;font-weight:600;margin-bottom:12px;min-height:18px}
   .spinner{animation:spin 1s linear infinite;display:inline-block}
   @keyframes spin{to{transform:rotate(360deg)}}
 </style>
@@ -33,6 +37,25 @@
     <div class="icon-wrap loading"><i class="fas fa-circle-notch spinner"></i></div>
     <h2>Verifying your e-mail…</h2>
     <p>Please wait a moment.</p>
+  </div>
+
+  <div id="s-reset" class="state">
+    <div class="icon-wrap loading"><i class="fas fa-key"></i></div>
+    <h2>Set a new password</h2>
+    <p>Choose a new password for your account.</p>
+    <form id="rp-form" novalidate>
+      <input class="rp-in" id="rp-p1" type="password" placeholder="New password (min. 6 characters)" autocomplete="new-password">
+      <input class="rp-in" id="rp-p2" type="password" placeholder="Confirm new password" autocomplete="new-password">
+      <div class="rp-msg" id="rp-msg"></div>
+      <button class="btn" id="rp-btn" type="submit">Set new password</button>
+    </form>
+  </div>
+
+  <div id="s-reset-ok" class="state">
+    <div class="icon-wrap success"><i class="fas fa-check"></i></div>
+    <h2>Password updated</h2>
+    <p>Your password has been changed. You can now sign in with your new password.</p>
+    <a class="btn" id="go-signin" href="signin.html">Go to sign in</a>
   </div>
 
   <div id="s-ok" class="state">
@@ -61,7 +84,7 @@
   document.getElementById('go-account2').href = account;
 
   function show(id) {
-    ['s-loading', 's-ok', 's-err'].forEach(function (s) {
+    ['s-loading', 's-ok', 's-err', 's-reset', 's-reset-ok'].forEach(function (s) {
       document.getElementById(s).classList.toggle('active', s === id);
     });
   }
@@ -74,12 +97,59 @@
   var q = new URLSearchParams(location.search);
   var mode = q.get('mode'), code = q.get('oobCode');
 
-  if (mode !== 'verifyEmail' || !code) {
+
+
+  // Admin resets are forwarded to the admin reset page (identified by continueUrl)
+  var cont = q.get('continueUrl') || '';
+  if (mode === 'resetPassword' && cont.indexOf('/admin') !== -1) {
+    location.replace('reset-password.html' + location.search);
+    return;
+  }
+
+  if (!code || (mode !== 'verifyEmail' && mode !== 'resetPassword')) {
     return fail('Invalid link', 'This link is not valid. Sign in and press “Resend e-mail” to get a new one.');
   }
 
   if (!firebase.apps.length) firebase.initializeApp(PORTAL.firebaseConfig);
   var auth = firebase.auth();
+
+  function guestReset() {
+    var signin = (window.PORTAL && PORTAL.paths && PORTAL.paths.signin) || 'signin.html';
+    document.getElementById('go-signin').href = signin;
+    var msg = document.getElementById('rp-msg'), btn = document.getElementById('rp-btn');
+
+    auth.verifyPasswordResetCode(code).then(function () {
+      show('s-reset');
+    }).catch(function (e) {
+      if (e.code === 'auth/expired-action-code') {
+        fail('Link expired', 'This reset link has expired. Go to Sign in and choose “Forgot password?” for a new one.');
+      } else if (e.code === 'auth/invalid-action-code') {
+        fail('Link already used', 'This reset link was already used or is no longer valid. Choose “Forgot password?” on the sign-in page for a new one.');
+      } else {
+        fail('Something went wrong', 'We could not verify this link. Please request a new one.');
+      }
+    });
+
+    document.getElementById('rp-form').addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      var p1 = document.getElementById('rp-p1').value, p2 = document.getElementById('rp-p2').value;
+      if (p1.length < 6) { msg.textContent = 'Password must be at least 6 characters.'; return; }
+      if (p1 !== p2) { msg.textContent = 'Passwords do not match.'; return; }
+      msg.textContent = '';
+      btn.disabled = true;
+      auth.confirmPasswordReset(code, p1).then(function () {
+        show('s-reset-ok');
+      }).catch(function (e) {
+        btn.disabled = false;
+        msg.textContent = e.message || 'Could not update the password. Please try again.';
+      });
+    });
+  }
+
+  if (mode === 'resetPassword') {
+    guestReset();
+    return;
+  }
 
   auth.applyActionCode(code).then(function () {
     show('s-ok');
