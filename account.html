@@ -1,4 +1,4 @@
-<!-- account.html -->
+<!-- account.html  (Client page) -->
 <!doctype html>
 <html lang="en">
 <head>
@@ -7,6 +7,7 @@
 <title>My account – GTEC Guest Lodge</title>
 <meta name="robots" content="noindex">
 <link rel="stylesheet" href="css/portal.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body class="pt-body" data-page="account">
 
@@ -14,7 +15,7 @@
   <a class="pt-brandmark" href="index.html">GTEC Guest Lodge</a>
   <div class="who">
     <span id="pt-who"></span>
-    <button class="pt-btn pt-btn-ghost pt-btn-sm" id="pt-signout" type="button">Sign out</button>
+    <button class="pt-btn pt-btn-ghost pt-btn-sm" id="pt-signout" type="button" aria-label="Sign out" title="Sign out"><span class="pt-so-text">Sign out</span><i class="fas fa-right-from-bracket pt-so-icon" aria-hidden="true"></i></button>
   </div>
 </header>
 
@@ -30,6 +31,9 @@
 <div class="pt-shell pt-hide" id="pt-shell">
   <nav class="pt-nav" id="pt-nav" aria-label="Account sections"></nav>
   <main class="pt-main" id="pt-main" tabindex="-1"></main>
+
+  <nav class="pt-bottom" id="pt-bottom" aria-label="Main navigation"></nav>
+  <div class="pt-more pt-hide" id="pt-more"><div class="pt-more-card" role="menu" id="pt-more-list"></div></div>
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>

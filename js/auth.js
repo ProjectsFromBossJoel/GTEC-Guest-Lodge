@@ -14,6 +14,59 @@ const BLOCKED_PAGES = {
 // Roles with write restrictions (buttons will be disabled with tooltip)
 const WRITE_RESTRICTED_ROLES = ['manager', 'admin', 'receptionist'];
 
+// ── App version + "update available" status (edit version.json to release) ──
+(function () {
+    let loadedVersion = null;
+
+    function showVersion(v) {
+        let el = document.getElementById('app-version');
+        if (!el) {
+            const host = document.querySelector('.sidebar-footer');
+            if (!host) return;
+            el = document.createElement('div');
+            el.id = 'app-version';
+                        el.style.cssText = 'font-size:13px;font-weight:500;color:#94a3b8;text-align:left;margin-top:-10px;padding:0 0 10px 2px;';
+            host.appendChild(el);
+        }
+        el.textContent = 'v' + v.version;
+        el.title = 'Application version';
+    }
+
+    function showUpdateBanner(v) {
+        if (document.getElementById('app-update-banner')) return;
+        const b = document.createElement('div');
+        b.id = 'app-update-banner';
+        b.style.cssText = 'position:fixed;top:16px;left:50%;transform:translateX(-50%);background:#1a2942;' +
+            'color:#fff;padding:10px 18px;border-radius:10px;font-size:13px;font-weight:600;z-index:999998;' +
+            'box-shadow:0 8px 28px rgba(0,0,0,.25);display:flex;align-items:center;gap:12px;';
+        const safe = String(v.version).replace(/[<>&"]/g, '');
+        b.innerHTML = '<span>A new version (v' + safe + ') is available.</span>' +
+            '<button onclick="location.reload()" style="background:#c9a84c;border:none;color:#0f1923;' +
+            'font-weight:700;padding:5px 12px;border-radius:6px;cursor:pointer;">Refresh</button>' +
+            '<button onclick="this.parentElement.remove()" style="background:none;border:none;' +
+            'color:#94a3b8;cursor:pointer;font-size:14px;">✕</button>';
+        document.body.appendChild(b);
+    }
+
+    async function checkVersion(first) {
+        try {
+            const r = await fetch('/version.json?t=' + Date.now(), { cache: 'no-store' });
+            if (!r.ok) return;
+            const v = await r.json();
+            if (first) { loadedVersion = v.version; showVersion(v); }
+            else if (v.version !== loadedVersion) showUpdateBanner(v);
+        } catch (e) { /* offline or file missing: stay silent */ }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        checkVersion(true);
+        setInterval(() => checkVersion(false), 5 * 60 * 1000);          // every 5 minutes
+        document.addEventListener('visibilitychange', () => {            // and when the tab is reopened
+            if (document.visibilityState === 'visible') checkVersion(false);
+        });
+    });
+})();
+
 window._userRole = null;
 window._lastPermsJson = null;
 window._userPageAccess = null;   // array of page keys, or null = use role defaults
@@ -489,10 +542,19 @@ function _showRoleBadge(role) {
     badge.id = 'role-badge-display';
     badge.style.cssText = `
         display:inline-block; padding:2px 8px; border-radius:10px;
-        font-size:11px; font-weight:600; margin-left:6px;
+        font-size:11px; font-weight:600; margin-top:2px;
         background:${m.bg}; color:${m.color};`;
     badge.textContent = m.label;
-    emailEl.parentNode.insertBefore(badge, emailEl.nextSibling);
+        // Stack name + role badge vertically (badge beneath the name)
+    let stack = document.getElementById('user-name-stack');
+    if (!stack) {
+        stack = document.createElement('div');
+        stack.id = 'user-name-stack';
+        stack.style.cssText = 'display:flex;flex-direction:column;align-items:flex-start;line-height:1.25;';
+        emailEl.parentNode.insertBefore(stack, emailEl);
+        stack.appendChild(emailEl);
+    }
+    stack.appendChild(badge);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -644,7 +706,12 @@ async function loadDisplayName(uid) {
     try {
         const doc = await db.collection('users').doc(uid).get();
         if (doc.exists) {
-            const name = doc.data().name;
+                        const name = doc.data().name;
+            const photo = doc.data().photoURL;
+            if (photo) {
+                const av = document.querySelector('.user-profile .user-avatar');
+                if (av) av.innerHTML = `<img src="${photo}" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
+            }
                 if (name) {
         const el = document.getElementById('user-email-display');
         if (el) el.textContent = name; // Full name

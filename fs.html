@@ -29,6 +29,25 @@ service cloud.firestore {
         && myDoc().role == 'superadmin'
         && myDoc().get('status', 'active') == 'active';
     }
+    // Chat channels a Super Admin has hidden from this user
+    function channelOpen(ch) {
+      return isSuperAdmin() || !(ch in myDoc().get('hiddenChannels', []));
+    }
+        // Direct messages live at chatrooms/{uidA_uidB}. Channel names never contain "_".
+    function isDM(ch) {
+      return ch.matches('.+_.+');
+    }
+    function inDM(ch) {
+      return isAuth() && (ch.matches(request.auth.uid + '_.+') || ch.matches('.+_' + request.auth.uid));
+    }
+    // Read: channels follow the hidden-channel list; DMs = the two people + Super Admin
+    function chatRead(ch) {
+      return isStaff() && (isDM(ch) ? (inDM(ch) || isSuperAdmin()) : channelOpen(ch));
+    }
+    // Write: DMs = only the two people (Super Admin reads, does not post in others' DMs)
+    function chatWrite(ch) {
+      return isStaff() && (isDM(ch) ? inDM(ch) : channelOpen(ch));
+    }
     function validString(field, maxLen) {
       return field is string && field.size() > 0 && field.size() <= maxLen;
     }
@@ -49,7 +68,11 @@ service cloud.firestore {
         && request.resource.data.thread.size() == resource.data.get('thread', []).size() + 1
         && request.resource.data.thread.size() <= 100
         && request.resource.data.thread[0:resource.data.get('thread', []).size()] == resource.data.get('thread', [])
-        && request.resource.data.thread[request.resource.data.thread.size() - 1].keys().hasOnly(['from', 'text', 'at'])
+        && request.resource.data.thread[request.resource.data.thread.size() - 1].keys().hasOnly(['from', 'text', 'at', 'replyTo'])
+        && (!('replyTo' in request.resource.data.thread[request.resource.data.thread.size() - 1].keys())
+            || (request.resource.data.thread[request.resource.data.thread.size() - 1]['replyTo'].keys().hasOnly(['from', 'text'])
+                && request.resource.data.thread[request.resource.data.thread.size() - 1]['replyTo']['text'] is string
+                && request.resource.data.thread[request.resource.data.thread.size() - 1]['replyTo']['text'].size() <= 100))
         && request.resource.data.thread[request.resource.data.thread.size() - 1]['from'] == 'guest'
         && request.resource.data.thread[request.resource.data.thread.size() - 1]['text'] is string
         && request.resource.data.thread[request.resource.data.thread.size() - 1]['text'].size() >= 1
@@ -88,6 +111,37 @@ service cloud.firestore {
           && validString(request.resource.data.email, 200)
           && validString(request.resource.data.name, 100)
           && request.resource.data.status == 'pending'
+        );
+      allow delete: if isSuperAdmin();
+      allow update: if isSuperAdmin()
+        || (
+          isOwner(userId)
+          && isStaff()
+          && myDoc().get('permissions', {}).get('canEdit', false) == true
+          && changed(['photoURL'])
+          && request.resource.data.photoURL is string
+          && request.resource.data.photoURL.size() <= 500
+          && request.resource.data.photoURL.matches('https://res\\.cloudinary\\.com/.*')
+        );
+    }
+
+    // ── Registered email lookup (used by the admin login page) ────────────
+    // Doc ID = lowercased email. Single-doc get is public so the login page
+    // can tell "unknown email" from "wrong password"; listing is blocked.
+    match /registeredEmails/{key} {
+      allow get: if true;
+      allow list: if false;
+      allow create: if key == key.lower()
+        && request.resource.data.keys().hasOnly(['email'])
+        && request.resource.data.email == key
+        && (
+          isSuperAdmin()
+          || (
+            isAuth()
+            && request.auth.token.email != null
+            && key == request.auth.token.email.lower()
+            && existsAfter(/databases/$(database)/documents/users/$(request.auth.uid))
+          )
         );
       allow update, delete: if isSuperAdmin();
     }
@@ -156,14 +210,15 @@ service cloud.firestore {
 
     // ── Internal Chat ─────────────────────────────────────────────────────
     match /chatrooms/{channel}/messages/{msgId} {
-      allow read, create, update: if isStaff();
-      allow delete: if isStaff()
-        && (resource.data.get('uid', '') == request.auth.uid || isSuperAdmin());
+      allow read: if chatRead(channel);
+      allow create, update: if chatWrite(channel);
+      allow delete: if chatWrite(channel)
+        && (resource.data.get('uid', '') == request.auth.uid
+            || (!isDM(channel) && isSuperAdmin()));
     }
     match /chatrooms/{channel}/typing/{uid} {
-      allow read, write: if isStaff();
-    }
-    match /chatPresence/{uid} {
+      allow read, write: if isStaff() && (!isDM(channel) || inDM(channel));
+    }    match /chatPresence/{uid} {
       allow read, write: if isStaff();
     }
     match /chatUnread/{uid} {
@@ -201,6 +256,17 @@ service cloud.firestore {
 
     // Fault reports
     match /faultReports/{id} {
+      // guest marks the conversation as read (one number, nothing else may change)
+      allow update: if verified() && resource.data.uid == request.auth.uid
+        && changed(['guestReadN'])
+        && request.resource.data.guestReadN is int
+        && request.resource.data.guestReadN >= 0
+        && request.resource.data.guestReadN <= 200;
+      // guest reacts to a chat message (one map field, nothing else may change)
+      allow update: if verified() && resource.data.uid == request.auth.uid
+        && changed(['guestReacts'])
+        && request.resource.data.guestReacts is map
+        && request.resource.data.guestReacts.size() <= 100;
       allow read: if isStaff() || (verified() && resource.data.uid == request.auth.uid);
       allow create: if verified()
         && onlyKeys(['uid', 'name', 'email', 'phone', 'bookingRef', 'room', 'category',
@@ -218,7 +284,7 @@ service cloud.firestore {
         // guest adds one chat message (only after staff wrote, only while open)
         || (verified() && resource.data.uid == request.auth.uid
             && (resource.data.get('adminResponse', '') != '' || resource.data.get('thread', []).size() > 0)
-            && !(resource.data.status in ['resolved', 'closed'])
+            && (!(resource.data.status in ['resolved', 'closed']) || resource.data.get('chatOpen', false) == true)
             && changed(['thread', 'guestReply', 'guestReplyAt', 'updatedAt'])
             && oneGuestMessage());
       allow delete: if false;
@@ -226,6 +292,17 @@ service cloud.firestore {
 
     // Laundry requests
     match /laundryRequests/{id} {
+      // guest marks the conversation as read (one number, nothing else may change)
+      allow update: if verified() && resource.data.uid == request.auth.uid
+        && changed(['guestReadN'])
+        && request.resource.data.guestReadN is int
+        && request.resource.data.guestReadN >= 0
+        && request.resource.data.guestReadN <= 200;
+      // guest reacts to a chat message (one map field, nothing else may change)
+      allow update: if verified() && resource.data.uid == request.auth.uid
+        && changed(['guestReacts'])
+        && request.resource.data.guestReacts is map
+        && request.resource.data.guestReacts.size() <= 100;
       allow read: if isStaff() || (verified() && resource.data.uid == request.auth.uid);
       allow create: if verified()
         && onlyKeys(['uid', 'name', 'email', 'phone', 'bookingRef', 'room', 'items',
@@ -246,7 +323,7 @@ service cloud.firestore {
         // guest adds one chat message (only after staff wrote, only while open)
         || (verified() && resource.data.uid == request.auth.uid
             && (resource.data.get('adminNote', '') != '' || resource.data.get('thread', []).size() > 0)
-            && !(resource.data.status in ['delivered', 'cancelled'])
+            && (!(resource.data.status in ['delivered', 'cancelled']) || resource.data.get('chatOpen', false) == true)
             && changed(['thread', 'guestReply', 'guestReplyAt', 'updatedAt'])
             && oneGuestMessage());
       allow delete: if false;

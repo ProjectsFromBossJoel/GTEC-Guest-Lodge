@@ -246,6 +246,47 @@
             background: rgba(255, 255, 255, 0.08);
         }
 
+                .cr-member.active { background: rgba(255, 255, 255, 0.15); }
+
+        /* ONLINE list: never squeezed by the audit panel; the sidebar scrolls instead */
+        .cr-members {
+            flex: 1 0 auto;
+            min-height: 170px;
+            max-height: 300px;
+        }
+        #cr-audit-section { flex-shrink: 0; }
+
+        /* Long titles (e.g. "Person A ↔ Person B") stay on one line */
+        .cr-main-header-title {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            min-width: 0;
+            max-width: 45%;
+        }
+        .cr-main-header-desc {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            min-width: 0;
+        }
+        .cr-member.active .cr-member-name { color: white; font-weight: 600; }
+        .cr-dm-dot {
+            display: none; margin-left: auto; flex-shrink: 0;
+            width: 8px; height: 8px; border-radius: 50%; background: var(--danger);
+        }
+        .cr-dm-dot.show { display: inline-block; }
+        .cr-readonly .cr-msg-actions { display: none !important; }
+        .cr-audit-select {
+            width: 100%; background: rgba(255,255,255,0.08); color: white; border: none;
+            border-radius: 6px; padding: 6px 8px; font-size: 12px; outline: none;
+            font-family: 'DM Sans', sans-serif;
+        }
+        .cr-audit-select option { color: #0f1923; }
+        .cr-audit-btn {
+            background: var(--gold); border: none; color: #0f1923; font-weight: 700;
+            font-size: 12px; border-radius: 6px; padding: 7px; cursor: pointer;
+        }
         .cr-member-avatar {
             width: 28px;
             height: 28px;
@@ -1024,7 +1065,7 @@
                 <a href="chatroom.html" class="menu-item active"><i class="fas fa-comments"></i> Chat Room
                     <span class="nav-badge" id="nav-chatroom-count" style="display:none;">0</span></a>
                 <a href="logs.html" class="menu-item"><i class="fas fa-clipboard-list"></i> Logs</a>
-                <a href="chat.html" class="menu-item"><i class="fas fa-comment"></i> Client Messages
+                <a href="chat.html" class="menu-item"><i class="fas fa-comment"></i> General Inquiries
                 <span class="nav-badge" id="nav-chat-count" style="display:none;">0</span></a>
                 <a href="client-requests.html" class="menu-item"><i class="fas fa-concierge-bell"></i> Client Requests</a>
                 <a href="verification.html" class="menu-item"><i class="fas fa-user-check"></i> Verification</a>
@@ -1115,6 +1156,16 @@
                                 <span id="online-count" style="color:var(--success);margin-left:4px;font-size:10px;"></span>
                             </div>
                             <div id="cr-member-list" class="cr-members"></div>
+
+                            <!-- Super Admin only: read other people's private chats -->
+                            <div id="cr-audit-section" style="display:none;">
+                                <div class="cr-section-label">Private chats (audit)</div>
+                                <div style="padding:0 14px 14px;display:flex;flex-direction:column;gap:6px;">
+                                    <select id="audit-a" class="cr-audit-select"></select>
+                                    <select id="audit-b" class="cr-audit-select"></select>
+                                    <button class="cr-audit-btn" onclick="openAudit()">View conversation</button>
+                                </div>
+                            </div>
                         </div>
 
                         <!-- Self bar -->
@@ -1363,6 +1414,24 @@ function roleIcon(role) {
     return `<i class="fas ${icon}"></i>`;
 }
 
+// uid → profile photo URL (filled from chatPresence)
+const photoMap = {};
+
+// Photo if the user has one, otherwise their role icon
+function avatarInner(uid, role) {
+    const url = photoMap[uid];
+    if (!url) return roleIcon(role);
+    return `<img src="${String(url).replace(/"/g, '&quot;')}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;">`;
+}
+
+// Swap icons for photos on messages already on screen
+function refreshMessageAvatars() {
+    document.querySelectorAll('.cr-msg-avatar[data-uid]').forEach(el => {
+        const uid = el.dataset.uid;
+        if (photoMap[uid]) el.innerHTML = avatarInner(uid, el.dataset.role);
+    });
+}
+
 // ── File helpers ──────────────────────────────────────────
 function getFileStyle(mimeType, name) {
     const ext = (name.split('.').pop() || '').toLowerCase();
@@ -1514,6 +1583,188 @@ let rightPanelOpen = true;
 let pinnedMessages = [];
 const ALL_CHANNELS = ['general','announcements','housekeeping','front-desk'];
 
+// ── Channel access (set per user on the User Roles page) ──────────────────
+// ── Private messages (DMs) ────────────────────────────────────────────────
+let currentDM = null;     // uid of the person we're chatting with (null = channel / audit)
+let convLabel = null;     // header title when not in a channel
+let dmReadTimes = {};
+const dmLatest = {};
+const dmUnsubs = {};
+
+function esc(s) {
+    return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+}
+
+function dmConvId(otherUid) {
+    return [currentUser.uid, otherUid].sort().join('_');
+}
+
+function openConversation(conv, label, desc, opts = {}) {
+    const { placeholder = 'Message', readOnly = false, dmUid = null, activeEl = null, markRead = true } = opts;
+
+    stopTyping();
+    if (currentDM) clearBadge(currentChannel);          // leaving a private chat → mark it read
+    if (typingUnsub) { typingUnsub(); typingUnsub = null; }
+    document.getElementById('cr-typing-indicator').style.display = 'none';
+
+    document.querySelectorAll('.cr-channel').forEach(c => c.classList.remove('active'));
+    document.querySelectorAll('.cr-member').forEach(m => m.classList.remove('active'));
+    if (activeEl) activeEl.classList.add('active');
+
+    currentChannel = conv;
+    currentDM  = dmUid;
+    convLabel  = label;
+    try { sessionStorage.setItem('cr_active_channel', conv); } catch (e) {}
+    channelDesc = desc;
+    _noAccess  = false;
+
+    document.querySelector('.cr-hash-lg').textContent = '@';
+    document.getElementById('cr-channel-name').textContent = label;
+    document.getElementById('cr-channel-desc').textContent = desc;
+
+    const input = document.getElementById('cr-message-input');
+    input.placeholder = placeholder;
+    input.disabled = readOnly;
+    document.getElementById('cr-attach-btn').disabled = readOnly;
+    document.getElementById('cr-send-btn').disabled = true;
+
+    const box = document.getElementById('cr-messages-container');
+    box.classList.toggle('cr-readonly', readOnly);
+    box.innerHTML = '';
+    document.getElementById('cr-unread-banner').classList.remove('show');
+    _ignoreScroll = true;
+
+    if (markRead) clearBadge(conv);
+    subscribeChannel(conv);
+}
+
+function openDM(uid, name, role, el) {
+    if (!currentUser) return;
+    if (uid === currentUser.uid) { showToast("That's you", 'success'); return; }
+    openConversation(dmConvId(uid), name, 'Private conversation', {
+        placeholder: `Message ${name}`, dmUid: uid, activeEl: el
+    });
+}
+
+// Unread dot next to a person
+function watchDmUnread(otherUid) {
+    if (dmUnsubs[otherUid] || !currentUser) return;
+    dmUnsubs[otherUid] = db.collection('chatrooms').doc(dmConvId(otherUid)).collection('messages')
+        .orderBy('time', 'desc').limit(1)
+        .onSnapshot(snap => {
+            if (snap.empty) dmLatest[otherUid] = { t: 0, mine: false };
+            else {
+                const d = snap.docs[0].data();
+                dmLatest[otherUid] = { t: d.time && d.time.toMillis ? d.time.toMillis() : Date.now(), mine: d.uid === currentUser.uid };
+            }
+            updateDmBadges();
+        }, () => {});
+}
+
+function updateDmBadges() {
+    if (!currentUser) return;
+    Object.keys(dmLatest).forEach(uid => {
+        const dot = document.getElementById('dm-dot-' + uid);
+        if (!dot) return;
+        const conv = dmConvId(uid);
+        const ls   = dmReadTimes['lastSeen_' + conv];
+        const seen = ls ? (ls.seconds ? ls.seconds * 1000 : 0) : 0;
+        const l    = dmLatest[uid];
+        dot.classList.toggle('show', !l.mine && l.t > seen && currentChannel !== conv);
+    });
+}
+
+// Arriving from a "private message" pop-up → open that person's chat
+function openPendingDM(members) {
+    const uid = sessionStorage.getItem('cr_open_dm');
+    if (!uid) return;
+    const m = members.find(x => x.uid === uid);
+    if (!m) return;
+    sessionStorage.removeItem('cr_open_dm');
+    setTimeout(() => openDM(m.uid, m.name, m.role, document.querySelector(`.cr-member[data-uid="${m.uid}"]`)), 0);
+}
+
+function startDmWatch() {
+    db.collection('chatUnread').doc(currentUser.uid).onSnapshot(doc => {
+        dmReadTimes = doc.exists ? doc.data() : {};
+        updateDmBadges();
+    }, () => {});
+}
+
+// ── Super Admin: read other people's private chats ────────────────────────
+function fillAuditSelects(members) {
+    const sec = document.getElementById('cr-audit-section');
+    if (!sec || !currentUser || currentUser.role !== 'superadmin') return;
+    sec.style.display = '';
+    ['audit-a', 'audit-b'].forEach((id, i) => {
+        const sel  = document.getElementById(id);
+        const prev = sel.value;
+        sel.innerHTML = `<option value="">${i ? 'Person B' : 'Person A'}</option>` +
+            members.map(m => `<option value="${esc(m.uid)}">${esc(m.name)}</option>`).join('');
+        sel.value = prev;
+    });
+}
+
+function openAudit() {
+    const a = document.getElementById('audit-a').value;
+    const b = document.getElementById('audit-b').value;
+    if (!a || !b || a === b) { showToast('Pick two different people', 'error'); return; }
+    const nameOf = id => document.querySelector(`#audit-a option[value="${id}"]`)?.textContent || 'User';
+    const mine = a === currentUser.uid || b === currentUser.uid;
+    openConversation([a, b].sort().join('_'), `${nameOf(a)} ↔ ${nameOf(b)}`,
+        mine ? 'Private conversation' : 'Private conversation · read-only (Super Admin)', {
+            placeholder: mine ? 'Message' : 'Read-only view',
+            readOnly: !mine,
+            markRead: mine
+        });
+}
+
+let hiddenChannels = [];let _noAccess = false;
+
+function isChannelHidden(ch) {
+    return !!currentUser && currentUser.role !== 'superadmin' && hiddenChannels.includes(ch);
+}
+
+function applyChannelAccess() {
+    const chans = [...document.querySelectorAll('.cr-channel')];
+    chans.forEach(el => { el.style.display = isChannelHidden(el.dataset.channel) ? 'none' : ''; });
+
+    const allowed = chans.filter(el => !isChannelHidden(el.dataset.channel));
+    const input   = document.getElementById('cr-message-input');
+    const sendBtn = document.getElementById('cr-send-btn');
+
+    if (!allowed.length && !currentDM) {
+        _noAccess = true;
+        if (messagesUnsub) { messagesUnsub(); messagesUnsub = null; }
+        document.getElementById('cr-messages-container').innerHTML = `
+            <div class="cr-empty-msgs">
+                <i class="fas fa-lock"></i>
+                <h3>No channels available</h3>
+                <p>You don't have access to any chat channels. Contact your Super Admin.</p>
+            </div>`;
+        input.disabled = true;
+        sendBtn.disabled = true;
+        return;
+    }
+
+    const wasBlocked = _noAccess;
+    _noAccess = false;
+    input.disabled = false;
+    // Current channel just got hidden (or access came back) → jump to the first allowed one
+    if ((wasBlocked || isChannelHidden(currentChannel)) && allowed.length) allowed[0].click();
+}
+
+function watchChannelAccess() {
+    return new Promise(resolve => {
+        db.collection('users').doc(currentUser.uid).onSnapshot(snap => {
+            const d = snap.exists ? snap.data() : {};
+            hiddenChannels = Array.isArray(d.hiddenChannels) ? d.hiddenChannels : [];
+            applyChannelAccess();
+            resolve();
+        }, () => resolve());
+    });
+}
+
 // ── Boot ──────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
     buildEmojiGrid();
@@ -1523,19 +1774,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let name = user.displayName || user.email?.split('@')[0] || 'Staff';
         let role = 'staff';
+        let photo = '';
 
         try {
             const snap = await db.collection('users').doc(user.uid).get();
             if (snap.exists) {
                 name = snap.data().name || name;
                 role = snap.data().role || 'staff';
+                photo = snap.data().photoURL || '';
             }
         } catch (e) { console.warn('Profile load error:', e); }
 
-        currentUser = { uid: user.uid, name, role, email: user.email };
+        currentUser = { uid: user.uid, name, role, email: user.email, photo };
 
         const selfAvatar = document.getElementById('cr-self-avatar');
-        selfAvatar.innerHTML = roleIcon(role);
+        if (photo) photoMap[user.uid] = photo;
+        selfAvatar.innerHTML = avatarInner(user.uid, role);
         selfAvatar.className = `cr-self-avatar role-${role}`;
         document.getElementById('cr-self-name').textContent = name;
         document.getElementById('user-email-display').textContent = name;
@@ -1549,7 +1803,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         applyStoredSettings();
         loadMembers();
-        subscribeChannel('general');
+        await watchChannelAccess();
+        startDmWatch();
+        if (!isChannelHidden('general') && !currentDM) subscribeChannel('general');
         applyChannelBadges();
 
         setTimeout(() => {
@@ -1570,6 +1826,7 @@ async function markPresence(online) {
         name: currentUser.name,
         role: currentUser.role,
         online: online,
+        photoURL: currentUser.photo || '',
         lastSeen: firebase.firestore.FieldValue.serverTimestamp()
     };
     await db.collection('chatPresence').doc(currentUser.uid).set(data, { merge: true });
@@ -1606,10 +1863,15 @@ function loadMembers() {
             // Consider offline if the online flag explicitly says false, or if the timestamp is too old
             const isOnline = d.online !== false && ((now - lastSeenMillis) < PRESENCE_TIMEOUT_MS);
             members.push({ uid: doc.id, ...d, online: isOnline });
+            if (d.photoURL) photoMap[doc.id] = d.photoURL;
             if (isOnline) count++;
         });
 
         onlineCount.textContent = `(${count})`;
+        refreshMessageAvatars();
+        fillAuditSelects(members);
+        openPendingDM(members);
+        setTimeout(updateDmBadges, 0);   // after the list is rebuilt
         members.sort((a, b) => (b.online ? 1 : 0) - (a.online ? 1 : 0));
 
         members.forEach(m => {
@@ -1619,8 +1881,14 @@ function loadMembers() {
             const div = document.createElement('div');
             div.className = 'cr-member';
             div.innerHTML = `
-                <div class="cr-member-avatar role-${m.role||'staff'} ${status}">${roleIcon(m.role)}</div>
+                <div class="cr-member-avatar role-${m.role||'staff'} ${status}">${avatarInner(m.uid, m.role)}</div>
                 <div class="cr-member-name">${m.name}</div>`;
+            div.dataset.uid = m.uid;
+            div.title = m.uid === currentUser.uid ? 'You' : `Message ${m.name}`;
+            div.insertAdjacentHTML('beforeend', `<span class="cr-dm-dot" id="dm-dot-${m.uid}"></span>`);
+            if (currentDM === m.uid) div.classList.add('active');
+            div.onclick = () => openDM(m.uid, m.name, m.role, div);
+            if (m.uid !== currentUser.uid) watchDmUnread(m.uid);
             sidebarList.appendChild(div);
 
             // Online panel
@@ -1734,6 +2002,15 @@ function clearBadge(channel) {
 // ── Channel switching ─────────────────────────────────────
 function switchChannel(el, channel, desc) {
     document.querySelectorAll('.cr-channel').forEach(c => c.classList.remove('active'));
+    if (currentDM) clearBadge(currentChannel);          // leaving a private chat → mark it read
+    currentDM = null; convLabel = null;
+    document.querySelectorAll('.cr-member').forEach(m => m.classList.remove('active'));
+    document.querySelector('.cr-hash-lg').textContent = '#';
+    document.getElementById('cr-message-input').disabled = false;
+    document.getElementById('cr-attach-btn').disabled = false;
+    document.getElementById('cr-messages-container').classList.remove('cr-readonly');
+    if (typingUnsub) { typingUnsub(); typingUnsub = null; }
+    document.getElementById('cr-typing-indicator').style.display = 'none';
     el.classList.add('active');
     currentChannel = channel;
     sessionStorage.setItem('cr_active_channel', channel);
@@ -1768,7 +2045,7 @@ function subscribeChannel(channel) {
                 container.innerHTML = `
                     <div class="cr-empty-msgs">
                         <i class="fas fa-comments"></i>
-                        <h3>Welcome to #${channel}</h3>
+                        <h3>${convLabel ? 'Chat with ' + esc(convLabel) : 'Welcome to #' + channel}</h3>
                         <p>${channelDesc}</p>
                     </div>`;
                 return;
@@ -1852,7 +2129,7 @@ function buildMessageEl(data) {
         : '';
 
     div.innerHTML = `
-        <div class="cr-msg-avatar role-${role}">${roleIcon(role)}</div>
+        <div class="cr-msg-avatar role-${role}" data-uid="${data.uid}" data-role="${role}">${avatarInner(data.uid, role)}</div>
         <div class="cr-msg-body">
             <div class="cr-msg-header">
                 <span class="cr-msg-name">${data.senderName}</span>
@@ -2205,7 +2482,7 @@ function sendDesktopNotification(senderName, text) {
     if (localStorage.getItem('cr-desktop') !== 'true') return;
     if (Notification.permission !== 'granted') return;
     if (document.hasFocus()) return;
-    new Notification(`${senderName} in #${currentChannel}`, {
+    new Notification(convLabel ? `${senderName} (private)` : `${senderName} in #${currentChannel}`, {
         body: text.slice(0, 80), icon: 'img/logo1.jpg'
     });
 }

@@ -77,8 +77,29 @@
         }
 
         /* ── Register link ───────────────────────────────────── */
+                /* ── Compact login layout (fits without scrolling) ───── */
+        .auth-container { padding: 10px; }
+        .auth-card { padding: 26px 40px; }
+        .auth-title { margin-bottom: 4px; }
+        .auth-subtitle { margin-bottom: 18px; }
+        .auth-card .form-group { margin-bottom: 14px; }
+        .auth-card .form-group label { margin-bottom: 6px; }
+        .auth-card .form-control { padding: 10px 16px; }
+        .auth-card .btn-google { padding: 9px 24px; }
+        .auth-card .btn-primary { padding: 10px 24px; }
+        .divider { margin: 14px 0; }
+
+        /* Short screens (laptops): tighten a bit more */
+        @media (max-height: 800px) {
+            .auth-card { padding: 18px 36px; }
+            .auth-card .logo { width: 60px !important; height: 60px !important; }
+            .auth-subtitle { margin-bottom: 12px; }
+            .auth-card .form-group { margin-bottom: 10px; }
+            .divider { margin: 10px 0; }
+        }
+
         .register-link {
-            margin-top: 20px;
+            margin-top: 14px;
             font-size: 13px;
             color: #64748b;
             text-align: center;
@@ -115,7 +136,7 @@
 </div>
 
         <div class="auth-card">
-            <img src="img/logo1.jpg" alt="Logo" class="logo" style="width:100px;height:100px;" align="center">
+            <img src="img/logo1.jpg" alt="Logo" class="logo" style="width:80px;height:80px;" align="center">
             <h1 class="auth-title">GTEC Guest Lodge</h1>
             <p class="auth-subtitle">Welcome back👋! Please login to your account.</p>
 
@@ -185,6 +206,11 @@
         const MAX_ATTEMPTS = 5;
         const RECAPTCHA_SITE_KEY = '6LdyWi0tAAAAABVOjmWK51Q1qIKsQpqIwRh3m4uh';
 
+        // ── Submit guard + cooldown (shared by email and Google login) ────
+        let isSubmitting = false;
+        let cooldownUntil = 0;
+        const COOLDOWN_MS = 2000;
+
         // ── reCAPTCHA Enterprise token generator ──────────────────────────
         async function getRecaptchaToken(action) {
             try {
@@ -199,6 +225,7 @@
                 return null;
             }
         }
+
 
         // ── Tell auth.js NOT to redirect on this page ─────────────────────
         window._loginPageHandlingRedirect = true;
@@ -224,13 +251,10 @@
             }
         }
 
+        // Unknown emails are detected by Firebase Auth itself (auth/user-not-found).
+        // Google sign-in is still gated by checkUserStatus() in handleSuccessfulAuth().
         async function isRegisteredEmail(email) {
-            const emailLower = email.toLowerCase().trim();
-            const emails = await loadRegisteredEmails();
-            // If list failed to load, return true and let Firebase Auth
-            // and Firestore status check be the real gatekeepers
-            if (emails === null) return true;
-            return emails.has(emailLower);
+            return true;
         }
 
         // ── Password visibility toggle ────────────────────────────────────
@@ -300,18 +324,22 @@
         async function recordFailedAttempt(email) {
             try {
                 const ref = getAttemptRef(email);
-                const data = await getAttemptData(email);
-                const newCount = (data.attempts || 0) + 1;
-                const locked = newCount >= MAX_ATTEMPTS;
-
-                await ref.set({
-                    attempts: newCount,
-                    locked: locked,
-                    lastFailed: new Date().toISOString(),
-                    email: email,
+                const { attempts: newCount, locked } = await db.runTransaction(async (tx) => {
+                    const snap = await tx.get(ref);
+                    const current = snap.exists ? (snap.data().attempts || 0) : 0;
+                    if (snap.exists && snap.data().locked) return { attempts: current, locked: true };
+                    const count = current + 1;
+                    const isLocked = count >= MAX_ATTEMPTS;
+                    tx.set(ref, {
+                        attempts: count,
+                        locked: isLocked,
+                        lastFailed: new Date().toISOString(),
+                        email: email,
+                    });
+                    return { attempts: count, locked: isLocked };
                 });
 
-                if (locked && typeof _writeLog === 'function') {
+                if (locked && newCount === MAX_ATTEMPTS && typeof _writeLog === 'function') {
                     await _writeLog(email, "Account Locked",
                         `${email} — locked after ${MAX_ATTEMPTS} failed login attempts`);
                 }
@@ -431,6 +459,8 @@
         // ✅ GOOGLE SIGN-IN
         // ══════════════════════════════════════════════════════════════════
         document.getElementById('google-signin-btn').addEventListener('click', async () => {
+            if (isSubmitting || Date.now() < cooldownUntil) return;
+            isSubmitting = true;
             const btn = document.getElementById('google-signin-btn');
             btn.disabled = true;
             btn.innerHTML = `
@@ -527,28 +557,39 @@
                     'error'
                 );
                 console.error('[Login] Google sign-in error:', error);
+            } finally {
+                isSubmitting = false;
+                cooldownUntil = Date.now() + COOLDOWN_MS;
             }
         });
 
         // ── Email/Password Login form submit ──────────────────────────────
         document.getElementById('login-form').addEventListener('submit', async (e) => {
             e.preventDefault();
-            hideWarning();
+
+            // ── Block instantly (before any await): stops double-click / Enter spam ──
+            if (isSubmitting || Date.now() < cooldownUntil) return;
+            isSubmitting = true;
 
             const email = document.getElementById('email').value.trim().toLowerCase();
             const password = document.getElementById('password').value;
             const loginBtn = document.getElementById('login-btn');
 
-            if (!email || !password) return;
+            if (!email || !password) { isSubmitting = false; return; }
 
-            // ── Step 1: Check Firestore lock ──────────────────────────────
-            const attemptData = await getAttemptData(email);
-            if (attemptData.locked) { showLockedMessage(); return; }
-
+            hideWarning();
             loginBtn.disabled = true;
             loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Logging in…';
 
             try {
+                // ── Step 1: Check Firestore lock ──────────────────────────
+                const attemptData = await getAttemptData(email);
+                if (attemptData.locked) {
+                    loginBtn.disabled = false;
+                    loginBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Login';
+                    showLockedMessage();
+                    return;
+                }
                 // ── reCAPTCHA check ───────────────────────────────────────
                 const rcToken = await getRecaptchaToken('EMAIL_LOGIN');
                 if (!rcToken) {
@@ -601,15 +642,7 @@
                     error.code === 'auth/user-not-found';
 
                 if (isCredentialError) {
-                    const registered = await isRegisteredEmail(email);
-                    if (!registered) {
-                        showWarning(
-                            `<i class="fas fa-exclamation-circle" style="margin-right:6px;"></i>
-                             No account found with that email address.`,
-                            'error'
-                        );
-                        return;
-                    }
+                    
 
                     const { attempts, locked } = await recordFailedAttempt(email);
                     const remaining = MAX_ATTEMPTS - attempts;
@@ -619,13 +652,13 @@
                     } else if (remaining === 1) {
                         showWarning(
                             `<i class="fas fa-exclamation-triangle" style="margin-right:6px;"></i>
-                             Wrong password. <strong>1 attempt remaining</strong> before your account is locked.`,
+                             Incorrect email or password. <strong>1 attempt remaining</strong> before your account is locked.`,
                             'warning'
                         );
                     } else {
                         showWarning(
                             `<i class="fas fa-exclamation-circle" style="margin-right:6px;"></i>
-                             Wrong password. ${remaining} attempt${remaining !== 1 ? 's' : ''} remaining.`,
+                             Incorrect email or password. ${remaining} attempt${remaining !== 1 ? 's' : ''} left before your account is locked.`,
                             'warning'
                         );
                     }
@@ -642,6 +675,9 @@
                         'error'
                     );
                 }
+            } finally {
+                isSubmitting = false;
+                cooldownUntil = Date.now() + COOLDOWN_MS;
             }
         });
 

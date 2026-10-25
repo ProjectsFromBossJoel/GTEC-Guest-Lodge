@@ -1,0 +1,435 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helper functions ──────────────────────────────────────────────────
+    function isAuth() {
+      return request.auth != null;
+    }
+    function isOwner(userId) {
+      return isAuth() && request.auth.uid == userId;
+    }
+    function myDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    function isStaff() {
+      return isAuth()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && myDoc().get('status', 'active') == 'active';
+    }
+    function isAdmin() {
+      return isAuth()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && myDoc().role in ['superadmin', 'admin', 'manager']
+        && myDoc().get('status', 'active') == 'active';
+    }
+    function isSuperAdmin() {
+      return isAuth()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && myDoc().role == 'superadmin'
+        && myDoc().get('status', 'active') == 'active';
+    }
+    // Chat channels a Super Admin has hidden from this user
+    function channelOpen(ch) {
+      return isSuperAdmin() || !(ch in myDoc().get('hiddenChannels', []));
+    }
+        // Direct messages live at chatrooms/{uidA_uidB}. Channel names never contain "_".
+    function isDM(ch) {
+      return ch.matches('.+_.+');
+    }
+    function inDM(ch) {
+      return isAuth() && (ch.matches(request.auth.uid + '_.+') || ch.matches('.+_' + request.auth.uid));
+    }
+    // Read: channels follow the hidden-channel list; DMs = the two people + Super Admin
+    function chatRead(ch) {
+      return isStaff() && (isDM(ch) ? (inDM(ch) || isSuperAdmin()) : channelOpen(ch));
+    }
+    // Write: DMs = only the two people (Super Admin reads, does not post in others' DMs)
+    function chatWrite(ch) {
+      return isStaff() && (isDM(ch) ? inDM(ch) : channelOpen(ch));
+    }
+    function validString(field, maxLen) {
+      return field is string && field.size() > 0 && field.size() <= maxLen;
+    }
+
+    // ── Portal helpers (guest accounts) ───────────────────────────────────
+    function verified() {
+      return isAuth() && request.auth.token.email_verified == true;
+    }
+    function onlyKeys(k) {
+      return request.resource.data.keys().hasOnly(k);
+    }
+    function changed(k) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(k);
+    }
+    // Guest adds exactly one new chat message to the thread, earlier messages untouched
+    function oneGuestMessage() {
+      return request.resource.data.thread is list
+        && request.resource.data.thread.size() == resource.data.get('thread', []).size() + 1
+        && request.resource.data.thread.size() <= 100
+        && request.resource.data.thread[0:resource.data.get('thread', []).size()] == resource.data.get('thread', [])
+        && request.resource.data.thread[request.resource.data.thread.size() - 1].keys().hasOnly(['from', 'text', 'at', 'replyTo'])
+        && (!('replyTo' in request.resource.data.thread[request.resource.data.thread.size() - 1].keys())
+            || (request.resource.data.thread[request.resource.data.thread.size() - 1]['replyTo'].keys().hasOnly(['from', 'text'])
+                && request.resource.data.thread[request.resource.data.thread.size() - 1]['replyTo']['text'] is string
+                && request.resource.data.thread[request.resource.data.thread.size() - 1]['replyTo']['text'].size() <= 100))
+        && request.resource.data.thread[request.resource.data.thread.size() - 1]['from'] == 'guest'
+        && request.resource.data.thread[request.resource.data.thread.size() - 1]['text'] is string
+        && request.resource.data.thread[request.resource.data.thread.size() - 1]['text'].size() >= 1
+        && request.resource.data.thread[request.resource.data.thread.size() - 1]['text'].size() <= 300
+        && request.resource.data.guestReply is string
+        && request.resource.data.guestReply.size() <= 300
+        && request.resource.data.guestReplyAt == request.time;
+    }
+
+    // ── Hub helper functions ──────────────────────────────────────────────
+    function hubMe() {
+      return get(/databases/$(database)/documents/hubUsers/$(request.auth.uid)).data;
+    }
+    function hubActive() {
+      return isAuth()
+        && exists(/databases/$(database)/documents/hubUsers/$(request.auth.uid))
+        && hubMe().get('status', 'active') == 'active';
+    }
+    function isHubSuperAdmin() {
+      return hubActive() && hubMe().get('role', '') == 'superadmin';
+    }
+    function isHubAdmin() {
+      return hubActive() && hubMe().get('role', '') in ['superadmin', 'admin'];
+    }
+
+    // ── Users ─────────────────────────────────────────────────────────────
+    match /users/{userId} {
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
+      allow create: if (
+          isSuperAdmin()
+          && validString(request.resource.data.email, 200)
+          && validString(request.resource.data.name, 100)
+        ) || (
+          isOwner(userId)
+          && validString(request.resource.data.email, 200)
+          && validString(request.resource.data.name, 100)
+          && request.resource.data.status == 'pending'
+        );
+      allow delete: if isSuperAdmin();
+      allow update: if isSuperAdmin()
+        || (
+          isOwner(userId)
+          && isStaff()
+          && myDoc().get('permissions', {}).get('canEdit', false) == true
+          && changed(['photoURL'])
+          && request.resource.data.photoURL is string
+          && request.resource.data.photoURL.size() <= 500
+          && request.resource.data.photoURL.matches('https://res\\.cloudinary\\.com/.*')
+        );
+    }
+
+    // ── Registered email lookup (used by the admin login page) ────────────
+    // Doc ID = lowercased email. Single-doc get is public so the login page
+    // can tell "unknown email" from "wrong password"; listing is blocked.
+    match /registeredEmails/{key} {
+      allow get: if true;
+      allow list: if false;
+      allow create: if key == key.lower()
+        && request.resource.data.keys().hasOnly(['email'])
+        && request.resource.data.email == key
+        && (
+          isSuperAdmin()
+          || (
+            isAuth()
+            && request.auth.token.email != null
+            && key == request.auth.token.email.lower()
+            && existsAfter(/databases/$(database)/documents/users/$(request.auth.uid))
+          )
+        );
+      allow update, delete: if isSuperAdmin();
+    }
+
+    // ── Rooms ─────────────────────────────────────────────────────────────
+    match /rooms/{roomId} {
+      allow read: if true;
+      allow update: if isStaff()
+        || (resource.data.status == 'Available'
+            && request.resource.data.status == 'Reserved'
+            && request.resource.data.diff(resource.data).affectedKeys()
+                .hasOnly(['status']));
+      allow create, delete: if isAdmin();
+    }
+
+    // ── Guests (bookings) ─────────────────────────────────────────────────
+    match /guests/{guestId} {
+      allow create: if validString(request.resource.data.name, 100)
+        && validString(request.resource.data.email, 200)
+        && validString(request.resource.data.phone, 30)
+        && request.resource.data.guestsCount is number
+        && request.resource.data.guestsCount >= 1
+        && request.resource.data.guestsCount <= 20;
+
+      allow read: if isStaff()
+        || (verified()
+            && (resource.data.emailLower == request.auth.token.email.lower()
+                || resource.data.email == request.auth.token.email));
+      allow update, delete: if isStaff();
+    }
+
+    // ── Invoices ──────────────────────────────────────────────────────────
+    match /invoices/{invoiceId} {
+      allow create: if validString(request.resource.data.guestName, 100)
+        && validString(request.resource.data.guestEmail, 200);
+      allow read, update, delete: if isStaff();
+    }
+
+    // ── Live Chats ────────────────────────────────────────────────────────
+    match /liveChats/{chatId} {
+      allow create: if validString(request.resource.data.name, 100)
+        && validString(request.resource.data.message, 1000);
+      allow read, update, delete: if isStaff();
+    }
+
+    // ── Login Attempts ────────────────────────────────────────────────────
+    match /loginAttempts/{docId} {
+      allow get: if true;
+      allow list: if isAdmin();
+      allow write: if !isAuth() || isAdmin();
+    }
+
+    // ── Logs ──────────────────────────────────────────────────────────────
+    match /logs/{logId} {
+      allow create: if isStaff()
+        && validString(request.resource.data.action, 200);
+      allow read: if isAdmin();
+      allow delete: if isSuperAdmin();
+      allow update: if false;
+    }
+
+    // ── History ───────────────────────────────────────────────────────────
+    match /history/{historyId} {
+      allow read, write: if isStaff();
+    }
+
+    // ── Internal Chat ─────────────────────────────────────────────────────
+    match /chatrooms/{channel}/messages/{msgId} {
+      allow read: if chatRead(channel);
+      allow create, update: if chatWrite(channel);
+      allow delete: if chatWrite(channel)
+        && (resource.data.get('uid', '') == request.auth.uid
+            || (!isDM(channel) && isSuperAdmin()));
+    }
+    match /chatrooms/{channel}/typing/{uid} {
+      allow read, write: if isStaff() && (!isDM(channel) || inDM(channel));
+    }    match /chatPresence/{uid} {
+      allow read, write: if isStaff();
+    }
+    match /chatUnread/{uid} {
+      allow read, write: if isStaff() && isOwner(uid);
+    }
+
+    // ── Audit logs ────────────────────────────────────────────────────────
+    match /auditLogs/{logId} {
+      allow read: if isAuth()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && myDoc().role in ['superadmin', 'admin']
+        && myDoc().get('status', 'active') == 'active';
+      allow delete: if isSuperAdmin();
+      allow create, update: if false;
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // CLIENT PORTAL
+    // ══════════════════════════════════════════════════════════════════════
+
+    // A guest's own profile
+    match /clients/{uid} {
+      allow read: if isOwner(uid) || isStaff();
+      allow create: if isOwner(uid)
+        && onlyKeys(['name', 'email', 'phone', 'provider', 'createdAt'])
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.name is string && request.resource.data.name.size() <= 80
+        && request.resource.data.phone is string && request.resource.data.phone.size() <= 30;
+      allow update: if isOwner(uid) && changed(['name', 'phone', 'updatedAt'])
+        && request.resource.data.name.size() <= 80
+        && request.resource.data.phone.size() <= 30;
+      allow delete: if false;
+    }
+
+    // Fault reports
+    match /faultReports/{id} {
+      // guest marks the conversation as read (one number, nothing else may change)
+      allow update: if verified() && resource.data.uid == request.auth.uid
+        && changed(['guestReadN'])
+        && request.resource.data.guestReadN is int
+        && request.resource.data.guestReadN >= 0
+        && request.resource.data.guestReadN <= 200;
+      // guest reacts to a chat message (one map field, nothing else may change)
+      allow update: if verified() && resource.data.uid == request.auth.uid
+        && changed(['guestReacts'])
+        && request.resource.data.guestReacts is map
+        && request.resource.data.guestReacts.size() <= 100;
+      allow read: if isStaff() || (verified() && resource.data.uid == request.auth.uid);
+      allow create: if verified()
+        && onlyKeys(['uid', 'name', 'email', 'phone', 'bookingRef', 'room', 'category',
+                     'urgency', 'description', 'status', 'createdAt'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.status == 'new'
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.urgency in ['Low', 'Normal', 'Urgent']
+        && request.resource.data.category is string && request.resource.data.category.size() <= 200
+        && request.resource.data.room is string && request.resource.data.room.size() <= 60
+        && request.resource.data.description is string
+        && request.resource.data.description.size() >= 10
+        && request.resource.data.description.size() <= 1000;
+      allow update: if isStaff()
+        // guest adds one chat message (only after staff wrote, only while open)
+        || (verified() && resource.data.uid == request.auth.uid
+            && (resource.data.get('adminResponse', '') != '' || resource.data.get('thread', []).size() > 0)
+            && (!(resource.data.status in ['resolved', 'closed']) || resource.data.get('chatOpen', false) == true)
+            && changed(['thread', 'guestReply', 'guestReplyAt', 'updatedAt'])
+            && oneGuestMessage());
+      allow delete: if false;
+    }
+
+    // Laundry requests
+    match /laundryRequests/{id} {
+      // guest marks the conversation as read (one number, nothing else may change)
+      allow update: if verified() && resource.data.uid == request.auth.uid
+        && changed(['guestReadN'])
+        && request.resource.data.guestReadN is int
+        && request.resource.data.guestReadN >= 0
+        && request.resource.data.guestReadN <= 200;
+      // guest reacts to a chat message (one map field, nothing else may change)
+      allow update: if verified() && resource.data.uid == request.auth.uid
+        && changed(['guestReacts'])
+        && request.resource.data.guestReacts is map
+        && request.resource.data.guestReacts.size() <= 100;
+      allow read: if isStaff() || (verified() && resource.data.uid == request.auth.uid);
+      allow create: if verified()
+        && onlyKeys(['uid', 'name', 'email', 'phone', 'bookingRef', 'room', 'items',
+                     'service', 'slot', 'note', 'status', 'createdAt'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.status == 'requested'
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.items is list
+        && request.resource.data.items.size() >= 1 && request.resource.data.items.size() <= 12
+        && request.resource.data['service'] is string && request.resource.data['service'].size() <= 200
+        && request.resource.data.note is string && request.resource.data.note.size() <= 300;
+      allow update: if isStaff()
+        // guest cancels a request that is still "requested"
+        || (verified() && resource.data.uid == request.auth.uid
+            && resource.data.status == 'requested'
+            && request.resource.data.status == 'cancelled'
+            && changed(['status', 'updatedAt', 'cancelledAt']))
+        // guest adds one chat message (only after staff wrote, only while open)
+        || (verified() && resource.data.uid == request.auth.uid
+            && (resource.data.get('adminNote', '') != '' || resource.data.get('thread', []).size() > 0)
+            && (!(resource.data.status in ['delivered', 'cancelled']) || resource.data.get('chatOpen', false) == true)
+            && changed(['thread', 'guestReply', 'guestReplyAt', 'updatedAt'])
+            && oneGuestMessage());
+      allow delete: if false;
+    }
+
+    // Feedback (private until staff publish it)
+    match /feedback/{id} {
+      allow read: if isStaff() || (verified() && resource.data.uid == request.auth.uid);
+      allow create: if verified()
+        && id.matches(request.auth.uid + '_.*')
+        && onlyKeys(['uid', 'name', 'bookingRef', 'room', 'rating', 'ratings', 'comment',
+                     'showPublic', 'publicName', 'status', 'createdAt'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.status == 'draft'
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.rating is int
+        && request.resource.data.rating >= 1 && request.resource.data.rating <= 5
+        && request.resource.data.comment is string && request.resource.data.comment.size() <= 800
+        && request.resource.data.publicName is string && request.resource.data.publicName.size() <= 40;
+      allow update: if isStaff()
+        || (verified() && resource.data.uid == request.auth.uid
+            && resource.data.status != 'published'
+            && changed(['rating', 'ratings', 'comment', 'showPublic', 'publicName', 'updatedAt'])
+            && request.resource.data.rating is int
+            && request.resource.data.rating >= 1 && request.resource.data.rating <= 5
+            && request.resource.data.comment.size() <= 800);
+      allow delete: if isStaff();
+    }
+
+    // What the public website shows (no uid, e-mail, phone or booking details)
+    match /publicReviews/{id} {
+      allow read: if true;
+      allow create, update: if isStaff()
+        && request.resource.data.keys().hasOnly(['rating', 'name', 'text', 'publishedAt'])
+        && request.resource.data.rating is int
+        && request.resource.data.rating >= 1 && request.resource.data.rating <= 5
+        && request.resource.data.name.size() <= 40
+        && request.resource.data.text.size() <= 800;
+      allow delete: if isStaff();
+    }
+
+    // Website display settings (public read, staff write)
+    match /publicSettings/{id} {
+      allow read: if true;
+      allow write: if isStaff()
+        && request.resource.data.keys().hasOnly(['scroll', 'updatedAt', 'updatedBy'])
+        && request.resource.data.scroll is bool;
+    }
+
+    // ── Hub Users ─────────────────────────────────────────────────────────
+    match /hubUsers/{userId} {
+      allow get: if isOwner(userId) || isHubSuperAdmin();
+      allow list: if isHubSuperAdmin();
+      allow create: if (
+          isHubSuperAdmin()
+          && validString(request.resource.data.email, 200)
+          && validString(request.resource.data.name, 100)
+        ) || (
+          isOwner(userId)
+          && validString(request.resource.data.email, 200)
+          && validString(request.resource.data.name, 100)
+          && request.resource.data.status == 'pending'
+          && request.resource.data.get('role', 'observer') in ['observer', 'staff']
+          && request.resource.data.get('roles', []).size() == 0
+        );
+      allow update, delete: if isHubSuperAdmin();
+    }
+
+    match /hubLoginAttempts/{docId} {
+      allow read: if true;
+      allow write: if !isAuth() || isHubAdmin();
+    }
+
+    match /hubLogs/{logId} {
+      allow create: if isAuth()
+        && validString(request.resource.data.action, 200);
+      allow read, delete: if isHubAdmin();
+      allow update: if false;
+    }
+
+    match /hubEvents/{eventId} {
+      allow get: if true;
+      allow list: if hubActive();
+      allow create: if isHubAdmin()
+        && validString(request.resource.data.title, 150);
+      allow update, delete: if isHubAdmin();
+    }
+
+    match /hubEventRegistrations/{regId} {
+      allow read: if hubActive();
+      allow create: if validString(request.resource.data.eventId, 100)
+        && exists(/databases/$(database)/documents/hubEvents/$(request.resource.data.eventId))
+        && validString(request.resource.data.name, 100)
+        && validString(request.resource.data.phone, 30)
+        && validString(request.resource.data.organisation, 150)
+        && request.resource.data.email is string
+        && request.resource.data.email.size() <= 200
+        && request.resource.data.email == request.resource.data.email.lower()
+        && (request.resource.data.email.size() == 0
+            || regId == request.resource.data.eventId + '_' + request.resource.data.email)
+        && request.resource.data.createdAt is string
+        && request.resource.data.keys().hasOnly(
+             ['eventId', 'name', 'phone', 'email', 'organisation', 'createdAt']);
+      allow update: if false;
+      allow delete: if isHubAdmin();
+    }
+
+  }
+}

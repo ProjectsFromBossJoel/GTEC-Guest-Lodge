@@ -82,7 +82,8 @@
     var n = 0;
     if (id === 'fault') n = ctx.faults.filter(function (f) { return f.status !== 'resolved' && f.status !== 'closed'; }).length;
     if (id === 'laundry') n = ctx.laundry.filter(function (l) { return l.status !== 'delivered' && l.status !== 'cancelled'; }).length;
-    return n ? ' <span class="n" title="' + n + ' open">' + n + '</span>' : '';
+    var u = (id === 'fault' || id === 'laundry') && P.unread ? P.unread(id) : 0;
+    return u ? ' <span class="n" title="' + u + ' unread message' + (u === 1 ? '' : 's') + '">' + u + '</span>' : '';
   }
   function renderNav() {
     var cur = currentId();
@@ -91,10 +92,40 @@
     }).join('');
     var nv = $('pt-nav'), on = nv.querySelector('[aria-current]');
     if (on && nv.scrollWidth > nv.clientWidth) nv.scrollLeft = on.offsetLeft - (nv.clientWidth - on.offsetWidth) / 2;
+    renderBottom();
+  }
+  var BOTTOM = ['stay', 'rules', 'services', 'profile'];
+  function renderBottom() {
+    var bar = $('pt-bottom'), list = $('pt-more-list'), sheet = $('pt-more'); if (!bar || !list) return;
+    var cur = currentId(), isOpen = !!sheet && !sheet.classList.contains('pt-hide');
+    var more = NAV.filter(function (n) { return BOTTOM.indexOf(n.id) === -1; });
+    var dot = more.some(function (n) { return badgeFor(n.id); });
+    var unreadAll = P.unread ? P.unread('fault') + P.unread('laundry') : 0;
+    bar.innerHTML = BOTTOM.map(function (id) {
+      var n = NAV.filter(function (x) { return x.id === id; })[0];
+      return '<a href="#' + n.id + '"' + (n.id === cur ? ' aria-current="page"' : '') + '><span class="ic" aria-hidden="true">' + n.icon + '</span><span>' + esc(n.label) + '</span></a>';
+    }).join('') +
+      '<button type="button" id="pt-more-btn" aria-haspopup="true" aria-expanded="' + isOpen + '"' + (BOTTOM.indexOf(cur) === -1 ? ' aria-current="page"' : '') + '>' +
+      '<span class="ic" aria-hidden="true"><i class="fas fa-bars"></i>' + (dot ? '<b class="dot"></b>' : '') + '</span><span>More</span></button>';
+    list.innerHTML = more.map(function (n) {
+      return '<a role="menuitem" href="#' + n.id + '"' + (n.id === cur ? ' aria-current="page"' : '') + '><span aria-hidden="true">' + n.icon + '</span> ' + esc(n.label) + badgeFor(n.id) + '</a>';
+    }).join('');
+  }
+  function closeMore() {
+    var s = $('pt-more'), b = $('pt-more-btn');
+    if (s) s.classList.add('pt-hide');
+    if (b) b.setAttribute('aria-expanded', 'false');
+  }
+  function toggleMore() {
+    var s = $('pt-more'); if (!s) return;
+    var open = s.classList.contains('pt-hide');
+    s.classList.toggle('pt-hide', !open);
+    var b = $('pt-more-btn'); if (b) b.setAttribute('aria-expanded', String(open));
   }
   function route() {
     var id = currentId(), sec = P.sections[id], main = $('pt-main');
     renderNav();
+    closeMore();
     var meta = NAV.filter(function (n) { return n.id === id; })[0];
     document.title = meta.label + ' – GTEC Guest Lodge';
     main.innerHTML = '<div class="pt-pagehead"><h1>' + esc(meta.label) + '</h1>' + (sec && sec.intro ? '<p>' + esc(sec.intro) + '</p>' : '') + '</div>' +
@@ -103,6 +134,23 @@
     try { sec.render(ctx, $('pt-section')); }
     catch (e) { if (window.console) console.error(e); $('pt-section').innerHTML = '<div class="pt-alert err">This page couldn’t be shown. Please refresh.</div>'; }
     window.scrollTo(0, 0);
+  }
+  /* keeps the nav badges live on every page (the fault/laundry pages also have their own listeners) */
+  var watching = false, lastUnread = null;
+  function startWatch() {
+    if (watching) return; watching = true;
+    [['faults', 'faultReports', 'fault'], ['laundry', 'laundryRequests', 'laundry']].forEach(function (c) {
+      P.db.collection(c[1]).where('uid', '==', ctx.user.uid).limit(100).onSnapshot(function (qs) {
+        var rows = [];
+        qs.forEach(function (d) { var x = d.data({ serverTimestamps: 'estimate' }); x.id = d.id; x._ts = P.toDate(x.createdAt); rows.push(x); });
+        rows.sort(function (a, b) { return (b._ts || 0) - (a._ts || 0); });
+        ctx[c[0]] = rows;
+        var now = P.unread ? P.unread('fault') + P.unread('laundry') : 0;
+        if (lastUnread != null && now > lastUnread && currentId() !== c[2]) P.toast('New message from the lodge.', 'ok');
+        lastUnread = now;
+        renderNav();
+      }, function (e) { if (window.console) console.warn('[portal] watch:', e.code || e.message); });
+    });
   }
   P.go = function (id) { location.hash = '#' + id; };
   P.rerender = route;
@@ -113,6 +161,9 @@
     try { P.init(); } catch (e) {
       $('pt-boot').innerHTML = '<div class="pt-alert err">' + esc(e.message) + '</div>'; return;
     }
+    $('pt-bottom').addEventListener('click', function (e) { if (e.target.closest('#pt-more-btn')) toggleMore(); });
+    $('pt-more').addEventListener('click', function (e) { if (e.target.id === 'pt-more' || e.target.closest('a')) closeMore(); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeMore(); });
     $('pt-signout').addEventListener('click', function () {
       P.auth.signOut().then(function () { location.replace(P.CFG.paths.signin); });
     });
@@ -132,6 +183,7 @@
       }).then(function () {
         $('pt-boot').classList.add('pt-hide'); $('pt-shell').classList.remove('pt-hide');
         window.addEventListener('hashchange', route);
+        startWatch();
         route();
       });
     });

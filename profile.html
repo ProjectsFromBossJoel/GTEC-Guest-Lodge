@@ -81,6 +81,31 @@
             border: 2.5px solid white;
         }
 
+                .profile-avatar { overflow: hidden; cursor: pointer; }
+        .profile-avatar img { width: 100%; height: 100%; object-fit: cover; }
+        .avatar-edit-btn {
+            position: absolute; top: -2px; right: -2px; z-index: 2;
+            width: 30px; height: 30px; border-radius: 50%;
+            background: #ffffff; color: #1e40af; border: none; cursor: pointer;
+            display: none; align-items: center; justify-content: center;
+            font-size: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+        }
+        .avatar-edit-btn:hover { background: #eff6ff; }
+        .photo-lightbox {
+            display: none; position: fixed; inset: 0; z-index: 999999;
+            background: rgba(15,23,42,0.85); backdrop-filter: blur(6px);
+            align-items: center; justify-content: center; cursor: zoom-out;
+        }
+        .photo-lightbox.active { display: flex; }
+        .photo-lightbox img {
+            max-width: 90vw; max-height: 85vh; border-radius: 16px;
+            box-shadow: 0 24px 64px rgba(0,0,0,0.5);
+        }
+        .photo-lightbox-close {
+            position: absolute; top: 20px; right: 24px; background: none; border: none;
+            color: #fff; font-size: 28px; cursor: pointer;
+        }
+
         .profile-hero-info {
             flex: 1;
             position: relative;
@@ -426,7 +451,7 @@
             <a href="chatroom.html" class="menu-item"><i class="fas fa-comments"></i> Chat Room
             <span class="nav-badge" id="nav-chatroom-count" style="display:none;">0</span></a>
             <a href="logs.html" class="menu-item"><i class="fas fa-clipboard-list"></i> Logs</a>
-            <a href="chat.html" class="menu-item"><i class="fas fa-comment"></i> Client Messages
+            <a href="chat.html" class="menu-item"><i class="fas fa-comment"></i> General Inquiries
             <span class="nav-badge" id="nav-chat-count" style="display:none;">0</span></a>
             <a href="client-requests.html" class="menu-item"><i class="fas fa-concierge-bell"></i> Client Requests</a>
                 <a href="verification.html" class="menu-item"><i class="fas fa-user-check"></i> Verification</a>
@@ -468,8 +493,15 @@
                 <!-- Hero Card -->
                 <div class="profile-hero">
                     <div class="profile-avatar-wrap">
-                        <div class="profile-avatar" id="profile-initials">—</div>
-                        <div class="profile-online-dot"></div>
+                             <div class="profile-avatar" id="profile-avatar">
+                            <img id="profile-photo" alt="Profile photo" style="display:none;">
+                            <span id="profile-initials">—</span>
+                        </div>
+                                                <div class="profile-online-dot"></div>
+                        <button type="button" class="avatar-edit-btn" id="avatar-edit-btn" title="Change photo">
+                            <i class="fas fa-pencil-alt"></i>
+                        </button>
+                        <input type="file" id="avatar-file" accept="image/*" style="display:none;">
                     </div>
                     <div class="profile-hero-info">
                         <div class="profile-hero-name" id="hero-name">Loading…</div>
@@ -579,6 +611,11 @@
     </main>
 </div>
 
+<div class="photo-lightbox" id="photo-lightbox">
+    <button class="photo-lightbox-close" id="photo-lightbox-close">&times;</button>
+    <img id="photo-lightbox-img" alt="Profile photo">
+</div>
+
 <!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
@@ -593,7 +630,8 @@
 // ── Role metadata ─────────────────────────────────────────────────────────────
 const ROLE_META = {
     superadmin:   { label: 'Super Admin',  bg: '#dbeafe', color: '#1e40af', icon: 'fa-crown' },
-    manager:      { label: 'Admin',        bg: '#dcfce7', color: '#15803d', icon: 'fa-user-shield' },
+    manager:      { label: 'Manager',      bg: '#dcfce7', color: '#15803d', icon: 'fa-user-shield' },
+    admin:        { label: 'Admin',        bg: '#e0f2fe', color: '#0369a1', icon: 'fa-user-shield' },
     receptionist: { label: 'Receptionist', bg: '#fef3c7', color: '#854d0e', icon: 'fa-user' },
     observer:     { label: 'Observer',     bg: '#f3e8ff', color: '#6b21a8', icon: 'fa-eye' },
 };
@@ -680,7 +718,8 @@ firebase.auth().onAuthStateChanged(async (user) => {
         const initials = name.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
 
         // ── Populate hero ──────────────────────────────────────────────────
-        document.getElementById('profile-initials').textContent = initials;
+                document.getElementById('profile-initials').textContent = initials;
+        if (data.photoURL) showProfilePhoto(data.photoURL);
         document.getElementById('hero-name').textContent        = name;
         document.getElementById('hero-email').textContent       = email;
         document.getElementById('hero-joined').textContent      = joined;
@@ -707,8 +746,8 @@ firebase.auth().onAuthStateChanged(async (user) => {
         // ── Render permissions ────────────────────────────────────────────
         const perms = ROLE_PERMISSIONS[role] || ROLE_PERMISSIONS['observer'];
         const grid  = document.getElementById('permissions-grid');
-        grid.innerHTML = '';
-        perms.forEach(p => {
+        if (grid) grid.innerHTML = '';
+        if (grid) perms.forEach(p => {
             const div = document.createElement('div');
             div.className = `permission-item ${p.allowed ? 'allowed' : 'denied'}`;
             div.innerHTML = `
@@ -725,6 +764,85 @@ firebase.auth().onAuthStateChanged(async (user) => {
 });
 
 // ── Password strength checker ─────────────────────────────────────────────────
+// ── Profile photo (Cloudinary) ────────────────────────────────────────────────
+const CLOUDINARY_CLOUD  = 'dvddqhyfr';
+const CLOUDINARY_PRESET = 'guestlodgeusers';
+
+function showProfilePhoto(url) {
+    const img = document.getElementById('profile-photo');
+    img.src = url;
+    img.style.display = 'block';
+    document.getElementById('profile-initials').style.display = 'none';
+    const av = document.querySelector('.user-profile .user-avatar');
+    if (av) av.innerHTML = `<img src="${url}" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
+}
+
+// Pencil is visible only for Super Admin or users with the Edit permission.
+// Polls because auth.js loads the role/permissions asynchronously and updates them live.
+function canEditPhoto() {
+    return window._userRole === 'superadmin' || (window._userPerms && window._userPerms.canEdit === true);
+}
+setInterval(() => {
+    const btn = document.getElementById('avatar-edit-btn');
+    if (btn) btn.style.display = canEditPhoto() ? 'flex' : 'none';
+}, 500);
+
+document.getElementById('avatar-edit-btn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (!canEditPhoto()) return;
+    document.getElementById('avatar-file').click();
+});
+
+document.getElementById('avatar-file').addEventListener('change', async function () {
+    const file = this.files[0];
+    this.value = '';
+    if (!file) return;
+    if (!canEditPhoto()) { UI.showNotification('You do not have permission to change your photo.', 'error'); return; }
+    if (!file.type.startsWith('image/')) { UI.showNotification('Please choose an image file.', 'error'); return; }
+    if (file.size > 5 * 1024 * 1024) { UI.showNotification('Image must be under 5 MB.', 'error'); return; }
+
+    const btn  = document.getElementById('avatar-edit-btn');
+    const user = firebase.auth().currentUser;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    try {
+        const fd = new FormData();
+        fd.append('file', file);
+        fd.append('upload_preset', CLOUDINARY_PRESET);
+        fd.append('folder', 'profile-photos');
+        const res  = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/image/upload`, { method: 'POST', body: fd });
+        const json = await res.json();
+        if (!res.ok || !json.secure_url) throw new Error(json.error?.message || 'Upload failed');
+
+        // Square, face-centred, compressed
+        const url = json.secure_url.replace('/upload/', '/upload/c_fill,g_face,w_400,h_400,q_auto,f_auto/');
+        await db.collection('users').doc(user.uid).update({ photoURL: url });
+        showProfilePhoto(url);
+        await _writeLog(user.email, 'Profile Photo Updated', `${user.email} updated their profile photo`);
+        UI.showNotification('✅ Profile photo updated!', 'success');
+    } catch (err) {
+        console.error('[Profile] Photo upload error:', err);
+        UI.showNotification('Failed to update photo: ' + err.message, 'error');
+    } finally {
+        btn.innerHTML = '<i class="fas fa-pencil-alt"></i>';
+    }
+});
+
+// Click the photo to view it larger (works for everyone)
+document.getElementById('profile-avatar').addEventListener('click', () => {
+    const img = document.getElementById('profile-photo');
+        if (!img.src || img.style.display === 'none') {
+        UI.showNotification('No image uploaded', 'error');
+        return;
+    }
+    document.getElementById('photo-lightbox-img').src = img.src.replace('w_400,h_400', 'w_1000,h_1000');
+    document.getElementById('photo-lightbox').classList.add('active');
+});
+document.getElementById('photo-lightbox').addEventListener('click', () =>
+    document.getElementById('photo-lightbox').classList.remove('active'));
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') document.getElementById('photo-lightbox').classList.remove('active');
+});
+
 function checkStrength(val) {
     const bar   = document.getElementById('strength-bar');
     const label = document.getElementById('strength-label');

@@ -50,28 +50,107 @@ var openRef = null;                               // request currently open in t
     if (!t.length && r.guestReply) { var g = P.toDate(r.guestReplyAt); pre.push({ from: 'guest', text: r.guestReply, at: g ? +g : null }); }
     return pre.concat(t);
   }
-  function withStaff(r, field, text) { return chatMsgs(r, field).concat([{ from: 'staff', text: text, at: Date.now() }]); }
-  function editStaff(r, field, at, text) { return chatMsgs(r, field).map(function (m) { return (m.from === 'staff' && m.at === at) ? { from: 'staff', text: text, at: m.at, edited: true } : m; }); }
+  function withStaff(r, field, text, replyTo) { var m = { from: 'staff', text: text, at: Date.now() }; if (replyTo) m.replyTo = replyTo; return chatMsgs(r, field).concat([m]); }
+  function withStaffOld(r, field, text) { return chatMsgs(r, field).concat([{ from: 'staff', text: text, at: Date.now() }]); }
+  function editStaff(r, field, at, text) { return chatMsgs(r, field).map(function (m) { if (!(m.from === 'staff' && m.at === at)) return m; var n = cp(m); n.text = text; n.edited = true; return n; }); }
+  function editStaffOld(r, field, at, text) { return chatMsgs(r, field).map(function (m) { return (m.from === 'staff' && m.at === at) ? { from: 'staff', text: text, at: m.at, edited: true } : m; }); }
   function pinHtml(r, k) { var t = r[chatField(k)]; return t ? '<div class="pt-pin">📌 <b>Pinned:</b> ' + esc(t) + '</div>' : ''; }
-  function chatHtml(list) {
+  function cp(o) { var n = {}; Object.keys(o).forEach(function (x) { n[x] = o[x]; }); return n; }
+  function chatHtml(list, gr, rd) {
+    return '<div class="pt-chat">' + list.map(function (m) {
+      var me = m.from === 'staff', del = !!m.deleted;
+      var seen = me && !del && rd != null && rd > list.indexOf(m);
+      var tick = (me && !del && m.at) ? '<div class="pt-msg-tick' + (seen ? ' seen' : '') + '" title="' + (seen ? 'Seen' : 'Sent') + '">' + (seen ? '✓✓' : '✓') + '</div>' : '';
+      var who = (me ? 'You' : 'Guest') + (m.at ? ' · ' + esc(P.fmtDateTime(new Date(m.at))) : '') + (m.edited && !del ? ' · edited' : '') + (m.starred ? ' · <span class="pt-msg-star">★</span>' : '');
+      var quote = (m.replyTo && !del) ? '<div class="pt-msg-quote"><b>' + (m.replyTo.from === 'staff' ? 'You' : 'Guest') + '</b><span>' + esc(m.replyTo.text) + '</span></div>' : '';
+      var arrow = (m.at && !del) ? '<button type="button" class="pt-msg-arrow" data-menu="' + m.at + '" aria-label="Message options" aria-haspopup="menu"><i class="fas fa-chevron-down"></i></button>' : '';
+      var rs = [m.react, (gr || {})[m.at]].filter(Boolean); var react = (rs.length && !del) ? '<span class="pt-msg-react">' + rs.map(function (x) { return esc(x); }).join(' ') + '</span>' : '';
+      return '<div class="pt-msg ' + (me ? 'me' : 'them') + (del ? ' deleted' : '') + (rs.length && !del ? ' has-react' : '') + '"><div class="pt-msg-who">' + who + '</div>' +
+        arrow + quote + (del ? '<i class="fas fa-ban"></i> ' : '') + '<span class="pt-msg-text">' + esc(m.text) + '</span>' + tick + react + '</div>';
+    }).join('') + '</div>';
+  }
+  function chatHtmlOld(list) {
     return '<div class="pt-chat">' + list.map(function (m) {
       var me = m.from === 'staff';
-      return '<div class="pt-msg ' + (me ? 'me' : 'them') + '"><div class="pt-msg-who">' + (me ? 'You' : 'Guest') + (m.at ? ' · ' + esc(P.fmtDateTime(new Date(m.at))) : '') + (m.edited ? ' · edited' : '') + (me && m.at ? '<button type="button" class="pt-msg-edit" data-edit="' + m.at + '">✎ Edit</button>' : '') + '</div>' + esc(m.text) + '</div>';
+      return '<div class="pt-msg ' + (me ? 'me' : 'them') + '"><div class="pt-msg-who">' + (me ? 'You' : 'Guest') + (m.at ? ' · ' + esc(P.fmtDateTime(new Date(m.at))) : '') + (m.edited ? ' · edited' : '') + '</div>' +
+        (me && m.at ? '<button type="button" class="pt-msg-arrow" data-menu="' + m.at + '" aria-label="Message options" aria-haspopup="menu"><i class="fas fa-chevron-down"></i></button>' : '') +
+        esc(m.text) + '</div>';
     }).join('') + '</div>';
   }
   function guestBlockInner(r, k) {
     var list = chatMsgs(r, chatField(k));
-    return list.length ? chatHtml(list) : '<div class="pt-muted pt-small" style="text-align:center;padding:2rem 0">No messages yet.</div>';
+    return list.length ? chatHtml(list, r.guestReacts, r.guestReadN) : '<div class="pt-muted pt-small" style="text-align:center;padding:2rem 0">No messages yet.</div>';
   }
   function guestBlockInnerV1(r, k) {
     var list = chatMsgs(r, chatField(k));
     return '<div class="pt-label" style="display:flex;align-items:center;gap:.6rem">Conversation<button class="pt-btn pt-btn-sm" id="cr-m-replybtn" type="button" style="margin-left:auto">Reply</button></div>' +
       (list.length ? chatHtml(list) : '<div class="pt-muted pt-small" style="margin-bottom:.8rem">No messages yet.</div>');
   }
+  /* ----- chat row (like a WhatsApp chat list item) ----- */
+  function unreadCount(r, k) {
+    var list = chatMsgs(r, chatField(k)), rn = r.staffReadN;
+    if (rn == null) { rn = 0; list.forEach(function (m, i) { if (m.from === 'staff') rn = i + 1; }); }   // no marker yet: up to the lodge's last message counts as read
+    return list.slice(rn).filter(function (m) { return m.from === 'guest'; }).length;
+  }
+  function chatStamp(at) {
+    if (!at) return '';
+    var d = new Date(at), n = new Date();
+    return d.toDateString() === n.toDateString() ? d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  }
+  function isClosedReq(r, k) { return k === 'faults' ? (r.status === 'resolved' || r.status === 'closed') : (r.status === 'delivered' || r.status === 'cancelled'); }
+  function closedBar(r, k) {
+    if (!isClosedReq(r, k)) return '';
+    var on = r.chatOpen === true, st = esc(String(r.status).replace('_', ' '));
+    return '<div class="pt-wa-closedbar' + (on ? ' on' : '') + '"><span>' + (on
+      ? '<b>Chat re-activated.</b> The guest can reply even though this request is ' + st + '.'
+      : '<b>The guest can’t reply.</b> This request is ' + st + ', so their message box is hidden.') +
+      '</span><button type="button" class="cr-chatopen" data-on="' + (on ? '1' : '0') + '">' + (on ? 'Turn off' : 'Activate chat') + '</button></div>';
+  }
+  function chatRowHtml(r, k) {
+    var list = chatMsgs(r, chatField(k)), last = list[list.length - 1], n = unreadCount(r, k);
+    var prev = last ? (last.from === 'staff' ? 'You: ' : '') + (last.deleted ? 'This message was deleted' : last.text) : (r[chatField(k)] ? '📌 ' + r[chatField(k)] : 'No messages yet. Click to start.');
+    return '<div class="pt-chatlist" id="cr-chatlist"><div class="pt-chatlist-title">Lodge conversation</div>' +
+      '<button type="button" class="pt-chatrow' + (n ? ' unread' : '') + '" id="cr-chatrow" aria-label="Open conversation with ' + esc(r.name || 'guest') + (n ? ', ' + n + ' unread' : '') + '">' +
+      '<span class="pt-chatav">' + esc(String(r.name || 'G').trim().charAt(0).toUpperCase()) + '</span>' +
+      '<span class="pt-chatmain"><span class="pt-chatname">' + esc(r.name || 'Guest') + '</span><span class="pt-chatprev">' + esc(prev) + '</span></span>' +
+      '<span class="pt-chatmeta"><span class="pt-chattime">' + esc(last ? chatStamp(last.at) : '') + '</span>' + (n ? '<span class="pt-chatbadge">' + n + '</span>' : '') + '</span></button>' + closedBar(r, k) + '</div>';
+  }
+  function refreshChatRow(r, k) { var el = $('cr-chatlist'); if (el) el.outerHTML = chatRowHtml(r, k); }
+  function chatPopOpen() { var p = $('cr-chatpop'); return !!p && !p.classList.contains('pt-hide'); }
+  function markRead(k, id) {
+    var r = data[k].filter(function (x) { return x.id === id; })[0]; if (!r || !unreadCount(r, k)) return;
+    P.db.collection(TABS[k].coll).doc(id).update({ staffReadN: chatMsgs(r, chatField(k)).length }).catch(function () {});
+  }
+  function applyChatSearch(go) {
+    var g = $('cr-m-guest'), inp = $('cr-m-search'), bar = $('cr-m-searchbar'); if (!g) return;
+    var q = inp ? inp.value.trim().toLowerCase() : '', on = !!(q && bar && !bar.classList.contains('pt-hide')), hits = [];
+    [].forEach.call(g.querySelectorAll('.pt-msg'), function (el) {
+      var t = el.querySelector('.pt-msg-text'), hit = !on || (t && t.textContent.toLowerCase().indexOf(q) !== -1);
+      el.classList.toggle('pt-msg-dim', !hit); el.classList.remove('pt-msg-cur'); if (on && hit) hits.push(el);
+    });
+    if (openRef && (openRef.si == null || openRef.si < 0 || openRef.si >= hits.length)) openRef.si = hits.length - 1;
+    var i = openRef ? openRef.si : -1;
+    if (on && hits.length && i > -1) { hits[i].classList.add('pt-msg-cur'); if (go) hits[i].scrollIntoView({ block: 'center', behavior: 'smooth' }); }
+    var c = $('cr-m-searchcount'); if (c) c.textContent = on ? (hits.length ? (i + 1) + ' of ' + hits.length : 'No results') : '';
+    var bu = $('cr-m-searchup'), bd = $('cr-m-searchdown');
+    if (bu) bu.disabled = !(on && hits.length > 1);
+    if (bd) bd.disabled = !(on && hits.length > 1);
+  }
   function guestReplyBlock(r) {
+    return chatRowHtml(r, tab) +
+      '<div id="cr-chatpop" class="pt-chatpop pt-hide"><div class="pt-chatpop-card"><div class="pt-wa">' +
+      '<div class="pt-wa-head"><span>Conversation with ' + esc(r.name || 'guest') + '</span><button type="button" class="pt-wa-close" id="cr-chat-close" aria-label="Close conversation">✕</button></div>' +
+      '<div id="cr-m-searchbar" class="pt-wa-search pt-hide"><input type="search" id="cr-m-search" placeholder="Search in this conversation" aria-label="Search in this conversation"><span id="cr-m-searchcount"></span><button type="button" id="cr-m-searchup" aria-label="Previous match"><i class="fas fa-chevron-up"></i></button><button type="button" id="cr-m-searchdown" aria-label="Next match"><i class="fas fa-chevron-down"></i></button><button type="button" id="cr-m-searchclose" aria-label="Close search">✕</button></div>' +
+      '<div id="cr-m-pin">' + pinHtml(r, tab) + '</div>' +
+      '<div id="cr-m-closedbar">' + closedBar(r, tab) + '</div>' +
+      '<div id="cr-m-guest" class="pt-wa-body">' + guestBlockInner(r, tab) + '</div>' +
+      '<div id="cr-m-replybar" class="pt-wa-reply pt-hide"></div><div id="cr-m-editbar" class="pt-wa-edit pt-hide"><span>Editing message</span><button type="button" id="cr-m-editcancel">Cancel</button></div><div class="pt-wa-compose"><textarea id="cr-m-compose-text" rows="1" placeholder="Type a message" maxlength="' + (tab === 'faults' ? 500 : 300) + '"></textarea>' +
+      '<button class="pt-wa-send" id="cr-m-compose-send" type="button" aria-label="Send">➤</button></div></div></div></div>';
+  }
+  function guestReplyBlockPrev(r) {
     return '<div class="pt-wa"><div class="pt-wa-head">Conversation with ' + esc(r.name || 'guest') + '</div><div id="cr-m-pin">' + pinHtml(r, tab) + '</div>' +
       '<div id="cr-m-guest" class="pt-wa-body">' + guestBlockInner(r, tab) + '</div>' +
-      '<div id="cr-m-editbar" class="pt-wa-edit pt-hide"><span>Editing message</span><button type="button" id="cr-m-editcancel">Cancel</button></div><div class="pt-wa-compose"><textarea id="cr-m-compose-text" rows="1" placeholder="Type a message" maxlength="' + (tab === 'faults' ? 500 : 300) + '"></textarea>' +
+      '<div id="cr-m-replybar" class="pt-wa-reply pt-hide"></div><div id="cr-m-editbar" class="pt-wa-edit pt-hide"><span>Editing message</span><button type="button" id="cr-m-editcancel">Cancel</button></div><div class="pt-wa-compose"><textarea id="cr-m-compose-text" rows="1" placeholder="Type a message" maxlength="' + (tab === 'faults' ? 500 : 300) + '"></textarea>' +
       '<button class="pt-wa-send" id="cr-m-compose-send" type="button" aria-label="Send">➤</button></div></div>';
   }
   function guestReplyBlockV1(r) {
@@ -239,7 +318,7 @@ var openRef = null;                               // request currently open in t
 
   /* ---------- detail modal ---------- */
   function closeModal() { openRef = null; var m = $('cr-modal'); if (m) m.remove(); document.removeEventListener('keydown', onKey); }
-  function onKey(e) { if (e.key === 'Escape') closeModal(); }
+  function onKey(e) { if (e.key !== 'Escape') return; var m1 = $('cr-msgmenu'); if (m1) { m1.remove(); return; } var pp = $('cr-chatpop'); if (pp && !pp.classList.contains('pt-hide')) { pp.classList.add('pt-hide'); return; } closeModal(); }
   function contactLinks(r) {
     var wa = waNumber(r.phone), h = '';
     if (r.phone) h += '<a class="pt-btn pt-btn-ghost pt-btn-sm" href="tel:' + esc(r.phone) + '">Call</a> ';
@@ -278,10 +357,11 @@ var openRef = null;                               // request currently open in t
     if (sub) sub.innerHTML = esc(when(r)) + ' · ' + P.statusBadge(r.status);
     if (g) {
       var list = chatMsgs(r, chatField(k)), last = list[list.length - 1];
+      var om = $('cr-msgmenu'); if (om) om.remove(); var st = g.scrollTop, atEnd = g.scrollHeight - st - g.clientHeight < 60;
       g.innerHTML = guestBlockInner(r, k);
-      g.scrollTop = g.scrollHeight; var pn = $('cr-m-pin'); if (pn) pn.innerHTML = pinHtml(r, k);
+      g.scrollTop = (atEnd || list.length > openRef.n) ? g.scrollHeight : st; var pn = $('cr-m-pin'); if (pn) pn.innerHTML = pinHtml(r, k); var cbar = $('cr-m-closedbar'); if (cbar) cbar.innerHTML = closedBar(r, k);
       if (list.length > openRef.n && last && last.from === 'guest') P.toast('The guest just replied.', 'ok');
-      openRef.n = list.length;
+      openRef.n = list.length; applyChatSearch(); refreshChatRow(r, k); if (chatPopOpen()) markRead(k, openRef.id);
     }
   }
   function refreshModalOld(k) {
@@ -302,6 +382,202 @@ var openRef = null;                               // request currently open in t
     var k = tab, f = chatField(k);
     var r0 = data[k].filter(function (x) { return x.id === id; })[0] || {};
     openRef = { tab: k, id: id, n: chatMsgs(r0, f).length };
+
+    /* conversation popup (opens from the chat row) */
+    var pop = $('cr-chatpop'); if (pop) mm.appendChild(pop);      // direct child of the modal overlay, so it is never clipped
+    function openChat() {
+      var pp = $('cr-chatpop'); if (!pp) return;
+      pp.classList.remove('pt-hide');
+      var g0 = $('cr-m-guest'); if (g0) g0.scrollTop = g0.scrollHeight;
+      markRead(k, id);
+      var t0 = $('cr-m-compose-text'); if (t0) t0.focus();
+    }
+    function closeChat() {
+      var o = $('cr-msgmenu'); if (o) o.remove();
+      closeSearch();
+      var pp = $('cr-chatpop'); if (pp) pp.classList.add('pt-hide');
+      refreshChatRow(data[k].filter(function (x) { return x.id === id; })[0] || {}, k);
+    }
+    function openSearch() { var b = $('cr-m-searchbar'), i = $('cr-m-search'); if (!b) return; b.classList.remove('pt-hide'); openRef.si = -1; i.focus(); applyChatSearch(); }
+    function closeSearch() { var b = $('cr-m-searchbar'), i = $('cr-m-search'); if (!b) return; b.classList.add('pt-hide'); if (i) i.value = ''; applyChatSearch(); }
+    function stepHit(d) {
+      var g1 = $('cr-m-guest'), inp = $('cr-m-search'); if (!g1 || !inp || !inp.value.trim()) return;
+      var n = g1.querySelectorAll('.pt-msg:not(.pt-msg-dim)').length; if (!n) return;
+      openRef.si = ((((openRef.si == null || openRef.si < 0) ? n - 1 : openRef.si) + d) % n + n) % n;
+      applyChatSearch(true);
+    }
+    mm.addEventListener('input', function (e) { if (e.target.id === 'cr-m-search') { openRef.si = -1; applyChatSearch(true); } });
+    mm.addEventListener('keydown', function (e) {
+      if (e.target.id !== 'cr-m-search') return;
+      if (e.key === 'Enter') { e.preventDefault(); stepHit(e.shiftKey ? 1 : -1); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); stepHit(-1); }
+      else if (e.key === 'ArrowDown') { e.preventDefault(); stepHit(1); }
+    });
+
+    /* WhatsApp-style message options: reaction bar + menu */
+    var EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
+    function closeMsgMenu() { var o = $('cr-msgmenu'); if (o) o.remove(); }
+    function curReq() { return data[k].filter(function (x) { return x.id === id; })[0] || {}; }
+    function findMsg(at) { return chatMsgs(curReq(), f).filter(function (m) { return String(m.at) === String(at); })[0]; }
+    function touch() { return { handledBy: actor(), updatedAt: FV().serverTimestamp() }; }
+    function mapAt(at, change) { return function (list) { return list.map(function (m) { return String(m.at) === String(at) ? change(cp(m)) : m; }); }; }
+    function fail(err) { P.toast(err && err.code === 'permission-denied' ? 'Permission denied. Check your Firestore rules.' : 'Couldn’t save. Try again.', 'err'); if (window.console) console.warn(err); }
+
+    /* reads the latest thread first, so a guest message that just arrived is never overwritten */
+    function mutate(fn, extra, okMsg) {
+      var ref = P.db.collection(TABS[k].coll).doc(id);
+      return P.db.runTransaction(function (tx) {
+        return tx.get(ref).then(function (snap) {
+          var upd = { thread: fn(chatMsgs(snap.data() || {}, f)) };
+          Object.keys(extra || {}).forEach(function (x) { upd[x] = extra[x]; });
+          tx.update(ref, upd);
+        });
+      }).then(function () { if (okMsg) P.toast(okMsg, 'ok'); }).catch(fail);
+    }
+
+    function doReact(at, emo) { mutate(mapAt(at, function (m) { if (m.react === emo) delete m.react; else m.react = emo; return m; })); }
+    function doStar(at) {
+      var m0 = findMsg(at); if (!m0) return;
+      mutate(mapAt(at, function (m) { if (m.starred) delete m.starred; else m.starred = true; return m; }), null, m0.starred ? 'Unstarred.' : 'Starred.');
+    }
+    function doDelete(at) {
+      if (!window.confirm('Delete this message for everyone?\nThe guest will see “This message was deleted”.')) return;
+      mutate(mapAt(at, function (m) { return { from: m.from, text: 'This message was deleted', at: m.at, deleted: true }; }), touch(), 'Message deleted.');
+    }
+    function doPin(at) {
+      var m0 = findMsg(at); if (!m0 || m0.deleted) return;
+      var txt = String(m0.text).slice(0, k === 'faults' ? 500 : 300), same = (curReq()[f] || '') === txt;
+      var upd = touch(); upd[f] = same ? '' : txt;
+      P.db.collection(TABS[k].coll).doc(id).update(upd).then(function () {
+        var ta = $('cr-m-reply'); if (ta) ta.value = upd[f];
+        P.toast(same ? 'Unpinned.' : 'Pinned.', 'ok');
+      }).catch(fail);
+    }
+    function doCopy(at) {
+      var m0 = findMsg(at); if (!m0) return;
+      function done() { P.toast('Copied.', 'ok'); }
+      function fallback() {
+        var t = document.createElement('textarea'); t.value = m0.text; t.style.cssText = 'position:fixed;opacity:0'; document.body.appendChild(t); t.select();
+        try { document.execCommand('copy'); done(); } catch (x) { P.toast('Couldn’t copy.', 'err'); } t.remove();
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(m0.text).then(done, fallback); else fallback();
+    }
+    function clearReply() { if (openRef) openRef.replyTo = null; var b = $('cr-m-replybar'); if (b) { b.innerHTML = ''; b.classList.add('pt-hide'); } }
+    function startReply(at) {
+      var m0 = findMsg(at); if (!m0 || m0.deleted) return;
+      if (openRef.editAt) { openRef.editAt = null; $('cr-m-compose-text').value = ''; $('cr-m-editbar').classList.add('pt-hide'); }
+      openRef.replyTo = { from: m0.from, text: String(m0.text).slice(0, 100) };
+      var bar = $('cr-m-replybar');
+      bar.innerHTML = '<div class="pt-wa-reply-q"><b>' + (m0.from === 'staff' ? 'You' : 'Guest') + '</b><span>' + esc(openRef.replyTo.text) + '</span></div><button type="button" id="cr-m-replycancel" aria-label="Cancel reply">✕</button>';
+      bar.classList.remove('pt-hide'); $('cr-m-compose-text').focus();
+    }
+    function startEdit(at) {
+      var m0 = findMsg(at); if (!m0 || m0.from !== 'staff' || m0.deleted) return;
+      clearReply(); openRef.editAt = m0.at;
+      var et = $('cr-m-compose-text'); et.value = m0.text; et.focus(); $('cr-m-editbar').classList.remove('pt-hide');
+    }
+    function showInfo(at, menu) {
+      var m0 = findMsg(at); if (!m0) return closeMsgMenu();
+      var rows = [['From', m0.from === 'staff' ? 'You (staff)' : 'Guest'], ['Sent', P.fmtDateTime(new Date(m0.at))], ['Edited', m0.edited ? 'Yes' : 'No'], ['Starred', m0.starred ? 'Yes' : 'No']];
+      if (m0.from === 'staff') {
+        var allM = chatMsgs(curReq(), f), ix = -1, rdN = curReq().guestReadN;
+        allM.forEach(function (x, i) { if (String(x.at) === String(m0.at)) ix = i; });
+        rows.push(['Seen', rdN != null && ix > -1 && rdN > ix ? 'Yes' : 'Not yet']);
+      }
+      if (m0.react) rows.push(['Reaction', m0.react]);
+      menu.innerHTML = '<div class="pt-wamenu-list pt-wamenu-info"><h4>Message info</h4><dl>' + rows.map(function (r) { return '<dt>' + esc(r[0]) + '</dt><dd>' + esc(r[1]) + '</dd>'; }).join('') + '</dl></div>';
+    }
+    function item(act, icon, label, cls) { return '<button type="button" role="menuitem" data-act="' + act + '"' + (cls ? ' class="' + cls + '"' : '') + '><i class="fas ' + icon + '"></i> ' + label + '</button>'; }
+
+    function openMenu(arrow) {
+      var at = arrow.getAttribute('data-menu'), m0 = findMsg(at); if (!m0) return;
+      var me = m0.from === 'staff', rc = arrow.getBoundingClientRect();
+      var pinned = (curReq()[f] || '') === String(m0.text).slice(0, k === 'faults' ? 500 : 300);
+      var menu = document.createElement('div');
+      menu.id = 'cr-msgmenu'; menu.className = 'pt-wamenu'; menu.setAttribute('role', 'menu'); menu.setAttribute('data-for', at);
+      menu.innerHTML =
+        '<div class="pt-wamenu-bar">' + EMOJIS.map(function (em) { return '<button type="button" data-react="' + em + '"' + (m0.react === em ? ' class="on"' : '') + ' aria-label="React ' + em + '">' + em + '</button>'; }).join('') + '</div>' +
+        '<div class="pt-wamenu-list">' +
+          item('info', 'fa-circle-info', 'Message info') + item('search', 'fa-magnifying-glass', 'Search') + item('reply', 'fa-reply', 'Reply') + item('copy', 'fa-copy', 'Copy') +
+          item('pin', 'fa-thumbtack', pinned ? 'Unpin' : 'Pin') + item('star', 'fa-star', m0.starred ? 'Unstar' : 'Star') +
+          (me ? item('edit', 'fa-pen', 'Edit') + '<hr>' + item('delete', 'fa-trash', 'Delete', 'danger') : '') +
+        '</div>';
+      menu.style.visibility = 'hidden';
+      mm.appendChild(menu);
+      var mh = menu.offsetHeight, mw = menu.offsetWidth;
+      var top = rc.bottom + 4;
+      if (top + mh > window.innerHeight - 8) top = rc.top - mh - 4;
+      top = Math.max(8, Math.min(top, window.innerHeight - mh - 8));
+      var left = Math.min(Math.max(8, rc.right - mw), window.innerWidth - mw - 8);
+      menu.style.top = top + 'px'; menu.style.left = left + 'px'; menu.style.visibility = '';
+    }
+
+    mm.addEventListener('click', function (e) {
+      if (e.target.closest('#cr-chatrow')) { openChat(); return; }
+      if (e.target.closest('#cr-chat-close') || e.target.id === 'cr-chatpop') { closeChat(); return; }
+      if (e.target.closest('#cr-m-searchclose')) { closeSearch(); return; }
+      if (e.target.closest('#cr-m-searchup')) { stepHit(-1); return; }
+      if (e.target.closest('#cr-m-searchdown')) { stepHit(1); return; }
+      if (e.target.closest('#cr-m-replycancel')) { clearReply(); return; }
+      var menu = $('cr-msgmenu');
+      if (menu && menu.contains(e.target)) {
+        e.stopPropagation();
+        var at = menu.getAttribute('data-for'), rb = e.target.closest('[data-react]'), ab = e.target.closest('[data-act]');
+        if (rb) { closeMsgMenu(); doReact(at, rb.getAttribute('data-react')); return; }
+        if (!ab) return;
+        var act = ab.getAttribute('data-act');
+        if (act === 'info') { showInfo(at, menu); return; }
+        closeMsgMenu();
+        if (act === 'reply') startReply(at);
+        else if (act === 'copy') doCopy(at);
+        else if (act === 'pin') doPin(at);
+        else if (act === 'star') doStar(at);
+        else if (act === 'edit') startEdit(at);
+        else if (act === 'delete') doDelete(at);
+        else if (act === 'search') openSearch();
+        return;
+      }
+      var arrow = e.target.closest('[data-menu]');
+      if (menu) menu.remove();
+      if (!arrow) return;
+      if (menu && menu.getAttribute('data-for') === arrow.getAttribute('data-menu')) return;
+      openMenu(arrow);
+    }, true);
+
+    /* old single-item menu, switched off (kept only so no other line has to be deleted) */
+    function oldMenuUnused() {
+    function closeMsgMenu() { var o = $('cr-msgmenu'); if (o) o.remove(); }
+    mm.addEventListener('click', function (e) {
+      var old = $('cr-msgmenu');
+      var arrow = e.target.closest('[data-menu]');
+      if (old) old.remove();                                   // any click closes an open menu
+      if (!arrow) return;
+      var at = arrow.getAttribute('data-menu');
+      if (old && old.getAttribute('data-for') === at) return;  // clicking the same arrow again = toggle off
+      var rc = arrow.getBoundingClientRect();
+      var menu = document.createElement('div');
+      menu.id = 'cr-msgmenu'; menu.className = 'pt-msgmenu'; menu.setAttribute('role', 'menu'); menu.setAttribute('data-for', at);
+      menu.innerHTML = '<button type="button" role="menuitem" data-edit="' + esc(at) + '"><i class="fas fa-pen"></i> Edit</button>';
+      menu.style.visibility = 'hidden';
+      mm.appendChild(menu);
+      var mh = menu.offsetHeight, mw = menu.offsetWidth;
+      var top = rc.bottom + 4;
+      if (top + mh > window.innerHeight - 8) top = Math.max(8, rc.top - mh - 4);   // flip up if no room below
+      var left = Math.min(Math.max(8, rc.right - mw), window.innerWidth - mw - 8);  // right edge lines up with the arrow
+      menu.style.top = top + 'px';
+      menu.style.left = left + 'px';
+      menu.style.visibility = '';
+    }, true);
+    }
+    mm.addEventListener('click', function (e) {
+      var cb = e.target.closest('.cr-chatopen'); if (!cb) return;
+      var turnOn = cb.getAttribute('data-on') !== '1';
+      if (turnOn && !window.confirm('Let the guest message you again on this ' + (k === 'faults' ? 'report' : 'request') + '?\n\nOnly do this if it is urgent or necessary.')) return;
+      P.busy(cb, function () { return P.db.collection(TABS[k].coll).doc(id).update({ chatOpen: turnOn }); })
+        .then(function () { P.toast(turnOn ? 'Chat activated. The guest can reply now.' : 'Chat turned off.', 'ok'); })
+        .catch(fail);
+    });
+    mm.addEventListener('scroll', closeMsgMenu, true);   // capture: catches the chat box and the modal body
     var c0 = $('cr-m-guest'); if (c0) c0.scrollTop = c0.scrollHeight;
     mm.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKey && e.target.id === 'cr-m-compose-text') { e.preventDefault(); var sb = $('cr-m-compose-send'); if (sb) sb.click(); } });
     mm.addEventListener('click', function (e) {
@@ -314,12 +590,12 @@ var openRef = null;                               // request currently open in t
         if (!text) return P.toast('Type your message first.', 'err');
         text = text.slice(0, k === 'faults' ? 500 : 300);
         var cur = data[k].filter(function (x) { return x.id === id; })[0] || {};
-        var upd = { thread: (openRef && openRef.editAt) ? editStaff(cur, f, openRef.editAt, text) : withStaff(cur, f, text), handledBy: actor(), updatedAt: FV().serverTimestamp() };
+        var upd = { thread: (openRef && openRef.editAt) ? editStaff(cur, f, openRef.editAt, text) : withStaff(cur, f, text, openRef && openRef.replyTo), handledBy: actor(), updatedAt: FV().serverTimestamp() };
         /* the pinned note is saved separately */
         P.busy(b, function () { return P.db.collection(TABS[k].coll).doc(id).update(upd); }).then(function () {
           if (openRef) openRef.editAt = null; var eb = $('cr-m-editbar'); if (eb) eb.classList.add('pt-hide');
           ta.value = '';
-          P.toast('Message sent to the guest.', 'ok');
+          P.toast('Message sent to the guest.', 'ok'); clearReply();
         }).catch(function (err) {
           P.toast(err && err.code === 'permission-denied' ? 'Permission denied. Check your Firestore rules.' : 'Couldn’t send. Try again.', 'err');
           if (window.console) console.warn(err);

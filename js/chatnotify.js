@@ -257,7 +257,7 @@
             <div class="cr-notif-body">
                 <div class="cr-notif-header">
                     <span class="cr-notif-app">Chat Room</span>
-                    <span class="cr-notif-channel">· #${channel}</span>
+                    <span class="cr-notif-channel">· ${channel.indexOf('_') !== -1 ? 'private message' : '#' + channel}</span>
                 </div>
                 <div class="cr-notif-name">${escHtml(senderName)}</div>
                 <div class="cr-notif-text">
@@ -279,6 +279,11 @@
         card.addEventListener('click', (e) => {
             if (e.target.closest('.cr-notif-close')) return;
             dismissCard(card, false);
+            if (channel.indexOf('_') !== -1) {          // private message → open that person's chat
+                const me    = firebase.auth().currentUser && firebase.auth().currentUser.uid;
+                const other = channel.split('_').find(u => u !== me);
+                try { sessionStorage.setItem('cr_open_dm', other || ''); } catch (err) {}
+            }
             window.location.href = 'chatroom.html';
         });
 
@@ -330,6 +335,39 @@ const chatRoomChannels = ['general', 'announcements', 'housekeeping', 'front-des
 const unreadRef = db.collection('chatUnread').doc(currentUid);
 const latestMsgs = {};
 
+// ── Private messages (DMs): one listener per person, found via chatPresence ──
+const dmLatestMsgs = {};      // conversation id → time of the latest message from the other person (0 = mine/none)
+const dmWatched    = {};
+db.collection('chatPresence').onSnapshot(psnap => {
+    psnap.forEach(p => {
+        const other = p.id;
+        if (other === currentUid || dmWatched[other]) return;
+        dmWatched[other] = true;
+
+        const conv = [currentUid, other].sort().join('_');
+        if (!getLastSeen()[conv]) setLastSeen(conv, Date.now());   // don't pop up old messages
+
+        db.collection('chatrooms').doc(conv).collection('messages')
+            .orderBy('time', 'desc').limit(1)
+            .onSnapshot(s => {
+                if (s.empty) { dmLatestMsgs[conv] = 0; updateChatRoomBadge(); return; }
+                const data = s.docs[0].data();
+                const ms   = data.time && data.time.toMillis ? data.time.toMillis() : 0;
+                const mine = data.uid === currentUid;
+                dmLatestMsgs[conv] = mine ? 0 : ms;                // my own messages never count as unread
+                updateChatRoomBadge();
+
+                if (!ms || mine) return;
+                if (/chatroom(\.html)?$/.test(window.location.pathname)) {
+                    setLastSeen(conv, ms);                          // already in the chat room
+                } else if (ms > (getLastSeen()[conv] || 0)) {
+                    setLastSeen(conv, ms);
+                    showNotification(conv, data.senderName || 'Staff', data.text || '',
+                                     data.role || 'staff', data.time, !!data.attachment);
+                }
+            }, () => {});
+    });
+}, () => {});
 // Keep a local copy of readTimes updated in real time
 let readTimes = {};
 
@@ -357,7 +395,7 @@ chatRoomChannels.forEach(channel => {
 
 function updateChatRoomBadge() {
     let unreadChannels = 0;
-    const isChatRoom = window.location.pathname.endsWith('chatroom.html');
+    const isChatRoom = /chatroom(\.html)?$/.test(window.location.pathname);
     const activeChannel = sessionStorage.getItem('cr_active_channel') || '';
 
     chatRoomChannels.forEach(channel => {
@@ -374,6 +412,14 @@ function updateChatRoomBadge() {
         }
     });
 
+    // private chats: each conversation with something unread counts once
+    Object.keys(dmLatestMsgs).forEach(conv => {
+        if (isChatRoom && conv === activeChannel) return;
+        const ls     = readTimes['lastSeen_' + conv];
+        const seenMs = ls ? (ls.seconds ? ls.seconds * 1000 : 0) : 0;
+        if (dmLatestMsgs[conv] > seenMs) unreadChannels++;
+    });
+
     const badge = document.getElementById('nav-chatroom-count');
     if (badge) {
         if (unreadChannels > 0) {
@@ -386,7 +432,7 @@ function updateChatRoomBadge() {
     }
 };
 
-        if (!window.location.pathname.endsWith('chatroom.html')) {
+        if (!/chatroom(\.html)?$/.test(window.location.pathname)) {
         ALL_CHANNELS.forEach(channel => {
             // If never seen, mark as now so old messages don't fire
             if (!lastSeen[channel]) {

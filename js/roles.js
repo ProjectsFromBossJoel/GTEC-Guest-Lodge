@@ -117,9 +117,10 @@ function renderUsersTable(users) {
                     <div style="width:34px;height:34px;border-radius:50%;
                                 background:${isLocked ? '#fef2f2' : meta.bg};
                                 display:flex;align-items:center;justify-content:center;flex-shrink:0;
-                                ${isLocked ? 'border:1.5px solid #fecaca;' : ''}">
-                        <i class="fas ${isLocked ? 'fa-lock' : meta.icon}"
-                           style="color:${isLocked ? '#dc2626' : meta.color};font-size:13px;"></i>
+                                ${isLocked ? 'border:1.5px solid #fecaca;' : ''}overflow:hidden;">
+                        ${user.photoURL ? `<img src="${escHtml(user.photoURL)}" alt="" style="width:100%;height:100%;object-fit:cover;">` : ''}
+                    <i class="fas ${isLocked ? 'fa-lock' : meta.icon}"
+                           style="color:${isLocked ? '#dc2626' : meta.color};font-size:13px;${user.photoURL ? 'display:none;' : ''}"></i>
                     </div>
                     <div style="font-weight:600;font-size:14px;">
                         ${escHtml(user.name || '—')}
@@ -457,6 +458,7 @@ function openRoleModal(uid, email, currentRole) {
         applyRolePageDefaults(currentRole);
     }
 
+    setChannelAccess(Array.isArray(user.hiddenChannels) ? user.hiddenChannels : []);
     openModal('role-modal');
 }
 
@@ -480,7 +482,8 @@ function setupRoleModal() {
         try {
             const permissions = getPermissions();
             const pageAccess = newRole === 'superadmin' ? _ALL_PAGES : getPageAccess();
-            await db.collection('users').doc(uid).update({ role: newRole, permissions, pageAccess });
+            const hiddenChannels = newRole === 'superadmin' ? [] : getHiddenChannels();
+            await db.collection('users').doc(uid).update({ role: newRole, permissions, pageAccess, hiddenChannels });
             await addLog('Role Changed', `${email} → ${ROLE_META[newRole]?.label || newRole} | create:${permissions.canCreate} edit:${permissions.canEdit} delete:${permissions.canDelete}`);
             UI.showNotification(`Role updated to ${ROLE_META[newRole]?.label || newRole}`, 'success');
             closeModal('role-modal');
@@ -516,7 +519,7 @@ const PAGE_LIST = [
     { key: 'guests',       label: 'Guests',          icon: 'fa-users' },
     { key: 'chatroom',     label: 'Chat Room',       icon: 'fa-comments' },
     { key: 'logs',         label: 'Logs',            icon: 'fa-clipboard-list' },
-    { key: 'chat',         label: 'Client Messages', icon: 'fa-comment' },
+    { key: 'chat',         label: 'General Inquiries', icon: 'fa-comment' },
     { key: 'client-requests', label: 'Client Requests', icon: 'fa-concierge-bell' },
     { key: 'verification', label: 'Verification',    icon: 'fa-user-check' },
     { key: 'invoice',      label: 'Invoice',         icon: 'fa-file-invoice' },
@@ -564,6 +567,35 @@ function getPageAccess() {
 
 function applyRolePageDefaults(role) {
     setPageAccess(ROLE_PAGE_DEFAULTS[role] || ['dashboard']);
+}
+
+// ── Chat channel access ───────────────────────────────────────────────────────
+// Add new default channels here (name must match the chatroom channel id)
+const CHANNEL_LIST = ['general', 'announcements', 'housekeeping', 'front-desk'];
+
+function renderChannelGrid() {
+    const grid = document.getElementById('channel-access-grid');
+    if (!grid || grid.children.length) return;
+    grid.innerHTML = CHANNEL_LIST.map(c => `
+        <label style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1.5px solid #e2e8f0;
+                      border-radius:8px;background:#f8fafc;cursor:pointer;font-size:13px;color:#1e293b;user-select:none;">
+            <input type="checkbox" class="channel-access-cb" value="${c}"
+                   style="width:16px;height:16px;accent-color:#3b82f6;cursor:pointer;margin:0;">
+            <span style="color:#94a3b8;font-weight:600;">#</span> ${c}
+        </label>`).join('');
+}
+
+function setChannelAccess(hidden) {
+    renderChannelGrid();
+    document.querySelectorAll('.channel-access-cb').forEach(cb => { cb.checked = !hidden.includes(cb.value); });
+}
+
+function getHiddenChannels() {
+    return [...document.querySelectorAll('.channel-access-cb:not(:checked)')].map(cb => cb.value);
+}
+
+function setAllChannelAccess(on) {
+    document.querySelectorAll('.channel-access-cb').forEach(cb => { cb.checked = on; });
 }
 
 function setAllPageAccess(on) {
