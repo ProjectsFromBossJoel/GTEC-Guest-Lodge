@@ -891,8 +891,9 @@
                 <label>Guest ID</label>
                 <div class="field-wrap">
                     <i class="fas fa-id-card field-icon"></i>
-                    <input type="text" id="verify-guestid" placeholder="e.g. GH-92577" style="text-transform:uppercase;"
-                        oninput="this.value=this.value.toUpperCase()">
+                    <span style="position:absolute;left:40px;top:50%;transform:translateY(-50%);font-size:14px;font-weight:800;color:#1a2942;pointer-events:none;z-index:1;">GH-</span>
+                    <input type="text" id="verify-guestid" placeholder="92577" inputmode="numeric" autocomplete="off"
+                        style="padding-left:74px;" oninput="cleanGuestId(this)">
                 </div>
             </div>
             <div class="field">
@@ -1003,9 +1004,14 @@
         }
     }
 
+        // Guest ID box holds digits only; "GH-" is shown as a fixed label
+        function cleanGuestId(input) {
+            input.value = input.value.replace(/\D/g, '');
+        }
+
         function applyQRParams() {
             const { id, room } = getQRParams();
-            if (id) document.getElementById('verify-guestid').value = id.toUpperCase();
+            if (id) document.getElementById('verify-guestid').value = id.replace(/\D/g, '');
             if (room) document.getElementById('verify-room').value = room;
         }
 
@@ -1219,7 +1225,8 @@
             hideMsg('verify-error');
             hideMsg('verify-info');
 
-            const guestId = document.getElementById('verify-guestid').value.trim().toUpperCase();
+            const guestDigits = document.getElementById('verify-guestid').value.replace(/\D/g, '');
+            const guestId = guestDigits ? 'GH-' + guestDigits : '';
             const roomNum = document.getElementById('verify-room').value.trim();
 
             if (!guestId) { showMsg('verify-error', 'Please enter a Guest ID.'); return; }

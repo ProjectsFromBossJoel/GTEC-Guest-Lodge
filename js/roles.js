@@ -16,6 +16,12 @@ let pendingUsers  = [];
 let lockedEmails  = new Set();
 let currentUserUid = null;
 
+// ── Pagination (10 rows per page) ────────────────────────────────────────────
+const PAGE_SIZE  = 10;
+const pageState  = { users: 1, clients: 1 };
+let usersView    = [];   // the list (after search) currently shown in System Users
+let clientsView  = [];   // the list (after search) currently shown in Clients
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Init
 // ─────────────────────────────────────────────────────────────────────────────
@@ -32,6 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setupResetPasswordModal();
     setupSearch();
     setupPendingModals();
+    setupClientSection();
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -66,6 +73,7 @@ async function loadAllData() {
 
         renderUsersTable(allUsers);
         renderPendingTable();
+        loadClients();
 
     } catch (e) {
         console.error('[Roles] Load error:', e);
@@ -82,8 +90,15 @@ function loadUsers()  { loadAllData(); }
 // ─────────────────────────────────────────────────────────────────────────────
 // Render ACTIVE users table
 // ─────────────────────────────────────────────────────────────────────────────
-function renderUsersTable(users) {
+function renderUsersTable(fullList, resetPage) {
     const tbody = document.getElementById('users-table-body');
+    const countBadge = document.getElementById('users-count-badge');
+    if (countBadge) countBadge.textContent = allUsers.length;
+
+    usersView = fullList;
+    if (resetPage) pageState.users = 1;
+    const users = pageSlice(fullList, 'users');
+    renderPager('users-pager', fullList.length, 'users');
 
     if (!users.length) {
         tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:40px;color:var(--text-light);">No users found.</td></tr>`;
@@ -108,8 +123,18 @@ function renderUsersTable(users) {
                 <i class="fas fa-lock" style="font-size:9px;"></i> Locked
             </span>` : '';
 
+        const isDisabled = user.status === 'disabled';
+        const disabledBadge = isDisabled ? `
+            <span title="Account deactivated by Super Admin"
+                  style="display:inline-flex;align-items:center;gap:3px;font-size:10px;
+                         background:#f1f5f9;color:#475569;padding:1px 7px;border-radius:8px;
+                         margin-left:6px;font-weight:600;border:1px solid #cbd5e1;">
+                <i class="fas fa-ban" style="font-size:9px;"></i> Deactivated
+            </span>` : '';
+
         const tr = document.createElement('tr');
         if (isLocked) tr.style.background = '#fff8f8';
+        if (isDisabled) { tr.style.background = '#f8fafc'; tr.style.opacity = '0.7'; }
 
         tr.innerHTML = `
             <td>
@@ -125,7 +150,7 @@ function renderUsersTable(users) {
                     <div style="font-weight:600;font-size:14px;">
                         ${escHtml(user.name || '—')}
                         ${isYou ? '<span style="font-size:10px;background:#dbeafe;color:#1e40af;padding:1px 6px;border-radius:8px;margin-left:6px;font-weight:600;">You</span>' : ''}
-                        ${lockBadge}
+                        ${lockBadge}${disabledBadge}
                     </div>
                 </div>
             </td>
@@ -343,7 +368,7 @@ function setupModalTriggers() {
     document.querySelectorAll('.close-reset-modal').forEach(btn =>
         btn.addEventListener('click', () => closeModal('reset-password-modal')));
 
-    ['add-user-modal','role-modal','delete-user-modal','reset-password-modal','approve-modal','reject-modal'].forEach(id => {
+    ['add-user-modal','role-modal','delete-user-modal','reset-password-modal','approve-modal','reject-modal','deactivate-modal'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.addEventListener('click', e => { if (e.target.id === id) closeModal(id); });
     });
@@ -676,10 +701,84 @@ function openResetPasswordModal(email, name) {
                 The user will receive an email with a link to set a new password. The link expires in 1 hour.`;
         }
     }
+    // ── Deactivate / Reactivate button state ──
+    const target    = allUsers.find(u => (u.email || '').toLowerCase() === (email || '').toLowerCase());
+    const statusBtn = document.getElementById('toggle-account-status-btn');
+    const isDisabledNow = target?.status === 'disabled';
+
+    statusBtn.dataset.uid    = target?.uid || '';
+    statusBtn.dataset.email  = email;
+    statusBtn.dataset.action = isDisabledNow ? 'activate' : 'deactivate';
+    statusBtn.style.display  = (!target || target.uid === currentUserUid) ? 'none' : '';
+    statusBtn.style.color       = isDisabledNow ? '#16a34a' : '#dc2626';
+    statusBtn.style.borderColor = isDisabledNow ? '#bbf7d0' : '#fecaca';
+    statusBtn.disabled  = false;
+    statusBtn.innerHTML = isDisabledNow
+        ? '<i class="fas fa-user-check"></i> Reactivate'
+        : '<i class="fas fa-user-slash"></i> Deactivate';
+
     openModal('reset-password-modal');
 }
 
+function toggleAccountStatus() {
+    const btn        = document.getElementById('toggle-account-status-btn');
+    const uid        = btn.dataset.uid;
+    const email      = btn.dataset.email;
+    const deactivate = btn.dataset.action === 'deactivate';
+
+    if (!uid) return;
+    if (uid === currentUserUid) {
+        UI.showNotification('You cannot deactivate your own account.', 'error');
+        return;
+    }
+
+    // Deactivate asks for confirmation in a modal; Reactivate runs straight away
+    if (deactivate) {
+        document.getElementById('deactivate-user-uid').value         = uid;
+        document.getElementById('deactivate-user-email').textContent = email;
+        openModal('deactivate-modal');
+        return;
+    }
+    runAccountStatusChange(uid, email, false);
+}
+
+async function runAccountStatusChange(uid, email, deactivate) {
+    const btn = document.getElementById(deactivate ? 'confirm-deactivate-btn' : 'toggle-account-status-btn');
+    const idleHtml = deactivate
+        ? '<i class="fas fa-user-slash"></i> Yes, Deactivate'
+        : '<i class="fas fa-user-check"></i> Reactivate';
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Please wait…';
+
+    try {
+        await db.collection('users').doc(uid).update(
+            deactivate
+                ? { status: 'disabled', disabledAt: firebase.firestore.FieldValue.serverTimestamp() }
+                : { status: 'active',   disabledAt: firebase.firestore.FieldValue.delete() }
+        );
+        await addLog(deactivate ? 'User Deactivated' : 'User Reactivated',
+                     `${email} ${deactivate ? 'deactivated' : 'reactivated'}`);
+        UI.showNotification(`${email} has been ${deactivate ? 'deactivated' : 'reactivated'}.`, 'success');
+        closeModal('deactivate-modal');
+        closeModal('reset-password-modal');
+        loadAllData();
+    } catch (err) {
+        console.error('[Roles] Toggle status error:', err);
+        UI.showNotification('Failed to update account: ' + err.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = idleHtml;
+    }
+}
+
 function setupResetPasswordModal() {
+    document.getElementById('toggle-account-status-btn').addEventListener('click', toggleAccountStatus);
+    document.getElementById('confirm-deactivate-btn').addEventListener('click', () => {
+        const uid   = document.getElementById('deactivate-user-uid').value;
+        const email = document.getElementById('deactivate-user-email').textContent;
+        if (uid) runAccountStatusChange(uid, email, true);
+    });
     document.getElementById('confirm-reset-password-btn').addEventListener('click', async () => {
         const email = document.getElementById('reset-password-uid-email').value;
         const btn   = document.getElementById('confirm-reset-password-btn');
@@ -743,6 +842,301 @@ function setupDeleteModal() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Clients (guest portal accounts)
+// ─────────────────────────────────────────────────────────────────────────────
+let allClients   = [];
+let clientAction = null;      // { type, uid, email, name }
+const clientBusy = new Set(); // uids with a request in flight
+
+const CLIENT_ACTIONS = {
+    reset: {
+        title: 'Reset Client Password', icon: 'fa-key', color: '#f59e0b', bg: '#fef3c7',
+        noteBg: '#fef9ec', noteBorder: '#fde68a', noteColor: '#854d0e', noteIcon: 'fa-info-circle',
+        lead: 'A password reset email will be sent to:',
+        note: 'The client will receive an email with a link to set a new password. The link expires in 1 hour.',
+        btn: 'Send Reset Email', btnIcon: 'fa-paper-plane',
+    },
+    deactivate: {
+        title: 'Deactivate Client', icon: 'fa-user-slash', color: '#ef4444', bg: '#fef2f2',
+        noteBg: '#fef2f2', noteBorder: '#fecaca', noteColor: '#b91c1c', noteIcon: 'fa-exclamation-circle',
+        lead: 'Are you sure you want to deactivate',
+        note: 'They lose access to the client portal immediately and cannot use it until you reactivate the account.',
+        btn: 'Yes, Deactivate', btnIcon: 'fa-user-slash',
+    },
+    delete: {
+        title: 'Delete Client', icon: 'fa-trash', color: '#ef4444', bg: '#fef2f2',
+        noteBg: '#fef2f2', noteBorder: '#fecaca', noteColor: '#b91c1c', noteIcon: 'fa-exclamation-triangle',
+        lead: 'Are you sure you want to delete',
+        note: 'This removes their client profile. Their sign-in account is not deleted, so to block someone from the portal, deactivate them instead.',
+        btn: 'Yes, Delete', btnIcon: 'fa-trash',
+    },
+};
+
+async function loadClients() {
+    const tbody = document.getElementById('clients-table-body');
+    try {
+        const snap = await db.collection('clients').orderBy('createdAt', 'desc').get();
+        allClients = [];
+        snap.forEach(doc => allClients.push({ uid: doc.id, ...doc.data() }));
+        const term = (document.getElementById('search-clients')?.value || '').toLowerCase();
+        renderClientsTable(filterClients(term));
+    } catch (e) {
+        console.error('[Roles] Clients load error:', e);
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:40px;color:#ef4444;">
+            <i class="fas fa-exclamation-circle"></i> Failed to load clients. Check Firestore rules.
+        </td></tr>`;
+    }
+}
+
+function filterClients(term) {
+    if (!term) return allClients;
+    return allClients.filter(c =>
+        (c.name  || '').toLowerCase().includes(term) ||
+        (c.email || '').toLowerCase().includes(term) ||
+        (c.phone || '').toLowerCase().includes(term)
+    );
+}
+
+function renderClientsTable(fullList, resetPage) {
+    const tbody = document.getElementById('clients-table-body');
+    const badge = document.getElementById('clients-count-badge');
+    if (badge) badge.textContent = allClients.length;
+
+    clientsView = fullList;
+    if (resetPage) pageState.clients = 1;
+    const clients = pageSlice(fullList, 'clients');
+    renderPager('clients-pager', fullList.length, 'clients');
+
+    if (!clients.length) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-light);">No clients found.</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = '';
+    clients.forEach(c => {
+        const isDisabled = c.status === 'disabled';
+        const isGoogle   = /google/i.test(c.provider || '');
+        const initial    = escHtml(String(c.name || c.email || '?').trim().charAt(0).toUpperCase());
+        const createdAt  = c.createdAt?.toDate
+            ? c.createdAt.toDate().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+            : '—';
+
+        const disabledBadge = isDisabled ? `
+            <span title="Account deactivated by Super Admin"
+                  style="display:inline-flex;align-items:center;gap:3px;font-size:10px;
+                         background:#f1f5f9;color:#475569;padding:1px 7px;border-radius:8px;
+                         margin-left:6px;font-weight:600;border:1px solid #cbd5e1;">
+                <i class="fas fa-ban" style="font-size:9px;"></i> Deactivated
+            </span>` : '';
+
+        const method = isGoogle
+            ? `<span style="font-size:12px;font-weight:600;color:#3c4043;"><i class="fab fa-google" style="color:#4285f4;margin-right:5px;"></i>Google</span>`
+            : `<span style="font-size:12px;font-weight:600;color:#64748b;"><i class="fas fa-envelope" style="margin-right:5px;"></i>Email</span>`;
+
+        const resetStyle = 'color:#f59e0b;';
+        const resetTitle = 'Reset password or deactivate account';
+
+        const tr = document.createElement('tr');
+        if (isDisabled) { tr.style.background = '#f8fafc'; tr.style.opacity = '0.7'; }
+
+        tr.innerHTML = `
+            <td>
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <div style="width:34px;height:34px;border-radius:50%;background:#e0e7ff;color:#4338ca;
+                                display:flex;align-items:center;justify-content:center;flex-shrink:0;
+                                font-weight:700;font-size:14px;">${initial}</div>
+                    <div style="font-weight:600;font-size:14px;">${escHtml(c.name || '—')}${disabledBadge}</div>
+                </div>
+            </td>
+            <td style="font-size:13px;color:var(--text-light);">${escHtml(c.email || '—')}</td>
+            <td style="font-size:13px;color:var(--text-light);">${escHtml(c.phone || '—')}</td>
+            <td>${method}</td>
+            <td style="font-size:13px;color:var(--text-light);">${createdAt}</td>
+            <td style="text-align:center;white-space:nowrap;">
+                <button class="btn btn-sm btn-outline" data-client-act="reset" data-uid="${escHtml(c.uid)}"
+                        title="${resetTitle}" style="${resetStyle}">
+                    <i class="fas fa-key"></i>
+                </button>
+                <button class="btn btn-sm btn-outline" data-client-act="delete" data-uid="${escHtml(c.uid)}"
+                        title="Delete Client" style="color:#ef4444;margin-left:4px;">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </td>`;
+        tbody.appendChild(tr);
+    });
+}
+
+function openClientAction(type, uid) {
+    const c = allClients.find(x => x.uid === uid);
+    const a = CLIENT_ACTIONS[type];
+    if (!c || !a) return;
+
+    clientAction = { type, uid, email: c.email || '', name: c.name || c.email || '' };
+
+    document.getElementById('client-action-title').innerHTML =
+        `<i class="fas ${a.icon}" style="margin-right:8px;color:${a.color};"></i>${a.title}`;
+    const wrap = document.getElementById('client-action-icon-wrap');
+    wrap.style.background = a.bg;
+    const icon = document.getElementById('client-action-icon');
+    icon.className = 'fas ' + a.icon;
+    icon.style.color = a.color;
+    document.getElementById('client-action-lead').textContent  = a.lead;
+    document.getElementById('client-action-name').textContent  = clientAction.name;
+    document.getElementById('client-action-email').textContent = clientAction.email;
+
+    const note = document.getElementById('client-action-note');
+    note.style.background = a.noteBg;
+    note.style.border     = '1px solid ' + a.noteBorder;
+    note.style.color      = a.noteColor;
+    note.innerHTML = `<i class="fas ${a.noteIcon}" style="margin-right:6px;"></i>${a.note}`;
+
+    const btn = document.getElementById('client-action-confirm');
+    btn.disabled = false;
+    btn.style.background  = a.color;
+    btn.style.borderColor = a.color;
+    btn.innerHTML = `<i class="fas ${a.btnIcon}"></i> ${a.btn}`;
+
+    // Deactivate / Reactivate button lives inside the reset popup
+    const isDisabledNow = c.status === 'disabled';
+    const isGoogle      = /google/i.test(c.provider || '');
+    const tg = document.getElementById('client-action-toggle');
+    tg.style.display     = type === 'reset' ? '' : 'none';
+    tg.dataset.uid       = uid;
+    tg.dataset.mode      = isDisabledNow ? 'activate' : 'deactivate';
+    tg.style.color       = isDisabledNow ? '#16a34a' : '#dc2626';
+    tg.style.borderColor = isDisabledNow ? '#bbf7d0' : '#fecaca';
+    tg.disabled  = false;
+    tg.innerHTML = isDisabledNow
+        ? '<i class="fas fa-user-check"></i> Reactivate'
+        : '<i class="fas fa-user-slash"></i> Deactivate';
+
+    // Google sign-in clients have no password to reset
+    btn.style.display = (type === 'reset' && isGoogle) ? 'none' : '';
+    if (type === 'reset' && isGoogle) {
+        note.innerHTML = '<i class="fas fa-info-circle" style="margin-right:6px;"></i>This client signs in with Google, so there is no password to reset.';
+    }
+
+    openModal('client-action-modal');
+}
+
+async function setClientStatus(uid, email, deactivate) {
+    await db.collection('clients').doc(uid).update(
+        deactivate
+            ? { status: 'disabled', disabledAt: firebase.firestore.FieldValue.serverTimestamp() }
+            : { status: 'active',   disabledAt: firebase.firestore.FieldValue.delete() }
+    );
+    await addLog(deactivate ? 'Client Deactivated' : 'Client Reactivated',
+                 `${email} ${deactivate ? 'deactivated' : 'reactivated'}`);
+    UI.showNotification(`${email} has been ${deactivate ? 'deactivated' : 'reactivated'}.`, 'success');
+}
+
+async function confirmClientAction() {
+    if (!clientAction) return;
+    const { type, uid, email } = clientAction;
+    const a   = CLIENT_ACTIONS[type];
+    const btn = document.getElementById('client-action-confirm');
+    if (clientBusy.has(uid)) return;
+    clientBusy.add(uid);
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Please wait…';
+
+    try {
+        if (type === 'reset') {
+            await firebase.auth().sendPasswordResetEmail(email);
+            await addLog('Client Password Reset Sent', `Password reset email sent to client ${email}`);
+            UI.showNotification(`✅ Password reset email sent to ${email}`, 'success');
+        } else if (type === 'deactivate') {
+            await setClientStatus(uid, email, true);
+        } else if (type === 'delete') {
+            await db.collection('clients').doc(uid).delete();
+            await addLog('Client Removed', `Client ${email} deleted`);
+            UI.showNotification(`✅ ${email} deleted.`, 'success');
+        }
+        closeModal('client-action-modal');
+        loadClients();
+    } catch (err) {
+        console.error('[Roles] Client action error:', err);
+        let msg = err.message;
+        if (err.code === 'auth/user-not-found')     msg = 'No sign-in account found for that email.';
+        if (err.code === 'permission-denied')       msg = 'Permission denied. Publish the updated Firestore rules.';
+        UI.showNotification('Failed: ' + msg, 'error');
+    } finally {
+        clientBusy.delete(uid);
+        btn.disabled = false;
+        btn.innerHTML = `<i class="fas ${a.btnIcon}"></i> ${a.btn}`;
+    }
+}
+
+function setupClientSection() {
+    document.getElementById('search-clients').addEventListener('input', function () {
+        renderClientsTable(filterClients(this.value.toLowerCase()), true);
+    });
+
+    document.getElementById('clients-table-body').addEventListener('click', async (e) => {
+        const b = e.target.closest('button[data-client-act]');
+        if (!b || b.disabled) return;
+        const act = b.dataset.clientAct, uid = b.dataset.uid;
+
+        if (act === 'activate') {
+            // Reactivate runs straight away, no confirmation needed
+            if (clientBusy.has(uid)) return;
+            const c = allClients.find(x => x.uid === uid); if (!c) return;
+            clientBusy.add(uid);
+            b.disabled = true;
+            try {
+                await setClientStatus(uid, c.email || '', false);
+                loadClients();
+            } catch (err) {
+                console.error('[Roles] Reactivate client error:', err);
+                UI.showNotification('Failed: ' + err.message, 'error');
+                b.disabled = false;
+            } finally {
+                clientBusy.delete(uid);
+            }
+            return;
+        }
+        openClientAction(act, uid);
+    });
+
+    document.getElementById('client-action-confirm').addEventListener('click', confirmClientAction);
+
+    document.getElementById('client-action-toggle').addEventListener('click', async function () {
+        const uid = this.dataset.uid;
+        if (!uid) return;
+
+        // Deactivate: switch this popup to the confirmation view
+        if (this.dataset.mode === 'deactivate') {
+            openClientAction('deactivate', uid);
+            return;
+        }
+
+        // Reactivate: runs straight away
+        if (clientBusy.has(uid)) return;
+        const c = allClients.find(x => x.uid === uid); if (!c) return;
+        clientBusy.add(uid);
+        const original = this.innerHTML;
+        this.disabled = true;
+        this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Please wait…';
+        try {
+            await setClientStatus(uid, c.email || '', false);
+            closeModal('client-action-modal');
+            loadClients();
+        } catch (err) {
+            console.error('[Roles] Reactivate client error:', err);
+            UI.showNotification('Failed: ' + err.message, 'error');
+            this.innerHTML = original;
+        } finally {
+            clientBusy.delete(uid);
+            this.disabled = false;
+        }
+    });
+
+    const overlay = document.getElementById('client-action-modal');
+    overlay.addEventListener('click', e => { if (e.target === overlay) closeModal('client-action-modal'); });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Search / filter — only searches active users
 // ─────────────────────────────────────────────────────────────────────────────
 function setupSearch() {
@@ -753,8 +1147,45 @@ function setupSearch() {
             (u.email || '').toLowerCase().includes(term) ||
             (u.role  || '').toLowerCase().includes(term)
         );
-        renderUsersTable(filtered);
+        renderUsersTable(filtered, true);
     });
+
+    // Prev / Next buttons for both tables
+    document.addEventListener('click', e => {
+        const b = e.target.closest('button[data-pager]');
+        if (!b || b.disabled) return;
+        const key = b.dataset.pager;
+        pageState[key] += Number(b.dataset.dir);
+        if (key === 'users') renderUsersTable(usersView);
+        else                 renderClientsTable(clientsView);
+    });
+}
+
+// ── Pagination helpers ───────────────────────────────────────────────────────
+function pageSlice(list, key) {
+    const pages = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
+    pageState[key] = Math.min(Math.max(1, pageState[key]), pages);
+    const from = (pageState[key] - 1) * PAGE_SIZE;
+    return list.slice(from, from + PAGE_SIZE);
+}
+
+function renderPager(id, total, key) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (!total) { el.innerHTML = ''; return; }
+
+    const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+    const page  = pageState[key];
+    const from  = (page - 1) * PAGE_SIZE + 1;
+    const to    = Math.min(page * PAGE_SIZE, total);
+
+    el.innerHTML = `
+        <span>${from}–${to} of ${total}</span>
+        <span class="pg-btns">
+            <button type="button" class="btn btn-sm btn-outline" data-pager="${key}" data-dir="-1" ${page <= 1 ? 'disabled' : ''}>‹ Prev</button>
+            <span>Page ${page} of ${pages}</span>
+            <button type="button" class="btn btn-sm btn-outline" data-pager="${key}" data-dir="1" ${page >= pages ? 'disabled' : ''}>Next ›</button>
+        </span>`;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

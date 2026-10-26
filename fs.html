@@ -53,8 +53,13 @@ service cloud.firestore {
     }
 
     // ── Portal helpers (guest accounts) ───────────────────────────────────
+    // A deactivated client (clients/{uid}.status == 'disabled') loses all portal access
+    function clientActive() {
+      return !exists(/databases/$(database)/documents/clients/$(request.auth.uid))
+        || get(/databases/$(database)/documents/clients/$(request.auth.uid)).data.get('status', 'active') == 'active';
+    }
     function verified() {
-      return isAuth() && request.auth.token.email_verified == true;
+      return isAuth() && request.auth.token.email_verified == true && clientActive();
     }
     function onlyKeys(k) {
       return request.resource.data.keys().hasOnly(k);
@@ -248,10 +253,11 @@ service cloud.firestore {
         && request.resource.data.createdAt == request.time
         && request.resource.data.name is string && request.resource.data.name.size() <= 80
         && request.resource.data.phone is string && request.resource.data.phone.size() <= 30;
-      allow update: if isOwner(uid) && changed(['name', 'phone', 'updatedAt'])
-        && request.resource.data.name.size() <= 80
-        && request.resource.data.phone.size() <= 30;
-      allow delete: if false;
+      allow update: if isSuperAdmin()
+        || (isOwner(uid) && changed(['name', 'phone', 'updatedAt'])
+            && request.resource.data.name.size() <= 80
+            && request.resource.data.phone.size() <= 30);
+      allow delete: if isSuperAdmin();
     }
 
     // Fault reports
@@ -371,6 +377,14 @@ service cloud.firestore {
       allow write: if isStaff()
         && request.resource.data.keys().hasOnly(['scroll', 'updatedAt', 'updatedBy'])
         && request.resource.data.scroll is bool;
+    }
+
+    // ── Chat message audit trail (deleted / edited originals) ─────────────
+    match /messageAudit/{id} {
+      allow create: if isStaff()
+        && request.resource.data.action in ['deleted', 'edited'];
+      allow read: if isSuperAdmin();
+      allow update, delete: if false;
     }
 
     // ── Hub Users ─────────────────────────────────────────────────────────

@@ -422,6 +422,18 @@ function injectModals() {
                 </div>
             </div>
 
+            <!-- QR -->
+            <div style="padding:20px 24px 0;">
+                <div style="display:flex;align-items:center;gap:18px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:14px 16px;">
+                    <div id="profileQR" style="background:white;padding:8px;border-radius:8px;border:1px solid #e2e8f0;flex-shrink:0;line-height:0;"></div>
+                    <div>
+                        <div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Verification QR Code</div>
+                        <div style="font-size:13px;color:#475569;line-height:1.5;">Scan at reception to verify this guest.</div>
+                        <div id="profileQRId" style="font-size:12px;font-weight:700;color:#1d4ed8;margin-top:6px;"></div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Body -->
             <div style="padding:24px;">
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
@@ -641,12 +653,35 @@ async function viewGuestProfile(id, collection = 'guests') {
         const editBtn = document.getElementById('profileEditBtn');
         if (editBtn) editBtn.style.display = collection === 'guests' ? 'flex' : 'none';
 
+        renderProfileQR(g, id);
         document.getElementById('guestProfileModal').style.display = 'flex';
 
     } catch (err) {
         console.error("Error loading guest profile:", err);
         UI.showNotification("Failed to load profile", "error");
     }
+}
+
+// Same QR (same link) as the ID card in View All Guests
+function renderProfileQR(g, fallbackId) {
+    const box  = document.getElementById('profileQR');
+    const label = document.getElementById('profileQRId');
+    if (!box) return;
+    box.innerHTML = '';
+
+    const guestID = g.idNumber || fallbackId;
+    const room    = g.roomNumber || g.room || '';
+    if (label) label.textContent = guestID ? `${guestID}${room ? ' · Room ' + room : ''}` : '';
+
+    if (!guestID || typeof QRCode === 'undefined') {
+        box.innerHTML = '<span style="font-size:12px;color:#94a3b8;line-height:1.4;display:block;padding:20px 10px;">QR unavailable</span>';
+        return;
+    }
+    new QRCode(box, {
+        text: `https://gtecguestlodge.web.app/cardverification.html?t=${buildQRToken(guestID, room)}`,
+        width: 112,
+        height: 112
+    });
 }
 
 function toggleProfileEdit() {
@@ -880,7 +915,7 @@ async function downloadGuestProfilePDF() {
 
         if (guestId && typeof QRCode !== 'undefined') {
             const token = buildQRToken(guestId, roomNum);
-            const qrUrl = `https://guesthousesystem-86fdc.web.app/cardverification.html?t=${token}`;
+            const qrUrl = `https://gtecguestlodge.web.app/cardverification.html?t=${token}`;
 
             txt('VERIFICATION QR CODE', W / 2, y + 4, 7, [148, 163, 184], 'bold', 'center');
             txt('Scan to verify guest at reception', W / 2, y + 10, 8, [100, 116, 139], 'normal', 'center');

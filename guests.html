@@ -141,6 +141,46 @@
             text-transform: uppercase;
         }
 
+        /* ── All Guests popup (restructured) ── */
+        #allGuestsContainer .guest-box {
+            display: flex; flex-direction: column;
+            width: 96%; max-width: 1180px; max-height: 88vh;
+            padding: 0; overflow: hidden; border-radius: 16px;
+            box-shadow: 0 24px 64px rgba(0,0,0,0.25);
+        }
+        .ag-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 20px 24px 14px; }
+        .ag-title { margin: 0; font-size: 20px; font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 10px; }
+        .ag-count { font-size: 12px; font-weight: 700; background: #eff6ff; color: #1d4ed8; padding: 3px 10px; border-radius: 20px; }
+        .ag-close { width: 34px; height: 34px; border: none; background: #f1f5f9; border-radius: 50%; font-size: 20px; line-height: 1; color: #64748b; cursor: pointer; }
+        .ag-close:hover { background: #fee2e2; color: #ef4444; }
+        .ag-tools { padding: 0 24px 14px; border-bottom: 1px solid #e2e8f0; }
+        .ag-search { position: relative; }
+        .ag-search i { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 13px; }
+        .ag-search input { width: 100%; padding: 10px 14px 10px 38px; border: 1.5px solid #e2e8f0; border-radius: 10px; font-size: 14px; outline: none; box-sizing: border-box; background: #f8fafc; }
+        .ag-search input:focus { border-color: #3b82f6; background: #fff; box-shadow: 0 0 0 3px rgba(59,130,246,.12); }
+        .ag-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+        .ag-chip { border: 1.5px solid #e2e8f0; background: #fff; color: #475569; padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; cursor: pointer; }
+        .ag-chip span { opacity: .6; margin-left: 4px; }
+        .ag-chip:hover { border-color: #94a3b8; }
+        .ag-chip.active { background: #1f3b57; border-color: #1f3b57; color: #fff; }
+        .ag-scroll { flex: 1; min-height: 0; overflow: auto; }
+        #allGuestsContainer .guest-table { width: 100%; min-width: 860px; border-collapse: separate; border-spacing: 0; }
+        #allGuestsContainer .guest-table th { position: sticky; top: 0; z-index: 2; background: #f8fafc; padding: 12px 16px; text-align: left; font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: .5px; white-space: nowrap; border-bottom: 1px solid #e2e8f0; }
+        #allGuestsContainer .guest-table td { padding: 12px 16px; vertical-align: middle; border-bottom: 1px solid #f1f5f9; font-size: 13px; }
+        #allGuestsContainer .guest-table tbody tr:hover td { background: #f8fafc; }
+        .ag-guest { display: flex; align-items: center; gap: 10px; }
+        .ag-avatar { width: 36px; height: 36px; border-radius: 50%; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; flex-shrink: 0; }
+        .ag-name { font-weight: 700; font-size: 13px; color: #1e293b; }
+        .ag-sub { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+        .ag-room { display: inline-block; background: #eff6ff; color: #1d4ed8; padding: 4px 12px; border-radius: 8px; font-size: 12px; font-weight: 700; white-space: nowrap; }
+        .ag-dates { font-size: 12px; color: #475569; white-space: nowrap; }
+        .ag-dates span { color: #94a3b8; margin: 0 2px; }
+        .ag-status, .ag-pay { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+        .ag-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+        .ag-notes { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #64748b; font-size: 12px; }
+        .ag-idbtn { display: inline-flex; align-items: center; gap: 5px; padding: 6px 12px; background: #1f3b57; color: #fff; border: none; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; }
+        .ag-idbtn:hover { background: #2d5480; }
+
         @media print {
             body * {
                 visibility: hidden;
@@ -311,29 +351,34 @@
     <!-- All Guests Popup -->
     <div id="allGuestsContainer" class="guest-container">
         <div class="guest-box">
-            <span id="closeGuestList" class="close">&times;</span>
-            <h2 style="margin-bottom:16px;">All Guests</h2>
-            <div style="margin-bottom:16px;">
-                <input type="text" id="allGuestsSearch" placeholder="Search by name, phone, room or status..."
-                    style="width:100%;padding:9px 14px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;outline:none;box-sizing:border-box;"
-                    oninput="filterAllGuests(this.value)">
+            <div class="ag-head">
+                <h2 class="ag-title"><i class="fas fa-users" style="color:#1f3b57;"></i> All Guests <span class="ag-count" id="allGuestsCount">0</span></h2>
+                <button type="button" id="closeGuestList" class="ag-close" aria-label="Close">&times;</button>
             </div>
-            <table class="guest-table" style="width:100%;border-collapse:collapse;">
-                <thead>
-                    <tr>
-                        <th>Name</th>
-                        <th>Phone</th>
-                        <th>Room</th>
-                        <th>Check-in</th>
-                        <th>Expected Checkout</th>
-                        <th>Status</th>
-                        <th>Payment</th>
-                        <th>Notes</th>
-                        <th>Action</th>
-                    </tr>
-                </thead>
-                <tbody id="allGuestsList"></tbody>
-            </table>
+            <div class="ag-tools">
+                <div class="ag-search">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="allGuestsSearch" placeholder="Search by name, phone, room or status..."
+                        autocomplete="off" oninput="filterAllGuests()">
+                </div>
+                <div class="ag-chips" id="allGuestsChips"></div>
+            </div>
+            <div class="ag-scroll">
+                <table class="guest-table">
+                    <thead>
+                        <tr>
+                            <th>Guest</th>
+                            <th>Room</th>
+                            <th>Stay</th>
+                            <th>Status</th>
+                            <th>Payment</th>
+                            <th>Notes</th>
+                            <th style="text-align:right;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="allGuestsList"></tbody>
+                </table>
+            </div>
         </div>
     </div>
 
@@ -380,6 +425,70 @@
         let _allGuestsCache = [];
 
         function renderAllGuestRows(rows) {
+    const list = document.getElementById("allGuestsList");
+    if (!list) return;
+
+    const cnt = document.getElementById("allGuestsCount");
+    if (cnt) cnt.textContent = rows.length === _allGuestsCache.length
+        ? rows.length : `${rows.length} of ${_allGuestsCache.length}`;
+
+    if (!rows.length) {
+        list.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:48px 20px;">
+            <div style="font-size:40px;margin-bottom:12px;">🔍</div>
+            <p style="font-size:15px;font-weight:600;color:#94a3b8;margin:0;">No guests found</p>
+            <p style="font-size:13px;color:#cbd5e1;margin-top:4px;">Try a different search or filter</p>
+        </td></tr>`;
+        return;
+    }
+
+    const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g,
+        c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const statusConfig = {
+        "Checked In":           { bg:'#dcfce7', color:'#15803d', dot:'#22c55e' },
+        "Checked Out":          { bg:'#f1f5f9', color:'#64748b', dot:'#94a3b8' },
+        "Pending Verification": { bg:'#fef9c3', color:'#a16207', dot:'#eab308' },
+        "Pending Check-in":     { bg:'#fef3c7', color:'#92400e', dot:'#f59e0b' },
+        "Reserved":             { bg:'#dbeafe', color:'#1d4ed8', dot:'#3b82f6' },
+    };
+    const colors = ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#06b6d4'];
+
+    list.innerHTML = rows.map((r, idx) => {
+        const sc       = statusConfig[r.status] || { bg:'#f1f5f9', color:'#64748b', dot:'#94a3b8' };
+        const isPaid   = (r.paymentStatus || '').toLowerCase() === 'paid';
+        const initials = (r.name || '?').split(' ').filter(Boolean).map(n => n[0]).join('').slice(0, 2).toUpperCase() || '?';
+        const nights   = r.nights != null ? `${r.nights} night${r.nights === 1 ? '' : 's'}` : '';
+        const notes    = r.notes && r.notes !== '—' ? r.notes : '—';
+
+        return `<tr>
+            <td>
+                <div class="ag-guest">
+                    <div class="ag-avatar" style="background:${colors[idx % colors.length]};">${esc(initials)}</div>
+                    <div>
+                        <div class="ag-name">${esc(r.name)}</div>
+                        <div class="ag-sub">${esc(r.phone)}</div>
+                    </div>
+                </div>
+            </td>
+            <td><span class="ag-room">Room ${esc(r.room)}</span></td>
+            <td>
+                <div class="ag-dates">${esc(r.ci)} <span>→</span> ${esc(r.co)}</div>
+                <div class="ag-sub">${nights}</div>
+            </td>
+            <td><span class="ag-status" style="background:${sc.bg};color:${sc.color};"><span class="ag-dot" style="background:${sc.dot};"></span>${esc(r.status)}</span></td>
+            <td>${isPaid
+                ? '<span class="ag-pay" style="background:#dcfce7;color:#15803d;"><i class="fas fa-check-circle" style="font-size:10px;"></i> Paid</span>'
+                : '<span class="ag-pay" style="background:#fee2e2;color:#b91c1c;"><i class="fas fa-times-circle" style="font-size:10px;"></i> Unpaid</span>'}</td>
+            <td class="ag-notes" title="${esc(r.notes)}">${esc(notes)}</td>
+            <td style="text-align:right;">
+                <button type="button" class="ag-idbtn" onclick="generateIDCard('${esc(r.docId)}','${esc(r.collection)}')">
+                    <i class="fas fa-id-card" style="font-size:11px;"></i> ID Card
+                </button>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+function renderAllGuestRowsOld(rows) {
     const list = document.getElementById("allGuestsList");
     if (!list) return;
     list.innerHTML = "";
@@ -470,7 +579,40 @@
     });
 }
 
-        function filterAllGuests(val) {
+        let _agStatus = 'all';
+
+function renderAgChips() {
+    const box = document.getElementById('allGuestsChips');
+    if (!box) return;
+    const counts = {};
+    _allGuestsCache.forEach(r => { counts[r.status] = (counts[r.status] || 0) + 1; });
+    const chip = (key, label, n) =>
+        `<button type="button" class="ag-chip${_agStatus === key ? ' active' : ''}" data-status="${String(key).replace(/"/g, '&quot;')}">${label}<span>${n}</span></button>`;
+    box.innerHTML = chip('all', 'All', _allGuestsCache.length) +
+        Object.keys(counts).sort().map(s => chip(s, s, counts[s])).join('');
+}
+
+function filterAllGuests() {
+    const q = (document.getElementById('allGuestsSearch')?.value || '').toLowerCase().trim();
+    renderAllGuestRows(_allGuestsCache.filter(r =>
+        (_agStatus === 'all' || r.status === _agStatus) &&
+        (!q ||
+            r.name.toLowerCase().includes(q) ||
+            r.phone.toLowerCase().includes(q) ||
+            r.room.toString().toLowerCase().includes(q) ||
+            r.status.toLowerCase().includes(q))
+    ));
+}
+
+document.getElementById('allGuestsChips').addEventListener('click', e => {
+    const b = e.target.closest('.ag-chip');
+    if (!b) return;
+    _agStatus = b.dataset.status;
+    renderAgChips();
+    filterAllGuests();
+});
+
+function filterAllGuestsOld(val) {
             const q = (val || "").toLowerCase().trim();
             if (!q) { renderAllGuestRows(_allGuestsCache); return; }
             renderAllGuestRows(_allGuestsCache.filter(r =>
@@ -544,6 +686,8 @@
 
                 // Sort A → Z by name
                 _allGuestsCache.sort((a, b) => a.name.localeCompare(b.name));
+                _agStatus = 'all';
+                renderAgChips();
 
                 renderAllGuestRows(_allGuestsCache);
 
@@ -579,7 +723,7 @@
                 document.getElementById("idCardModal").style.display = "flex";
 
                 const token = buildQRToken(guestID, room);
-                const qrUrl = `https://gtecguesthouse.web.app/cardverification.html?t=${token}`;
+                const qrUrl = `https://gtecguestlodge.web.app/cardverification.html?t=${token}`;
 
                 document.getElementById("qrCode").innerHTML = "";
                 new QRCode(document.getElementById("qrCode"), {

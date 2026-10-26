@@ -316,9 +316,32 @@ var openRef = null;                               // request currently open in t
     setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
   }
 
+  /* ---------- confirmation popup (replaces window.confirm) ---------- */
+  function confirmBox(o) {
+    var old = $('cr-confirm'); if (old) old.remove();
+    var danger = o.tone === 'danger';
+    var bg = document.createElement('div');
+    bg.id = 'cr-confirm';
+    bg.style.cssText = 'position:fixed;inset:0;z-index:100001;background:rgba(15,23,42,.6);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:1rem';
+    bg.innerHTML =
+      '<div role="alertdialog" aria-modal="true" aria-labelledby="cr-confirm-title" style="background:#fff;border-radius:16px;box-shadow:0 24px 64px rgba(0,0,0,.3);width:100%;max-width:400px;padding:1.5rem;text-align:center">' +
+      '<div style="width:56px;height:56px;border-radius:50%;margin:0 auto .9rem;display:flex;align-items:center;justify-content:center;font-size:1.4rem;background:' + (danger ? '#fef2f2;color:#ef4444' : '#fef3c7;color:#d97706') + '"><i class="fas ' + esc(o.icon || 'fa-circle-question') + '"></i></div>' +
+      '<h3 id="cr-confirm-title" style="margin:0 0 .5rem;font-size:1.1rem">' + esc(o.title) + '</h3>' +
+      '<p style="margin:0 0 1.3rem;color:#64748b;line-height:1.55;font-size:.95rem">' + esc(o.message) + '</p>' +
+      '<div style="display:flex;gap:.6rem;justify-content:center">' +
+      '<button type="button" class="pt-btn pt-btn-ghost" id="cr-confirm-no">Cancel</button>' +
+      '<button type="button" class="pt-btn' + (danger ? ' pt-btn-danger' : '') + '" id="cr-confirm-yes">' + esc(o.confirmText || 'Confirm') + '</button></div></div>';
+    document.body.appendChild(bg);
+    function done() { bg.remove(); }
+    bg.addEventListener('mousedown', function (e) { if (e.target === bg) done(); });
+    $('cr-confirm-no').addEventListener('click', done);
+    $('cr-confirm-yes').addEventListener('click', function () { done(); if (o.onConfirm) o.onConfirm(); });
+    (danger ? $('cr-confirm-no') : $('cr-confirm-yes')).focus();
+  }
+
   /* ---------- detail modal ---------- */
   function closeModal() { openRef = null; var m = $('cr-modal'); if (m) m.remove(); document.removeEventListener('keydown', onKey); }
-  function onKey(e) { if (e.key !== 'Escape') return; var m1 = $('cr-msgmenu'); if (m1) { m1.remove(); return; } var pp = $('cr-chatpop'); if (pp && !pp.classList.contains('pt-hide')) { pp.classList.add('pt-hide'); return; } closeModal(); }
+  function onKey(e) { if (e.key !== 'Escape') return; var cf = $('cr-confirm'); if (cf) { cf.remove(); return; } var m1 = $('cr-msgmenu'); if (m1) { m1.remove(); return; } var pp = $('cr-chatpop'); if (pp && !pp.classList.contains('pt-hide')) { pp.classList.add('pt-hide'); return; } closeModal(); }
   function contactLinks(r) {
     var wa = waNumber(r.phone), h = '';
     if (r.phone) h += '<a class="pt-btn pt-btn-ghost pt-btn-sm" href="tel:' + esc(r.phone) + '">Call</a> ';
@@ -441,8 +464,24 @@ var openRef = null;                               // request currently open in t
       mutate(mapAt(at, function (m) { if (m.starred) delete m.starred; else m.starred = true; return m; }), null, m0.starred ? 'Unstarred.' : 'Starred.');
     }
     function doDelete(at) {
-      if (!window.confirm('Delete this message for everyone?\nThe guest will see “This message was deleted”.')) return;
-      mutate(mapAt(at, function (m) { return { from: m.from, text: 'This message was deleted', at: m.at, deleted: true }; }), touch(), 'Message deleted.');
+      confirmBox({
+        title: 'Delete message?',
+        message: 'This deletes the message for everyone. The guest will see “This message was deleted”.',
+        confirmText: 'Delete',
+        icon: 'fa-trash',
+        tone: 'danger',
+        onConfirm: function () {
+          var m0 = findMsg(at), r0 = curReq(); if (!m0) return;
+          P.db.collection('messageAudit').add({
+            action: 'deleted', coll: TABS[k].coll, requestId: id,
+            guestName: r0.name || '', guestEmail: r0.email || '', room: r0.room || '',
+            msgAt: m0.at, msgFrom: m0.from, originalText: m0.text,
+            by: actor(), at: FV().serverTimestamp()
+          }).then(function () {
+            return mutate(mapAt(at, function (m) { return { from: m.from, text: 'This message was deleted', at: m.at, deleted: true }; }), touch(), 'Message deleted.');
+          }).catch(fail);
+        }
+      });
     }
     function doPin(at) {
       var m0 = findMsg(at); if (!m0 || m0.deleted) return;
@@ -572,10 +611,19 @@ var openRef = null;                               // request currently open in t
     mm.addEventListener('click', function (e) {
       var cb = e.target.closest('.cr-chatopen'); if (!cb) return;
       var turnOn = cb.getAttribute('data-on') !== '1';
-      if (turnOn && !window.confirm('Let the guest message you again on this ' + (k === 'faults' ? 'report' : 'request') + '?\n\nOnly do this if it is urgent or necessary.')) return;
-      P.busy(cb, function () { return P.db.collection(TABS[k].coll).doc(id).update({ chatOpen: turnOn }); })
-        .then(function () { P.toast(turnOn ? 'Chat activated. The guest can reply now.' : 'Chat turned off.', 'ok'); })
-        .catch(fail);
+      function applyChatOpen() {
+        P.busy(cb, function () { return P.db.collection(TABS[k].coll).doc(id).update({ chatOpen: turnOn }); })
+          .then(function () { P.toast(turnOn ? 'Chat activated. The guest can reply now.' : 'Chat turned off.', 'ok'); })
+          .catch(fail);
+      }
+      if (!turnOn) { applyChatOpen(); return; }
+      confirmBox({
+        title: 'Re-activate chat?',
+        message: 'Let the guest message you again on this ' + (k === 'faults' ? 'report' : 'request') + '? Only do this if it is urgent or necessary.',
+        confirmText: 'Activate chat',
+        icon: 'fa-comments',
+        onConfirm: applyChatOpen
+      });
     });
     mm.addEventListener('scroll', closeMsgMenu, true);   // capture: catches the chat box and the modal body
     var c0 = $('cr-m-guest'); if (c0) c0.scrollTop = c0.scrollHeight;
@@ -592,7 +640,18 @@ var openRef = null;                               // request currently open in t
         var cur = data[k].filter(function (x) { return x.id === id; })[0] || {};
         var upd = { thread: (openRef && openRef.editAt) ? editStaff(cur, f, openRef.editAt, text) : withStaff(cur, f, text, openRef && openRef.replyTo), handledBy: actor(), updatedAt: FV().serverTimestamp() };
         /* the pinned note is saved separately */
-        P.busy(b, function () { return P.db.collection(TABS[k].coll).doc(id).update(upd); }).then(function () {
+        var editedAt = openRef && openRef.editAt;
+        var before = editedAt ? (chatMsgs(cur, f).filter(function (m) { return m.at === editedAt; })[0] || {}).text : null;
+        P.busy(b, function () {
+          var write = function () { return P.db.collection(TABS[k].coll).doc(id).update(upd); };
+          if (before == null || before === text) return write();
+          return P.db.collection('messageAudit').add({
+            action: 'edited', coll: TABS[k].coll, requestId: id,
+            guestName: cur.name || '', guestEmail: cur.email || '', room: cur.room || '',
+            msgAt: editedAt, msgFrom: 'staff', originalText: before, newText: text,
+            by: actor(), at: FV().serverTimestamp()
+          }).then(write);
+        }).then(function () {
           if (openRef) openRef.editAt = null; var eb = $('cr-m-editbar'); if (eb) eb.classList.add('pt-hide');
           ta.value = '';
           P.toast('Message sent to the guest.', 'ok'); clearReply();

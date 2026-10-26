@@ -282,6 +282,15 @@ async function loadUserRole(uid) {
                 return null;
             }
 
+            // ── Block deactivated users ───────────────────────────────────
+            if (data.status === 'disabled') {
+                console.warn('[Auth] User is deactivated — signing out');
+                sessionStorage.clear();
+                await firebase.auth().signOut();
+                window.location.replace('admin.html?status=disabled');
+                return null;
+            }
+
             const role = (data.role || 'observer').trim().toLowerCase();
             window._userRole = role;
             window._userPageAccess = Array.isArray(data.pageAccess) ? data.pageAccess : null;
@@ -608,6 +617,13 @@ document.addEventListener('DOMContentLoaded', () => {
                         sessionStorage.clear();
                         firebase.auth().signOut();
                         window.location.replace('admin.html?status=rejected');
+                        return;
+                    }
+
+                    if (data.status === 'disabled') {
+                        sessionStorage.clear();
+                        firebase.auth().signOut();
+                        window.location.replace('admin.html?status=disabled');
                         return;
                     }
 

@@ -90,7 +90,8 @@
 
   var BADGE = {
     success: ['ok', 'OK'], sent: ['ok', 'Sent'], failed: ['bad', 'Failed'], missing: ['bad', 'Not sent'],
-    blocked: ['warn', 'Blocked'], warning: ['warn', 'Warning'], pending: ['info', 'Pending'], info: ['info', 'Info']
+    blocked: ['warn', 'Blocked'], warning: ['warn', 'Warning'], pending: ['info', 'Pending'], info: ['info', 'Info'],
+    deleted: ['bad', 'Deleted'], edited: ['warn', 'Edited']
   };
   function badge(k) {
     var b = BADGE[k] || ['info', k];
@@ -101,7 +102,8 @@
     rate_limited: 'Rate limit hit', recaptcha_failed: 'reCAPTCHA failed', recaptcha_low: 'Low reCAPTCHA score',
     double_submit_blocked: 'Double submit blocked', client_error: 'Browser error', sms_rejected: 'SMS rejected',
     booking_created: 'Booking created', booking_failed: 'Booking failed', booking_blocked: 'Booking blocked',
-    email_sent: 'Email sent', email_failed: 'Email failed', sms_sent: 'SMS sent', sms_failed: 'SMS failed'
+    email_sent: 'Email sent', email_failed: 'Email failed', sms_sent: 'SMS sent', sms_failed: 'SMS failed',
+    message_deleted: 'Message deleted', message_edited: 'Message edited'
   };
   function eventName(r) {
     return EVENT_LABEL[r.event] || String(r.event || '').replace(/_/g, ' ') || 'Event';
@@ -135,6 +137,7 @@
   }
   function timeText(r) { return r.tsMs ? new Date(r.tsMs).toISOString() : ''; }
   function sourceCell(r) {
+    if (r.source === 'staff') return '<span class="badge info">staff</span>';
     return r.source === 'client' ? '<span class="badge client" title="Reported by a browser — unverified">client</span>' : '<span class="badge info">server</span>';
   }
 
@@ -230,11 +233,29 @@
       ]
     }
   };
-  var STATUS_LABEL = { success: 'OK', failed: 'Failed', blocked: 'Blocked', warning: 'Warning', info: 'Info' };
+  var CHAT_COLL = { faultReports: 'Fault report', laundryRequests: 'Laundry request' };
+  TABLES.chat = {
+    title: 'Chat log (deleted & edited messages)', icon: 'fa-comments', statuses: ['deleted', 'edited'],
+    filter: function (r) { return r.type === 'chat'; },
+    cols: [
+      cTime,
+      cStatus,
+      { h: 'Guest', c: function (r) { return '<div>' + esc(r.guest || '—') + '</div><div class="sub">' + esc(r.contact) + '</div>'; }, t: function (r) { return r.guest + ' ' + r.contact; } },
+      { h: 'Room', c: function (r) { return esc(r.room || '—'); }, t: function (r) { return r.room; } },
+      { h: 'Request', c: function (r) { return esc(CHAT_COLL[(r.meta || {}).coll] || (r.meta || {}).coll || '—'); }, t: function (r) { return (r.meta || {}).coll; } },
+      { h: 'By', c: function (r) { return esc((r.meta || {}).by || '—'); }, t: function (r) { return (r.meta || {}).by; } },
+      { h: 'Original message',
+        c: function (r) { return '<span class="detail">' + esc((r.meta || {}).original) + '</span><div class="sub">' + (r.status === 'deleted' ? 'deleted' : 'original, before edit') + '</div>'; },
+        t: function (r) { return (r.meta || {}).original; } },
+      { h: 'Edited to', c: function (r) { return r.status === 'edited' ? '<span class="detail">' + esc((r.meta || {}).newText) + '</span>' : '—'; }, t: function (r) { return (r.meta || {}).newText; } },
+      cAct
+    ]
+  };
+  var STATUS_LABEL = { success: 'OK', failed: 'Failed', blocked: 'Blocked', warning: 'Warning', info: 'Info', deleted: 'Deleted', edited: 'Edited' };
 
   /* ───────────── data ───────────── */
   function db() { return firebase.firestore(); }
-  function cacheKey() { return 'mon:v3:' + state.range; }
+  function cacheKey() { return 'mon:v4:' + state.range; }
 
   function normalize(id, d) {
     var ts = d.ts && d.ts.toMillis ? d.ts.toMillis() : 0;
@@ -247,10 +268,29 @@
     };
   }
 
+  function isSuper() { return window._userRole === 'superadmin'; }
+
+  function normalizeChat(id, d) {
+    var ts = d.at && d.at.toMillis ? d.at.toMillis() : 0;
+    return {
+      id: 'chat_' + id, type: 'chat', event: 'message_' + (d.action || ''), status: d.action === 'edited' ? 'edited' : 'deleted', tsMs: ts,
+      bookingId: '', room: d.room || '', guest: d.guestName || '', contact: d.guestEmail || '', guestFull: '', contactFull: '',
+      detail: '', device: {}, net: {}, source: 'staff', deviceId: '', page: '',
+      meta: { original: d.originalText || '', newText: d.newText || '', msgFrom: d.msgFrom || '', by: d.by || '', coll: d.coll || '', requestId: d.requestId || '', msgAt: d.msgAt || 0 }
+    };
+  }
+
   function fetchRows() {
     var since = firebase.firestore.Timestamp.fromMillis(Date.now() - RANGES[state.range]);
-    return db().collection('auditLogs').where('ts', '>=', since).orderBy('ts', 'desc').limit(MAX_DOCS).get()
+    var base = db().collection('auditLogs').where('ts', '>=', since).orderBy('ts', 'desc').limit(MAX_DOCS).get()
       .then(function (snap) { return snap.docs.map(function (d) { return normalize(d.id, d.data()); }); });
+    if (!isSuper()) return base;
+    return base.then(function (rows) {
+      return db().collection('messageAudit').where('at', '>=', since).orderBy('at', 'desc').limit(MAX_DOCS).get()
+        .then(function (snap) { return rows.concat(snap.docs.map(function (d) { return normalizeChat(d.id, d.data()); })); })
+        .catch(function () { return rows; })
+        .then(function (all) { return all.sort(function (a, b) { return b.tsMs - a.tsMs; }); });
+    });
   }
 
   function load(force) {
@@ -262,16 +302,22 @@
 
   function loadDelta() {
     if (!state.rows.length) return load(true);
-    var maxTs = state.rows.reduce(function (m, r) { return Math.max(m, r.tsMs); }, 0);
-    return db().collection('auditLogs')
-      .where('ts', '>', firebase.firestore.Timestamp.fromMillis(maxTs))
-      .orderBy('ts', 'desc').limit(200).get()
-      .then(function (snap) {
+    var maxA = 0, maxC = 0;
+    state.rows.forEach(function (r) { if (r.type === 'chat') maxC = Math.max(maxC, r.tsMs); else maxA = Math.max(maxA, r.tsMs); });
+    var T = function (ms) { return firebase.firestore.Timestamp.fromMillis(ms); };
+    var pA = db().collection('auditLogs').where('ts', '>', T(maxA)).orderBy('ts', 'desc').limit(200).get()
+      .then(function (snap) { return snap.docs.map(function (d) { return normalize(d.id, d.data()); }); });
+    var pC = isSuper()
+      ? db().collection('messageAudit').where('at', '>', T(maxC || Date.now() - RANGES[state.range])).orderBy('at', 'desc').limit(200).get()
+          .then(function (snap) { return snap.docs.map(function (d) { return normalizeChat(d.id, d.data()); }); })
+          .catch(function () { return []; })
+      : Promise.resolve([]);
+    return Promise.all([pA, pC])
+      .then(function (res) {
         var seen = new Set(state.rows.map(function (r) { return r.id; }));
-        var fresh = snap.docs.filter(function (d) { return !seen.has(d.id); })
-          .map(function (d) { return normalize(d.id, d.data()); });
+        var fresh = res[0].concat(res[1]).filter(function (r) { return !seen.has(r.id); });
         if (fresh.length) {
-          state.rows = fresh.concat(state.rows).slice(0, MAX_DOCS);
+          state.rows = fresh.concat(state.rows).sort(function (a, b) { return b.tsMs - a.tsMs; }).slice(0, MAX_DOCS);
           AppCache.set(cacheKey(), state.rows, CACHE_TTL);
         }
         renderAll();  // also refreshes "x min ago" and pending→not-sent states
@@ -490,7 +536,29 @@
     return String(s).replace(/^ANGLE \(/, '').replace(/\)$/, '');
   }
 
+  function chatDetailHtml(r) {
+    var m = r.meta || {}, del = r.status === 'deleted';
+    var out = sec('Event', dl([
+      ['Action', badge(r.status)],
+      ['When', val(fmtFull(r.tsMs)) + ' <span class="sub">(' + esc(ago(r.tsMs)) + ')</span>'],
+      ['Done by', val(m.by)],
+      ['Message originally sent', val(m.msgAt ? fmtFull(m.msgAt) : '')],
+      ['Event ID', '<code>' + esc(r.id) + '</code>']
+    ]));
+    out += sec('Conversation', dl([
+      ['Guest', val(r.guest)],
+      ['E-mail', val(r.contact)],
+      ['Room', val(r.room)],
+      ['Request type', val(CHAT_COLL[m.coll] || m.coll)],
+      ['Request ID', m.requestId ? '<code>' + esc(m.requestId) + '</code>' : val('')]
+    ]));
+    out += sec(del ? 'Original message (deleted)' : 'Original message (before edit)', '<div class="mon-pre">' + esc(m.original) + '</div>');
+    if (!del) out += sec('Edited to', '<div class="mon-pre">' + esc(m.newText) + '</div>');
+    return out;
+  }
+
   function detailHtml(r) {
+    if (r.type === 'chat') return chatDetailHtml(r);
     var d = r.device || {}, n = r.net || {}, m = r.meta || {};
     var out = '';
 
@@ -666,6 +734,7 @@
 
   function start() {
     $('mon-app').style.display = '';
+    if (!isSuper()) { var cc = $('q-chat'); if (cc) cc.closest('.card').style.display = 'none'; }
     load(false);
   }
   function deny(msg) {
